@@ -1029,3 +1029,8 @@ double gravfac2(double r, double mass);
 void grav_accel_jerk(double mass, double dx[3], double dv[3], double accel[3], double jerk[3]);
 double eccentric_anomaly(double mean_anomaly, double ecc);
 #endif
+
+#ifdef PBH_EVAPORATION_FEEDBACK
+void    pbh_evaporation_calculate_dm_density_for_gas_particles(void);
+void    apply_receiver_pbh_evaporation_feedback(void);
+#endif

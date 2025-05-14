@@ -121,7 +121,7 @@ void run(void)
 #endif
 
         compute_hydro_densities_and_forces();	/* densities, gradients, & hydro-accels for synchronous particles */
-        
+
 #ifdef PARTICLE_MERGE_SPLIT_EVERY_TIMESTEP // do merge/split routines every single timestep - need to do it here if we didn't do it during domain decomp on a coarse timestep
         if(!reconstructed_tree)
         {
@@ -129,7 +129,7 @@ void run(void)
             rearrange_particle_sequence();
         }
 #endif
-        
+
         do_second_halfstep_kick();	/* this does the half-step kick at the end of the timestep */
 
         calculate_non_standard_physics();	/* source terms are here treated in a strang-split fashion */
@@ -248,7 +248,7 @@ void calculate_non_standard_physics(void)
     //compute_stellar_feedback();
 #endif
 
-    
+
 #ifdef BLACK_HOLES /***** black hole accretion and feedback *****/
     CPU_Step[CPU_MISC] += measure_time();
     blackhole_accretion();
@@ -313,6 +313,15 @@ void calculate_non_standard_physics(void)
 
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
     int i; for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i]){if(P[i].Type == 5 && P[i].do_gas_search_this_timestep){P[i].dt_since_last_gas_search = 0;}}
+#endif
+
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+    // First, calculate the local DM density at gas particle positions
+    // This needs to be done before applying the feedback that uses this DM density.
+    pbh_evaporation_calculate_dm_density_for_gas_particles();
+
+    // Then, apply the PBH evaporation feedback using the calculated DM densities
+    apply_receiver_pbh_evaporation_feedback();
 #endif
 
 }
