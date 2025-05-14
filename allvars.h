@@ -400,7 +400,7 @@ extern struct Chimes_depletion_data_structure *ChimesDepletionData;
 
 #if defined(SINGLE_STAR_FB_RT_HEATING) && !(defined(RT_OTVET) || defined(RT_FLUXLIMITEDDIFFUSION) || defined(RT_M1) || defined(RT_LOCALRAYGRID))
 #define GALSF_FB_FIRE_RT_LONGRANGE  // turn on FIRE RT approximation: no Type-4 particles so don't worry about its approximations
-#define BH_PHOTONMOMENTUM // enable BHs within the FIRE-RT framework. 
+#define BH_PHOTONMOMENTUM // enable BHs within the FIRE-RT framework.
 #define RT_DISABLE_RAD_PRESSURE
 #endif
 
@@ -419,7 +419,7 @@ extern struct Chimes_depletion_data_structure *ChimesDepletionData;
 
 #if defined(SINGLE_STAR_FB_JETS) || ((defined(SINGLE_STAR_FB_WINDS) || defined(SINGLE_STAR_FB_SNE)) && defined(FLAG_NOT_IN_PUBLIC_CODE))
 #define BH_WIND_SPAWN (2) // leverage the BHFB model already developed within the FIRE-BHs framework. gives accurate launching of arbitrarily-structured jets.
-#if !defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM) 
+#if !defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
 #define MAINTAIN_TREE_IN_REARRANGE // don't rebuild the domains/tree every time a particle is spawned - salvage the existing one by redirecting pointers as needed
 #endif
 #endif
@@ -494,10 +494,10 @@ extern struct Chimes_depletion_data_structure *ChimesDepletionData;
 #endif
 
 #ifdef ADAPTIVE_TREEFORCE_UPDATE // instead of going into the tree every timestep, only update gravity with a frequency set by this fraction of dynamical timescale (default for gas only)
-#ifndef TIDAL_TIMESTEP_CRITERION 
+#ifndef TIDAL_TIMESTEP_CRITERION
 #define TIDAL_TIMESTEP_CRITERION // need this to estimate the dynamical time
-#endif    
-#endif    
+#endif
+#endif
 
 
 #if (SINGLE_STAR_TIMESTEPPING > 0) /* if single-star timestepping is on, need to make sure the binary-identification flag is active */
@@ -1127,6 +1127,8 @@ typedef unsigned long long peano1D;
 #define  ELECTRONMASS_CGS   (9.10953e-28)
 #define  THOMPSON_CX_CGS    (6.65245e-25)
 #define  ELECTRONCHARGE_CGS (4.8032e-10)
+#define  PLANCK_H_CGS       (6.6261e-27)
+#define  PLANCK_HBAR_CGS    (1.05457e-27)
 #define  SECONDS_PER_YEAR   (3.155e7)
 #define  HUBBLE_H100_CGS    (3.2407789e-18)	/* in h/sec */
 #define  ELECTRONVOLT_IN_ERGS (1.60217733e-12)
@@ -1449,7 +1451,7 @@ typedef MyDouble MyBigFloat;
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
 #define PPPZ P
 #else
-#define PPPZ SphP 
+#define PPPZ SphP
 #endif
 
 #ifdef BOX_PERIODIC
@@ -2099,7 +2101,7 @@ extern struct global_data_all_processes
     int FileNumberTurbSpectrum;
 #endif
 #endif
-    
+
 #ifdef RADTRANSFER
     integertime Radiation_Ti_begstep;
     integertime Radiation_Ti_endstep;
@@ -2217,7 +2219,7 @@ extern struct global_data_all_processes
 #ifdef GALSF_FB_FIRE_RT_HIIHEATING
     double HIIRegion_fLum_Coupled;
 #endif
-    
+
 #ifdef GALSF_FB_FIRE_AGE_TRACERS
     double AgeTracerRateNormalization;              /* Determines Fraction of time to do age tracer deposition (with checks depending on time bin width for current star) */
 #ifdef GALSF_FB_FIRE_AGE_TRACERS_CUSTOM
@@ -2249,18 +2251,18 @@ extern struct global_data_all_processes
 #if defined(BH_COSMIC_RAYS)
     double BH_CosmicRay_Injection_Efficiency;
 #endif
-    
+
 #ifdef COSMIC_RAY_SUBGRID_LEBRON
     double CosmicRay_Subgrid_Vstream_0;
     double CosmicRay_Subgrid_Kappa_0;
 #endif
 
-    
+
 #if defined(RADTRANSFER) || defined(RT_USE_GRAVTREE)
     double RHD_bins_nu_min_ev[N_RT_FREQ_BINS]; /* minimum frequency of the radiation 'bin' in eV */
     double RHD_bins_nu_max_ev[N_RT_FREQ_BINS]; /* maximum frequency of the radiation 'bin' in eV */
 #endif
-    
+
 #ifdef METALS
     double SolarAbundances[NUM_METAL_SPECIES];
 #ifdef COOL_METAL_LINES_BY_SPECIES
@@ -2268,7 +2270,7 @@ extern struct global_data_all_processes
 #endif
 #endif
 
-    
+
 #if defined(GALSF_ISMDUSTCHEM_MODEL)
     double Initial_ISMDustChem_Depletion; /* initial depletion for silicate dust species if defined */
     double Initial_ISMDustChem_SiliconToCarbonRatio; /* sets rough mass ratio between silicates are carbonaceous dust for given initial depletion */
@@ -2279,7 +2281,7 @@ extern struct global_data_all_processes
     double ISMDustChem_EffectiveSilicateDustAtomicWeight; /* atomic weight of one formula unit of silicate dust, depends on which optional module you use */
 #endif
 
-    
+
 #ifdef GR_TABULATED_COSMOLOGY
   double DarkEnergyConstantW;	/*!< fixed w for equation of state */
 #if defined(GR_TABULATED_COSMOLOGY_W) || defined(GR_TABULATED_COSMOLOGY_G) || defined(GR_TABULATED_COSMOLOGY_H)
@@ -2383,7 +2385,7 @@ extern struct global_data_all_processes
 #ifdef EOS_TABULATED
     char EosTable[100];
 #endif
-    
+
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
     double SMBH_SpecialParticle_Position_ForRefinement[3];
     double Mass_Accreted_By_SpecialSMBHParticle;
@@ -2438,6 +2440,11 @@ extern struct global_data_all_processes
   double BH_fb_duty_cycle;
   double BH_fb_period;
 #endif
+
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+  double PBH_MassFraction_f;         /*!< Mass fraction of dark matter in primordial black holes */
+  double PBH_InitialMass_grams;      /*!< Initial mass of a single primordial black hole in grams */
+  double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units)
 
 }
 All;
@@ -2502,15 +2509,15 @@ extern ALIGN(32) struct particle_data
     double tidal_tensorpsPM[3][3];                      /*!< for TreePM simulations, long range tidal field */
 #endif
 #endif
-    
+
 #ifdef ADAPTIVE_TREEFORCE_UPDATE
     MyFloat time_since_last_treeforce;
     MyFloat tdyn_step_for_treeforce;
 #ifndef COMPUTE_JERK_IN_GRAVTREE
-#define COMPUTE_JERK_IN_GRAVTREE    
-#endif    
+#define COMPUTE_JERK_IN_GRAVTREE
 #endif
-    
+#endif
+
 #ifdef COMPUTE_JERK_IN_GRAVTREE
     double GravJerk[3];
 #endif
@@ -2695,10 +2702,10 @@ extern ALIGN(32) struct particle_data
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
     MyFloat MaxFeedbackVel; // maximum signal velocity of any feedback mechanism emanating from the star
     MyFloat min_bh_fb_time;  // minimum time for feedback to arrive from a star
-#endif    
 #endif
 #endif
-   
+#endif
+
 
 
 #if defined(DM_SIDM)
@@ -2741,7 +2748,7 @@ extern ALIGN(32) struct particle_data
 #if defined(FIRE_SUPERLAGRANGIAN_JEANS_REFINEMENT) || defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
     MyFloat Time_Of_Last_MergeSplit;
 #endif
-    
+
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
     MyDouble AGS_Hsml;          /*!< smoothing length (for gravitational forces) */
     MyFloat AGS_zeta;           /*!< factor in the correction term */
@@ -2829,7 +2836,7 @@ extern struct gas_cell_data
 #ifdef HYDRO_EXPLICITLY_INTEGRATE_VOLUME
     MyDouble Density_ExplicitInt;   /*!< explicitly integrated volume/density variable to be used if integrating the SPH-like form of the continuity directly */
 #endif
-    
+
 #ifdef HYDRO_VOLUME_CORRECTIONS
     MyDouble Volume_0;              /*!< 0th-order cell volume for mesh-free (MFM/MFV-type) reconstruction at 0th-order volume quadrature */
     MyDouble Volume_1;              /*!< 1st-order cell volume for mesh-free (MFM/MFV-type) reconstruction at 1st-order volume quadrature */
@@ -2843,7 +2850,7 @@ extern struct gas_cell_data
     MyDouble ISMDustChem_C_in_CO;                      /*!< C metallicity locked in CO */
     MyDouble ISMDustChem_MassFractionInDenseMolecular; /*!< mass fraction of gas in dense MC phase */
 #endif
-    
+
 #ifdef MAGNETIC
     MyDouble Face_Area[3];          /*!< vector sum of effective areas of 'faces'; this is used to check closure for meshless methods */
     MyDouble BPred[3];              /*!< current magnetic field strength */
@@ -2881,7 +2888,7 @@ extern struct gas_cell_data
 #if defined(CRFLUID_INJECTION_AT_SHOCKS)
     MyFloat DtCREgyNewInjectionFromShocks;              /*!< scalar to record energy injection at shock interfaces for acceleration from resolved shocks */
 #endif
-#if defined(BH_CR_INJECTION_AT_TERMINATION) 
+#if defined(BH_CR_INJECTION_AT_TERMINATION)
     MyDouble BH_CR_Energy_Available_For_Injection;     /*!< Energy reservoir from CRs */
 #endif
 #ifdef CRFLUID_M1
@@ -2957,16 +2964,16 @@ extern struct gas_cell_data
 
     MyFloat MaxSignalVel;           /*!< maximum signal velocity (needed for time-stepping) */
     int recent_refinement_flag;     /*!< key that tells the code this cell was just refined or de-refined, to know to treat some other operations with care */
-    
+
 #ifdef GALSF_FB_FIRE_RT_UVHEATING
     MyFloat Rad_Flux_UV;              /*!< local UV field strength */
     MyFloat Rad_Flux_EUV;             /*!< local (ionizing/hard) UV field strength */
 #endif
 
-#if defined(BH_WIND_SPAWN_SET_BFIELD_POLTOR) 
+#if defined(BH_WIND_SPAWN_SET_BFIELD_POLTOR)
     MyDouble IniDen;
     MyDouble IniB[3];
-#endif     
+#endif
 
 #ifdef CHIMES_STELLAR_FLUXES
     double Chimes_G0[CHIMES_LOCAL_UV_NBINS];            /*!< 6-13.6 eV flux, in Habing units */
@@ -3388,7 +3395,7 @@ extern struct gravdata_out
 #endif
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
     MyFloat min_bh_fb_time; // minimum time for feedback to arrive from a star
-#endif    
+#endif
 #endif
 #endif
 }
@@ -3496,7 +3503,7 @@ enum iofields
   IO_SFR,
   IO_AGE,
   IO_GRAINSIZE,
-  IO_DUST_TO_GAS, 
+  IO_DUST_TO_GAS,
   IO_GRAINTYPE,
   IO_HSMS,
   IO_Z,
@@ -3723,7 +3730,7 @@ extern ALIGN(32) struct NODE
     MyFloat bh_lum;		    /*!< luminosity of BHs in the node */
     MyFloat bh_lum_grad[3];	/*!< gradient vector for gas around BH (for angular dependence) */
 #endif
-    
+
 #ifdef COSMIC_RAY_SUBGRID_LEBRON
     MyFloat cr_injection;
 #endif
@@ -3739,7 +3746,7 @@ extern ALIGN(32) struct NODE
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
   MyFloat MaxFeedbackVel;
 #endif
-#endif    
+#endif
 #endif
 
 #ifdef RT_SEPARATELY_TRACK_LUMPOS

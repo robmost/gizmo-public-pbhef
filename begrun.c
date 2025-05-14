@@ -60,6 +60,12 @@ void begrun(void)
       printf("\nSize of particle structure       %d  [bytes]\n", (int) sizeof(struct particle_data));
       printf("Size of hydro-cell structure   %d  [bytes]\n\n", (int) sizeof(struct gas_cell_data));
 
+#ifdef PBH_EVAPORATION_FEEDBACK)
+      printf("\nPBH Evaporation feedback activated\nReceived-based approach, feedback calculated at gas positions\n");
+#endif
+#ifdef PBH_EVAPORATION_FEEDBACK_DM
+      printf("\nPBH Evaporation feedback DM activated\nDonor-based approach, feedback calculated at DM positions\n");
+#endif
     }
 
 #ifdef CHIMES_TURB_DIFF_IONS
@@ -227,7 +233,7 @@ void begrun(void)
     init_geofactor_table();
 #endif
 
-    
+
   All.TimeLastRestartFile = CPUThisRun;
 
   if(RestartFlag == 0 || RestartFlag == 2 || RestartFlag == 3 || RestartFlag == 4 || RestartFlag == 5 || RestartFlag == 6)
@@ -292,7 +298,7 @@ void begrun(void)
 
         All.OutputListOn = all.OutputListOn;
         All.CourantFac = all.CourantFac;
-        
+
         All.OutputListLength = all.OutputListLength;
         memcpy(All.OutputListTimes, all.OutputListTimes, sizeof(double) * All.OutputListLength);
         memcpy(All.OutputListFlag, all.OutputListFlag, sizeof(char) * All.OutputListLength);
@@ -478,7 +484,7 @@ void begrun(void)
     rt_get_sigma();
 #endif
 #endif
-    
+
 #if defined(RADTRANSFER) || defined(RT_USE_GRAVTREE)
     rt_define_effective_frequencies_in_bands();
 #endif
@@ -530,7 +536,7 @@ void set_units(void)
       printf("  unit B[internal] in gauss  = %g \n", UNIT_B_IN_GAUSS);
       printf("\n");
     }
-    
+
 #if !defined(SELFGRAVITY_OFF)
     if(ThisTask==0)
     {
@@ -586,6 +592,26 @@ void set_units(void)
    * one gets the electron mean free path in centimeters. Since we want to compare this with another length
    * scale in code units, we now add an additional factor to convert back to code units. */
   All.ElectronFreePathFactor /= UNIT_LENGTH_IN_CGS;
+#endif
+
+
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+    if(ThisTask == 0)
+    {
+      printf("PBH Evaporation Feedback Parameters: PBH_MassFraction_f = %g, PBH_InitialMass_grams = %g\n", All.PBH_MassFraction_f, All.PBH_InitialMass_grams);
+    }
+
+    // Calculate the PBH evaporation constant in code units
+    // C_U = hbar * c^6 / G^2  (units: g^3 cm^2 s^-3 in cgs)
+    double pbh_evaporation_constant_cgs = PLANCK_HBAR_CGS * pow(C_LIGHT_CGS, 6.0) / pow(GRAVITY_G_CGS, 2.0);
+
+    All.PBH_EvaporationConstant = pbh_evaporation_constant_cgs / (pow(UNIT_MASS_IN_CGS, 3.0) * pow(UNIT_LENGTH_IN_CGS, 2.0) * pow(UNIT_TIME_IN_CGS, -3.0));
+
+    if(ThisTask == 0)
+    {
+      printf("PBH_EvaporationConstant (cgs): %g\n", pbh_evaporation_constant_cgs);
+      printf("PBH_EvaporationConstant (code units): %g\n", All.PBH_EvaporationConstant);
+    }
 #endif
 
 
@@ -783,25 +809,25 @@ void read_parameter_file(char *fname)
         if(ThisTask == 0) {printf("\nType `long long' is not 64 bit on this platform. Stopping.\n\n");}
         endrun(0);
     }
-    
+
     if(sizeof(int) != 4)
     {
         if(ThisTask == 0) {printf("\nType `int' is not 32 bit on this platform. Stopping.\n\n");}
         endrun(0);
     }
-    
+
     if(sizeof(float) != 4)
     {
         if(ThisTask == 0) {printf("\nType `float' is not 32 bit on this platform. Stopping.\n\n");}
         endrun(0);
     }
-    
+
     if(sizeof(double) != 8)
     {
         if(ThisTask == 0) {printf("\nType `double' is not 64 bit on this platform. Stopping.\n\n");}
         endrun(0);
     }
-    
+
 
   if(ThisTask == 0)		/* read parameter file on process 0 */
     {
@@ -869,7 +895,7 @@ void read_parameter_file(char *fname)
       strcpy(alternate_tag[nt], "Omega_Radiation");
       addr[nt] = &All.OmegaRadiation;
       id[nt++] = REAL;
-        
+
       strcpy(tag[nt], "HubbleParam");
       strcpy(alternate_tag[nt], "Hubble_Param_Little_h");
       addr[nt] = &All.HubbleParam;
@@ -1023,13 +1049,13 @@ void read_parameter_file(char *fname)
         strcpy(tag[nt],"Vertical_Grain_Accel_Angle");
         addr[nt] = &All.Vertical_Grain_Accel_Angle;
         id[nt++] = REAL;
-        
+
 #ifdef BOX_SHEARING
         strcpy(tag[nt],"Pressure_Gradient_Accel");
         addr[nt] = &All.Pressure_Gradient_Accel;
         id[nt++] = REAL;
 #endif
-        
+
 #ifdef RT_OPACITY_FROM_EXPLICIT_GRAINS
         strcpy(tag[nt],"Grain_Q_at_MaxGrainSize");
         addr[nt] = &All.Grain_Q_at_MaxGrainSize;
@@ -1099,7 +1125,7 @@ void read_parameter_file(char *fname)
         addr[nt] = &All.CosmicRay_SNeFraction;
         id[nt++] = REAL;
 #endif
-        
+
 #ifdef COSMIC_RAY_SUBGRID_LEBRON
         strcpy(tag[nt], "CosmicRay_Subgrid_Kappa_0");
         strcpy(alternate_tag[nt], "CosmicRay_Subgrid_Kappa_0");
@@ -1111,7 +1137,7 @@ void read_parameter_file(char *fname)
         addr[nt] = &All.CosmicRay_Subgrid_Vstream_0;
         id[nt++] = REAL;
 #endif
-        
+
 
 #ifdef GALSF_FB_FIRE_RT_LOCALRP
         strcpy(tag[nt], "WindMomentumLoading");
@@ -2043,6 +2069,17 @@ void read_parameter_file(char *fname)
 #endif
 #endif  // CHIMES
 
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+      strcpy(tag[nt], "PBH_MassFraction_f");
+      addr[nt] = &All.PBH_MassFraction_f;
+      id[nt++] = REAL;
+
+      strcpy(tag[nt], "PBH_InitialMass_grams"); // This tag must match your parameter file
+      addr[nt] = &All.PBH_InitialMass_grams;
+      id[nt++] = REAL;
+#endif
+
+
         if((fd = fopen(fname, "r")))
         {
             sprintf(buf, "%s%s", fname, "-usedvalues");
@@ -2207,7 +2244,7 @@ void read_parameter_file(char *fname)
                 if(strcmp("BoxSize",tag[i])==0) {*((double *)addr[i])=0; continue;} /* can ignore box size */
 #endif
 #ifdef SELFGRAVITY_OFF /* can ignore softenings here */
-                if(strcmp("SofteningGas",tag[i])==0) {*((double *)addr[i])=0; continue;} 
+                if(strcmp("SofteningGas",tag[i])==0) {*((double *)addr[i])=0; continue;}
                 if(strcmp("SofteningHalo",tag[i])==0) {*((double *)addr[i])=0; continue;}
                 if(strcmp("SofteningDisk",tag[i])==0) {*((double *)addr[i])=0; continue;}
                 if(strcmp("SofteningBulge",tag[i])==0) {*((double *)addr[i])=0; continue;}
@@ -2277,6 +2314,10 @@ void read_parameter_file(char *fname)
                 if(strcmp("AgeTracerBinStart",tag[i])==0) {*((double *)addr[i])=1.; printf("Tag %s (%s) not set in parameter file: left-edge of first age-tracer bin is early in stellar evolution (=%g Myr) \n",tag[i],alternate_tag[i],All.AgeTracerBinStart); continue;}
                 if(strcmp("AgeTracerBinEnd",tag[i])==0) {*((double *)addr[i])=14000.; printf("Tag %s (%s) not set in parameter file: right-edge of last age-tracer bin is at ~t_Hubble (=%g Myr) \n",tag[i],alternate_tag[i],All.AgeTracerBinEnd); continue;}
 #endif
+#endif
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+                if(strcmp("PBH_MassFraction_f",tag[i])==0) {*((double *)addr[i])=0.1; printf("Tag %s (%s) not set in parameter file: defaulting to a fraction of PBHs in DM particles of (=%g) \n",tag[i],alternate_tag[i],All.PBH_MassFraction_f); continue;}
+                if(strcmp("PBH_InitialMass_grams",tag[i])==0) {*((double *)addr[i])=1.0e15; printf("Tag %s (%s) not set in parameter file: defaulting to an initial PBH mass relevant at z~99 of (=%g grams) \n",tag[i],alternate_tag[i],All.PBH_InitialMass_grams); continue;}
 #endif
                 printf("ERROR. I miss a required value for tag '%s' (or alternate name '%s') in parameter file '%s'.\n", tag[i], alternate_tag[i], fname);
                 errorFlag = 1;
@@ -2384,7 +2425,7 @@ void read_parameter_file(char *fname)
     All.ArtMagDispConst = 1.0;
 #endif
 #endif
-    
+
 #ifdef DIVBCLEANING_DEDNER
 #ifdef MHD_CONSTRAINED_GRADIENT
     All.DivBcleanParabolicSigma = 1.0;
@@ -2439,7 +2480,7 @@ void read_parameter_file(char *fname)
     if(All.ErrTolTheta > 0.5) {All.ErrTolTheta = 0.5;}
     if(All.MaxNumNgbDeviation > 0.05) {All.MaxNumNgbDeviation = 0.05;}
 #endif
-    
+
 #if defined(MAGNETIC) || defined(HYDRO_MESHLESS_FINITE_VOLUME) || defined(BH_WIND_SPAWN)
     if(All.CourantFac > 0.2) {All.CourantFac = 0.2;}
     /* (PFH) safety factor needed for MHD calc, because people keep using the same CFac as hydro! */
@@ -2569,6 +2610,16 @@ void read_parameter_file(char *fname)
 #endif
 #endif
 
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+    if(All.PBH_MassFraction_f < 0.0 || All.PBH_MassFraction_f > 1.0)
+    {
+        if(ThisTask == 0) {printf("PBH_MassFraction_f must be between 0 and 1 (inclusive)\n"); endrun(1);}
+    }
+    if(All.PBH_InitialMass_grams <= 0.0)
+    {
+        if(ThisTask == 0) {printf("PBH_InitialMass_grams must be > 0\n"); endrun(1);}
+    }
+#endif
 
 
 

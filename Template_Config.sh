@@ -208,7 +208,7 @@
 #GALSF_SFR_VIRIAL_SF_CRITERION=0 # [if not using GALSF_SFR_CRITERION]: only allow star formation in virialized sub-regions (alpha<1) (0/no value='default'; 1='strict' (zero sf if not bound)); 2=1+time-smoothed estimator; 3=2+Jeans criterion; 4=3+check if converging along all-3 principle axes. 5=4+Tidal Hill criterion (tidal tensor converging in all dimensions). Cite Hopkins, Narayanan, & Murray 2013 (MNRAS, 432, 2647) and Hopkins et al., 2017a, arXiv:1702.06148; (or Grudic et al. arXiv:1708.09065 for option=3,4,5)
 #GALSF_SFR_VIRIAL_CONTINUOUS=2   # instead of a threshold, implements a semi-continuous SF efficiency as a function of alpha_vir. set 0=step function between 1 and 0.01; 1=Padoan 2012 prescription; 2=multi-free-fall model, as in e.g. Federrath+Klessen 2012/2013 ApJ 761,156; 763,51 (similar to that implemented in e.g. Kretschmer+Teyssier 2020), based on the analytic models in Hopkins MNRAS 2013, 430 1653, with correct virial parameter
 #GALSF_SFR_IMF_VARIATION         # determines the stellar IMF for each particle from the Guszejnov/Hopkins/Hennebelle/Chabrier/Padoan theory. Cite Guszejnov, Hopkins, & Ma 2017, MNRAS, 472, 2107
-#GALSF_SFR_IMF_SAMPLING          # discretely sample the IMF: simplified model with quantized number of massive stars. Cite Kung-Yi Su, Hopkins, et al., Hayward, et al., 2017, "Discrete Effects in Stellar Feedback: Individual Supernovae, Hypernovae, and IMF Sampling in Dwarf Galaxies". 
+#GALSF_SFR_IMF_SAMPLING          # discretely sample the IMF: simplified model with quantized number of massive stars. Cite Kung-Yi Su, Hopkins, et al., Hayward, et al., 2017, "Discrete Effects in Stellar Feedback: Individual Supernovae, Hypernovae, and IMF Sampling in Dwarf Galaxies".
 #GALSF_GENERATIONS=1             # the number of star particles a gas particle may spawn (defaults to 1, set otherwise if desired)
 ## ----------------------------------------------------------------------------------------------------------------------------
 # ---- sub-grid models (for large-volume simulations or modest/low resolution galaxy simulations) -----------------------------
@@ -439,6 +439,11 @@
 #CRFLUID_ALT_RSOL_FORM            #  enable the alternative reduced-speed-of-light formulation where 1/reduced_c appears in front of all D/Dt terms, as opposed to only in the flux equation. converges more slowly but accurately. will get made default, we think, once de-bugged
 ####################################################################################################
 
+####################################################################################################
+#--------------------------------------- PBH Evaporation Feedback Module
+#PBH_EVAPORATION_FEEDBACK          # Enable PBH evaporation feedback [receiver-based: energy injection calculated at gas particle location]
+#PBH_EVAPORATION_FEEDBACK_DM      # Enable PBH evaporation feedback [donor-based: energy injection calculated at dm particle location] (Future extension)
+####################################################################################################
 
 
 ####################################################################################################
