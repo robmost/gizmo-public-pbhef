@@ -788,7 +788,7 @@ void hydro_final_operations_and_cleanup(void)
 			SphP[i].DtInternalEnergy += (P[i].DensityDM / P[i].Mass);
 #else
             dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // should be in 10^10 Msol/kpc^3
-            heat_source = UNIT_TIME_IN_CGS * All.MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.Alpha / pow(All.InitialMass, 3.0)
+            heat_source = UNIT_TIME_IN_CGS * All.PBH_MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.PBH_Alpha / pow(All.PBH_InitialMass, 3.0);
 
             // Add internal energy created by PBH evaporation
 			SphP[i].DtInternalEnergy += (1.0 / All.cf_atime * heat_source);

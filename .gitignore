@@ -6,4 +6,12 @@ GIZMO-PBHEF.code-workspace
 # Ignore initial condition files and exact solutions in  test problems
 scripts/test_problems/ics/*
 scripts/test_problems/exact_solutions/*
+scripts/test_problems/outputs/*
 
+# Ignore compilation files
+*.o
+*.mod
+*.out
+compile_time_info.c
+GIZMO_config.h
+GIZMO*

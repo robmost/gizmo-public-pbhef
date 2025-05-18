@@ -60,7 +60,7 @@ void begrun(void)
       printf("\nSize of particle structure       %d  [bytes]\n", (int) sizeof(struct particle_data));
       printf("Size of hydro-cell structure   %d  [bytes]\n\n", (int) sizeof(struct gas_cell_data));
 
-#ifdef PBH_EVAPORATION_FEEDBACK)
+#ifdef PBH_EVAPORATION_FEEDBACK
       printf("\nPBH evaporation feedback activated\nReceiver-based approach, feedback calculated at gas positions\n");
 #endif
 #ifdef PBH_EVAPORATION_FEEDBACK_DM
@@ -442,10 +442,10 @@ void begrun(void)
 #endif
 
 #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-      strcpy(All.PBH_MassFraction, all.PBH_MassFraction);
-      strcpy(All.PBH_InitialMass, all.PBH_InitialMass);
-      strcpy(All.PBH_EvaporationConstant, all.PBH_EvaporationConstant);
-      strcpy(All.PBH_Alpha, all.PBH_Alpha);
+      All.PBH_MassFraction = all.PBH_MassFraction;
+      All.PBH_InitialMass = all.PBH_InitialMass;
+      All.PBH_EvaporationConstant = all.PBH_EvaporationConstant;
+      All.PBH_Alpha = all.PBH_Alpha;
 #endif
 
       if(All.TimeMax != all.TimeMax) {readjust_timebase(All.TimeMax, all.TimeMax);}

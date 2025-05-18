@@ -1035,5 +1035,5 @@ void dm_setup_smoothinglengths(void);
 void dm_density(void);
 int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration);
 int dm_density_isactive(int n);
-double calculate_alpha(double m_pbh_initial_grams)
+double calculate_alpha(double m_pbh_initial_grams);
 #endif

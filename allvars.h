@@ -1430,8 +1430,12 @@ typedef MyDouble MyBigFloat;
 #define CPU_DUMMY08       55
 #define CPU_DUMMY09       56
 #define CPU_DUMMY10       57
+#define CPU_PBHEFDMDENSCOMPUTE  58
+#define CPU_PBHEFDMDENSWAIT     59
+#define CPU_PBHEFDMDENSCOMM     60
+#define CPU_PBHEFDMDENSMISC     61
 
-#define CPU_PARTS          58  /* this gives the number of parts above (must be last) */
+#define CPU_PARTS          62  /* this gives the number of parts above (must be last) */
 
 #define CPU_STRING_LEN 120
 

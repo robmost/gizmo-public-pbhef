@@ -137,9 +137,9 @@ int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodeco
                     /* for everything below, we do NOT include the particle self-contribution! */
                     if(kernel.r > 0)
                     {
-                        kernel.dv[0] = local.Vel[0] - SphP[j].Vel[0];  // we use Vel here to estimate divergence since VelPred is not calculated for DM particles
-                        kernel.dv[1] = local.Vel[1] - SphP[j].Vel[1];
-                        kernel.dv[2] = local.Vel[2] - SphP[j].Vel[2];
+                        kernel.dv[0] = local.Vel[0] - P[j].Vel[0];  // we use Vel here to estimate divergence since VelPred is not calculated for DM particles
+                        kernel.dv[1] = local.Vel[1] - P[j].Vel[1];
+                        kernel.dv[2] = local.Vel[2] - P[j].Vel[2];
 
                         NGB_SHEARBOX_BOUNDARY_VELCORR_(local.Pos,P[j].Pos,kernel.dv,1); /* wrap velocities for shearing boxes if needed */
 
@@ -164,7 +164,7 @@ int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodeco
 void dm_density(void)
 {
     /* initialize variables used below, in particlar the structures we need to call throughout the iteration */
-    CPU_Step[CPU_MISC] += measure_time(); double t00_truestart = my_second(); MyFloat *LeftDM, *RightDM; double fac, fac_lim, desnumngb, desnumngbdev; long long ntot;
+    CPU_Step[CPU_PBHEFDMDENSMISC] += measure_time(); double t00_truestart = my_second(); MyFloat *LeftDM, *RightDM; double fac, fac_lim, desnumngb, desnumngbdev; long long ntot;
     int i, k, npleft, iter=0, redo_particle, particle_set_to_minhsmlDM_flag = 0, particle_set_to_maxhsmlDM_flag = 0;
     LeftDM = (MyFloat *) mymalloc("LeftDM", NumPart * sizeof(MyFloat));
     RightDM = (MyFloat *) mymalloc("RightDM", NumPart * sizeof(MyFloat));
@@ -442,8 +442,8 @@ void dm_density(void)
 
     /* collect some timing information */
     double t1; t1 = WallclockTime = my_second(); timeall = timediff(t00_truestart, t1);
-    CPU_Step[CPU_DENSCOMPUTE] += timecomp; CPU_Step[CPU_DENSWAIT] += timewait;
-    CPU_Step[CPU_DENSCOMM] += timecomm; CPU_Step[CPU_DENSMISC] += timeall - (timecomp + timewait + timecomm);
+    CPU_Step[CPU_PBHEFDMDENSCOMPUTE] += timecomp; CPU_Step[CPU_PBHEFDMDENSWAIT] += timewait;
+    CPU_Step[CPU_PBHEFDMDENSCOMM] += timecomm; CPU_Step[CPU_PBHEFDMDENSMISC] += timeall - (timecomp + timewait + timecomm);
 }
 #include "../system/code_block_xchange_finalize.h" /* de-define the relevant variables and macros to avoid compilation errors and memory leaks */
 
