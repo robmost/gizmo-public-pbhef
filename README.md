@@ -2,6 +2,8 @@ Welcome!
 
 This is **GIZMO**: a flexible, multi-method multi-physics code. The code solves the fluid using Lagrangian mesh-free finite-volume Godunov methods (or SPH, or fixed-grid Eulerian methods), and self-gravity with fast hybrid PM-Tree methods and fully-adaptive resolution. Other physics include: magnetic fields (ideal and non-ideal), radiation-hydrodynamics, anisotropic conduction and viscosity, sub-grid turbulent diffusion, radiative cooling, cosmological integration, sink particles, dust-gas mixtures, cosmic rays, degenerate equations of state, galaxy/star/black hole formation and feedback, self-interacting and scalar-field dark matter, on-the-fly structure finding, and more. 
 
+This fork add additional dark matter physics, specifically a formulation of primordial black hole evaporation feedback (PBHEF), based on the List et al. (2019) dark matter annihilation feedback (DMAF) model.
+
 See the [User Guide](http://www.tapir.caltech.edu/~phopkins/Site/GIZMO_files/gizmo_documentation.html) for an up-to-date physics list, or [the original code website](http://www.tapir.caltech.edu/~phopkins/Site/GIZMO.html) for examples demonstrating the advantages of the new methods, different types of **GIZMO** simulations, and its massively-parallel scalings.
 
 The code is descended from P-SPH, itself descended from GADGET-3 (so a huge debt owes to the work of Volker Springel), and many of the GADGET conventions remain (for compatibility with GADGET outputs and codes). See the source code for appropriate attribution of the code elements. 
