@@ -314,6 +314,10 @@ struct INPUT_STRUCT_NAME
 #ifndef DONOTUSENODELIST
     int NodeList[NODELISTLENGTH];
 #endif
+
+#ifdef PBH_EVAPORATION_FEEDBACK
+    MyFloat DensityDM;
+#endif
 }
 *DATAIN_NAME, *DATAGET_NAME;
 
@@ -428,7 +432,7 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
     in->alpha = SphP[i].alpha_limiter;
 #endif
 #endif
-    
+
 #ifdef HYDRO_PRESSURE_SPH
     in->EgyWtRho = SphP[i].EgyWtDensity;
 #endif
@@ -438,11 +442,11 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
 #if defined(HYDRO_TENSOR_FACE_CORRECTIONS)
     for(k=0;k<9;k++) {in->Tensor_MFM_Face_Corrections[k] = SphP[i].Tensor_MFM_Face_Corrections[k];}
 #endif
-    
+
     int j;
     for(j=0;j<3;j++) {for(k=0;k<3;k++) {in->NV_T[j][k] = SphP[i].NV_T[j][k];}}
-    
-    
+
+
     /* matrix of the conserved variable gradients: rho, u, vx, vy, vz */
     for(k=0;k<3;k++)
     {
@@ -471,7 +475,7 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
         for(j=0;j<N_RT_FREQ_BINS;j++) {in->Gradients.Rad_E_gamma_ET[j][k] = SphP[i].Gradients.Rad_E_gamma_ET[j][k];}
 #endif
     }
-    
+
 #ifdef RT_SOLVER_EXPLICIT
     for(k=0;k<N_RT_FREQ_BINS;k++)
     {
@@ -492,7 +496,7 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
     in->Radiation_Temperature = SphP[i].Radiation_Temperature;
 #endif
 #endif
-    
+
 #if defined(TURB_DIFF_METALS) || (defined(METALS) && defined(HYDRO_MESHLESS_FINITE_VOLUME))
     for(k=0;k<NUM_METAL_SPECIES;k++) {in->Metallicity[k] = P[i].Metallicity[k];}
 #if defined(GALSF_ISMDUSTCHEM_MODEL)
@@ -555,6 +559,10 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
 
 #ifdef GALSF_SUBGRID_WINDS
     in->DelayTime = SphP[i].DelayTime;
+#endif
+
+#ifdef PBH_EVAPORATION_FEEDBACK
+    in->DensityDM = P[i].DensityDM;
 #endif
 
 }
@@ -652,6 +660,13 @@ static inline void out2particle_hydra(struct OUTPUT_STRUCT_NAME *out, int i, int
 void hydro_final_operations_and_cleanup(void)
 {
     int i,k;
+
+#ifdef PBH_EVAPORATION_FEEDBACK
+    MyDouble dm_dens_over_gas_dens;
+    MyDouble heat_source;
+#endif
+
+
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
         if(P[i].Type == 0 && P[i].Mass > 0)
@@ -768,6 +783,20 @@ void hydro_final_operations_and_cleanup(void)
             // = du/dlna -3*(gamma-1)*u ; then dlna/dt = H(z) =  All.cf_hubble_a //
 
 
+#ifdef PBH_EVAPORATION_FEEDBACK /* Done after the hydro loop */
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+			SphP[i].DtInternalEnergy += (P[i].DensityDM / P[i].Mass);
+#else
+            dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // should be in 10^10 Msol/kpc^3
+            heat_source = UNIT_TIME_IN_CGS * All.MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.Alpha / pow(All.InitialMass, 3.0)
+
+            // Add internal energy created by PBH evaporation
+			SphP[i].DtInternalEnergy += (1.0 / All.cf_atime * heat_source);
+			SphP[i].PBHEF_Dtu += (1.0 / All.cf_atime * heat_source);
+#endif
+#endif
+
+
 #if defined(RT_RAD_PRESSURE_FORCES) && defined(RT_EVOLVE_FLUX) && !defined(RT_RADPRESSURE_IN_HYDRO) //#elif defined(RT_COMPGRAD_EDDINGTON_TENSOR) /* // -- moved for OTVET+FLD to drift-kick operation to deal with limiters more accurately -- // */
             /* calculate the radiation pressure force */
             double radacc[3]; radacc[0]=radacc[1]=radacc[2]=0; int kfreq;
@@ -826,8 +855,8 @@ void hydro_final_operations_and_cleanup(void)
             for(k=0;k<NUM_ISMDUSTCHEM_SPECIES;k++) {SphP[i].ISMDustChem_Dust_Species[k] = DMAX(SphP[i].ISMDustChem_Dust_Species[k] + SphP[i].Dyield[NUM_METAL_SPECIES+NUM_ISMDUSTCHEM_ELEMENTS+NUM_ISMDUSTCHEM_SOURCES+k] / P[i].Mass , 0.01*SphP[i].ISMDustChem_Dust_Species[k]);}
 #endif
 #endif
-            
-            
+
+
 #if (defined(COSMIC_RAY_FLUID) && !defined(COOLING_OPERATOR_SPLIT)) || defined(COSMIC_RAY_SUBGRID_LEBRON)
             /* with the spectrum model, we account here the adiabatic heating/cooling of the 'fluid', here, which was solved in the hydro solver but doesn't resolve which portion goes to CRs and which to internal energy, with gamma=GAMMA_COSMICRAY */
 #ifdef COSMIC_RAY_SUBGRID_LEBRON
@@ -924,13 +953,13 @@ void hydro_final_operations_and_cleanup(void)
         } // closes P[i].Type==0 check and so closes loop over particles i
     } // for (loop over active particles) //
 
-    
+
 #ifdef TURB_DRIVING
 #ifdef TURB_DRIVING_UPDATE_FORCE_ON_TURBUPDATE // if this is enabled, we only update as frequently as the driving phases are recomputed, as set by TurbDrive_TimeBetweenTurbUpdates. To avoid large errors, must be set by-hand to be << lambda_min / V where V is the typical turbulent velocity and lambda_min is the smallest driven wavelength.
     if(new_turbforce_needed_this_timestep()){add_turb_accel();}
-#else    
+#else
     add_turb_accel(); // update turbulent driving fields and TurbAccel fields at same time as update HydroAccel, here
-#endif    
+#endif
 #endif
 
 #ifdef NUCLEAR_NETWORK
@@ -1026,6 +1055,12 @@ void hydro_force_initial_operations_preloop(void)
 #endif
             }
 #endif
+
+// PBH EVAPORATION FEEDBACK (receiver-based approach): zero out SphP[i].PBHEF_Dtu
+#ifdef PBH_EVAPORATION_FEEDBACK
+			SphP[i].PBHEF_Dtu = 0;
+#endif
+
 #ifdef WAKEUP
             PPPZ[i].wakeup = 0;
 #endif

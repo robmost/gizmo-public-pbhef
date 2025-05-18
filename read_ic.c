@@ -397,7 +397,7 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
 
         case IO_STAGE_PROTOSTAR:
             break;
-            
+
         case IO_AGE_PROTOSTAR:
             break;
 
@@ -473,7 +473,7 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
             }
 #endif
             break;
-            
+
         case IO_EDDINGTON_TENSOR:
 #if defined(RADTRANSFER) && defined(OUTPUT_EDDINGTON_TENSOR)
             for(n = 0; n < pc; n++) {
@@ -483,8 +483,8 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
 #endif
             break;
 
-            
-            
+
+
             /* adaptive softening parameters */
         case IO_AGS_HKERN:
 #if defined(AGS_HSML_CALCULATION_IS_ACTIVE)
@@ -550,20 +550,20 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
 #if defined(BH_WIND_SPAWN) && defined(BH_DEBUG_SPAWN_JET_TEST)
              for(n = 0; n < pc; n++) {P[offset + n].unspawned_wind_mass = *fp++;}
 #endif
-            break; 
-            
+            break;
+
         case IO_IDEN:
 #if defined(BH_WIND_SPAWN_SET_BFIELD_POLTOR) && defined(BH_DEBUG_SPAWN_JET_TEST)
              for(n = 0; n < pc; n++) {SphP[offset + n].IniDen = *fp++;}
 #endif
             break;
-            
-        case IO_INIB:        
+
+        case IO_INIB:
 #if defined(BH_WIND_SPAWN_SET_BFIELD_POLTOR) && defined(BH_DEBUG_SPAWN_JET_TEST)
              for(n = 0; n < pc; n++) {for(k=0;k<3;k++) {SphP[offset + n].IniB[k] = *fp++;}}
-#endif      
-            break;  
-            
+#endif
+            break;
+
         case IO_TURB_DYNAMIC_COEFF:
 #ifdef TURB_DIFF_DYNAMIC
             for (n = 0; n < pc; n++) {SphP[offset + n].TD_DynDiffCoeff = *fp++;}
@@ -580,8 +580,8 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
 #ifdef BLACK_HOLES
             for(n = 0; n < pc; n++) {P[offset + n].Sink_Formation_Mass = *fp++;}
 #endif
-            break;	    
-            
+            break;
+
         case IO_MOLECULARFRACTION:
 #if defined(COOL_MOLECFRAC_NONEQM) & !defined(IO_MOLECFRAC_NOT_IN_ICFILE)
             for (n = 0; n < pc; n++) {SphP[offset + n].MolecularMassFraction_perNeutralH = *fp++;}
@@ -593,19 +593,19 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
             for(n = 0; n < pc; n++) {SphP[offset + n].HI = *fp++;}
 #endif
             break;
-            
+
         case IO_HII:        /* ionized hydrogen abundance */
 #if defined(RT_CHEM_PHOTOION)
             for(n = 0; n < pc; n++) {SphP[offset + n].HII = *fp++;}
 #endif
             break;
-            
+
         case IO_HeI:        /* neutral Helium */
 #if defined(RT_CHEM_PHOTOION_HE)
             for(n = 0; n < pc; n++) {SphP[offset + n].HeI = *fp++;}
 #endif
             break;
-            
+
         case IO_HeII:        /* ionized Helium */
 #if defined(RT_CHEM_PHOTOION_HE)
             for(n = 0; n < pc; n++) {SphP[offset + n].HeII = *fp++;}
@@ -683,7 +683,8 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
         case IO_CHIMES_FLUX_G0:
         case IO_CHIMES_FLUX_ION:
             break;
-
+        case IO_DENSDM:
+        case IO_PBHEF_Dtu:
         case IO_LASTENTRY:
             endrun(220);
             break;
@@ -936,7 +937,7 @@ void read_file(char *fname, int readTask, int lastTask)
 #endif
 #if defined(BLACK_HOLES) && defined(INPUT_READ_SINKPROPS)
                    && blocknr != IO_SINK_FORM_MASS
-#endif		   
+#endif
 #if defined(CHIMES) && !defined(CHIMES_INITIALISE_IN_EQM)
                    && blocknr != IO_CHIMES_ABUNDANCES
 #endif
@@ -972,7 +973,7 @@ void read_file(char *fname, int readTask, int lastTask)
             if(blocknr == IO_AGS_ZETA) {continue;}
 #endif
 #endif
-            
+
 #ifdef CRFLUID_ALT_SPECTRUM_SPECIALSNAPRESTART
             if(RestartFlag == 2 && blocknr == IO_COSMICRAY_SLOPES) {continue;}
 #if (CRFLUID_ALT_SPECTRUM_SPECIALSNAPRESTART==2)
@@ -1002,7 +1003,7 @@ void read_file(char *fname, int readTask, int lastTask)
 #if !defined(EOS_CARRIES_TEMPERATURE)
             if(RestartFlag == 2 && blocknr == IO_EOSTEMP) {continue;}
 #endif
-            
+
 #if defined(SINGLE_STAR_AND_SSP_HYBRID_MODEL) && defined(SINGLE_STAR_RESTART_FROM_FIRESIM)
             if(RestartFlag == 2 && blocknr == IO_RADGAMMA) {continue;}
             if(RestartFlag == 2 && blocknr == IO_RAD_OPACITY) {continue;}
@@ -1021,7 +1022,7 @@ void read_file(char *fname, int readTask, int lastTask)
             if(RestartFlag == 2 && blocknr == IO_MOLECULARFRACTION) {continue;}
 #endif
 
-            
+
             if(blocknr == IO_HSMS) {continue;}
 
 #ifdef TURB_DIFF_DYNAMIC
@@ -1035,7 +1036,7 @@ void read_file(char *fname, int readTask, int lastTask)
             }
 
             bytes_per_blockelement = get_bytes_per_blockelement(blocknr, 1);
-            
+
 #if (CRFLUID_ALT_SPECTRUM_SPECIALSNAPRESTART==1)
             if(RestartFlag == 2 && blocknr == IO_COSMICRAY_ENERGY) {bytes_per_blockelement = (1) * sizeof(MyInputFloat);}
 #endif
@@ -1147,7 +1148,7 @@ void read_file(char *fname, int readTask, int lastTask)
                                             case 0:
                                                 hdf5_datatype = H5Tcopy(H5T_NATIVE_UINT);
                                                 break;
-                                                
+
                                             case 1:
 #ifdef INPUT_IN_DOUBLEPRECISION
                                                 hdf5_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
@@ -1155,7 +1156,7 @@ void read_file(char *fname, int readTask, int lastTask)
                                                 hdf5_datatype = H5Tcopy(H5T_NATIVE_FLOAT);
 #endif
                                                 break;
-                                                
+
                                             case 2:
                                                 hdf5_datatype = H5Tcopy(H5T_NATIVE_UINT64);
                                                 break;
@@ -1419,12 +1420,12 @@ void read_header_attributes_in_hdf5(char *fname)
         H5Aclose(hdf5_attribute);
     }
 #endif
-    
+
     /* things that are not part of the header 'structure' we define in-code, but used in the hdf5 headers and wanted for read here, can be read below */
     if(H5Aexists(hdf5_headergrp, "Minimum_Mass_For_Cell_Merge")) { /* test for existence of this field */
         hdf5_attribute = H5Aopen_name(hdf5_headergrp, "Minimum_Mass_For_Cell_Merge"); /* open it */
         H5Aread(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.MinMassForParticleMerger); H5Aclose(hdf5_attribute);} /* read it and close */
-    
+
     if(H5Aexists(hdf5_headergrp, "Maximum_Mass_For_Cell_Split")) { /* test for existence of this field */
         hdf5_attribute = H5Aopen_name(hdf5_headergrp, "Maximum_Mass_For_Cell_Split"); /* open it */
         H5Aread(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.MaxMassForParticleSplit); H5Aclose(hdf5_attribute);} /* read it and close */

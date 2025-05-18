@@ -1128,7 +1128,7 @@ typedef unsigned long long peano1D;
 #define  THOMPSON_CX_CGS    (6.65245e-25)
 #define  ELECTRONCHARGE_CGS (4.8032e-10)
 #define  PLANCK_H_CGS       (6.6261e-27)
-#define  PLANCK_HBAR_CGS    (1.05457e-27)
+#define  PLANCK_HBAR_CGS    (1.0546e-27)
 #define  SECONDS_PER_YEAR   (3.155e7)
 #define  HUBBLE_H100_CGS    (3.2407789e-18)	/* in h/sec */
 #define  ELECTRONVOLT_IN_ERGS (1.60217733e-12)
@@ -2442,9 +2442,11 @@ extern struct global_data_all_processes
 #endif
 
 #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-  double PBH_MassFraction_f;         /*!< Mass fraction of dark matter in primordial black holes */
-  double PBH_InitialMass_grams;      /*!< Initial mass of a single primordial black hole in grams */
-  double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units)
+  double PBH_MassFraction;           /*!< Mass fraction of dark matter in primordial black holes */
+  double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
+  double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */
+  double PBH_Alpha;                  /*!< Evaporation rate, following the analytical fit from Mosbech et al. (2022) */
+#endif
 
 }
 All;
@@ -2781,9 +2783,18 @@ extern ALIGN(32) struct particle_data
 #if defined(AGS_FACE_CALCULATION_IS_ACTIVE)
     MyLongDouble NV_T[3][3];                                           /*!< holds the tensor used for gradient estimation */
 #endif
+
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+	MyDouble DensityDM;		           /*!< current DM mass density of particle */
+    MyFloat HsmlDM;			           /*!< PBH (DM) search radius around particle for neighbors/interactions */
+    MyFloat NumNgbDM;                  /*!< PBH (DM) neighbor number around particle */
+	MyFloat DhsmlNgbFactorDM;		   /*!< PBH (DM) correction factor needed for varying kernel lengths */
+    MyFloat Particle_DivVelDM; 		   /*!< PBH (DM) divergence of velocity */
+#endif
+
 }
  *P,				/*!< holds particle data on local processor */
- *DomainPartBuf;		/*!< buffer for particle data used in domain decomposition */
+ *DomainPartBuf;    /*!< buffer for particle data used in domain decomposition */
 
 
 #ifndef GDE_LEAN
@@ -3238,9 +3249,13 @@ extern struct gas_cell_data
 #endif
 #endif
 
+#ifdef PBH_EVAPORATION_FEEDBACK
+  MyDouble PBHEF_Dtu;                /*!< total energy injection rate due to PBH evaporation */
+#endif
+
 }
   *SphP,				/*!< holds gas cell data on local processor */
-  *DomainGasBuf;			/*!< buffer for gas cell data in domain decomposition */
+  *DomainGasBuf;		/*!< buffer for gas cell data in domain decomposition */
 
 
 extern peanokey *DomainKeyBuf;
@@ -3622,6 +3637,8 @@ enum iofields
   IO_DENS_AROUND_STAR,
   IO_DELAY_TIME_HII,
   IO_MOLECULARFRACTION,
+  IO_DENSDM,
+  IO_PBHEF_Dtu,
   IO_LASTENTRY			/* This should be kept - it signals the end of the list */
 };
 

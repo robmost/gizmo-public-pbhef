@@ -204,11 +204,6 @@ int NumPartGroup;
 #endif
 
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-double PBH_MassFraction_f;
-double PBH_InitialMass_grams;
-double PBH_EvaporationConstant;
-#endif
 
 
 /* variables for input/output , usually only used on process 0 */

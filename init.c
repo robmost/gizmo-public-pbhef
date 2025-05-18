@@ -246,8 +246,8 @@ void init(void)
 #ifdef ADAPTIVE_TREEFORCE_UPDATE
         P[i].time_since_last_treeforce = 0;
         P[i].tdyn_step_for_treeforce = 0;
-#endif        
-        
+#endif
+
 
 #ifdef KEEP_DM_HSML_AS_GUESS
         if(RestartFlag != 1) {P[i].DM_Hsml = -1;}
@@ -276,7 +276,7 @@ void init(void)
 #endif
 #endif
 #endif
-        
+
 
         if(RestartFlag != 1)
         {
@@ -478,7 +478,7 @@ void init(void)
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
             P[i].dt_since_last_gas_search = 0;
             P[i].do_gas_search_this_timestep = 1;
-#endif 
+#endif
 #if defined(BH_SWALLOWGAS) && !defined(BH_GRAVCAPTURE_GAS)
             if(RestartFlag != 1) {BPP(i).BH_AccretionDeficit = 0;}
 #endif
@@ -579,6 +579,13 @@ void init(void)
             PPP[i].Hsml = 0;
 #endif
             SphP[i].Density = -1;
+
+#ifdef PBH_EVAPORATION_FEEDBACK
+            P[i].DensityDM = -1;
+	        P[i].HsmlDM = 0;
+			SphP[i].PBHEF_Dtu = 0;
+#endif
+
 #ifdef COOLING
 #ifndef CHIMES
             SphP[i].Ne = 1.0;
@@ -740,6 +747,10 @@ void init(void)
 
     if(RestartFlag != 3 && RestartFlag != 5) {setup_smoothinglengths();}
 
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+	if(RestartFlag != 3 && RestartFlag != 5) {dm_setup_smoothinglengths();}
+#endif
+
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
     if(RestartFlag != 3 && RestartFlag != 5) {ags_setup_smoothinglengths();}
 #endif
@@ -839,7 +850,7 @@ void init(void)
 #if defined(COSMIC_RAY_SUBGRID_LEBRON)
         SphP[i].SubGrid_CosmicRayEnergyDensity = 0;
 #endif
-        
+
 #if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES>=2)
         if(RestartFlag != 1) {if(P[i].ID == All.AGNWindID) {P[i].ID += 1;}} // reset any of these so can obey desired merge-split rules
 #endif
@@ -977,7 +988,7 @@ void init(void)
         savepositions(RestartSnapNum);
         endrun(0);
     }
-    
+
 
 #if defined(COOL_MOLECFRAC_NONEQM)
     if(RestartFlag == 2) // should have read in SphP[i].MolecularMassFraction_perNeutralH
@@ -986,7 +997,7 @@ void init(void)
         SphP[i].MolecularMassFraction = DMIN(1,DMAX(0, 1.-SphP[i].Ne/1.25)) * SphP[i].MolecularMassFraction_perNeutralH;
     }
 #endif
-    
+
 
 #ifdef CHIMES_INITIALISE_IN_EQM
     if (RestartFlag != 1)
@@ -1220,6 +1231,27 @@ void disp_setup_smoothinglengths(void)
     disp_density();
 }
 #endif
+#endif
+
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+void dm_setup_smoothinglengths(void)
+{
+    int i;
+    if(RestartFlag == 0 || RestartFlag == 2)
+    {
+        for(i = 0; i < NumPart; i++)
+        {
+            P[i].HsmlDM = PPP[i].Hsml; /* guess that the dm smoothing lengths are initially the same as gas smoothing length */
+        }
+    }
+
+    if(ThisTask == 0)
+    {
+        printf("PBHEF: Initializing smoothing lengths for DM density calculations...\n");
+    }
+
+	dm_density();
+}
 #endif
 
 

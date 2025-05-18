@@ -130,7 +130,7 @@ WindFreeTravelDensFac        0.1     % 'free-stream' until density < this * Crit
 %------------------ Non-Standard Dark Matter, Dark Energy, Gravity, or Expansion -----------------
 %-------------------------------------------------------------------------------------------------
 
-%-------------- Parameters for primordial black-hole evaporation feedback (PBH_EVAPORATION_FEEDBACK on)
-PBH_MassFraction_f            0.1     % Mass fraction of DM in PBHs (dimensionless)
-PBH_InitialMass_grams      1.0e15     % Initial mass of PBHs, m_PBH,0 [grams]. (For an initial redshift of ~99, the revelant PBH mass is 1e-18 Msun)
+%-------------- Parameters for primordial black-hole evaporation feedback (PBH_EVAPORATION_FEEDBACK/PBH_EVAPORATION_FEEDBACK_DM on)
+PBH_MassFraction             0.1     % Mass fraction of DM in PBHs (dimensionless)
+PBH_InitialMass              1.0e15  % Initial mass of PBHs, m_PBH,0 (grams). (For an initial redshift of ~99, the revelant PBH mass is 1e-18 Msun)
 

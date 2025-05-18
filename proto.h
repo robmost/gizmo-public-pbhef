@@ -1030,7 +1030,10 @@ void grav_accel_jerk(double mass, double dx[3], double dv[3], double accel[3], d
 double eccentric_anomaly(double mean_anomaly, double ecc);
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
-void    pbh_evaporation_calculate_dm_density_for_gas_particles(void);
-void    apply_receiver_pbh_evaporation_feedback(void);
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+void dm_setup_smoothinglengths(void);
+void dm_density(void);
+int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration);
+int dm_density_isactive(int n);
+double calculate_alpha(double m_pbh_initial_grams)
 #endif

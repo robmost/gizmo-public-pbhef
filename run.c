@@ -315,15 +315,6 @@ void calculate_non_standard_physics(void)
     int i; for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i]){if(P[i].Type == 5 && P[i].do_gas_search_this_timestep){P[i].dt_since_last_gas_search = 0;}}
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-    // First, calculate the local DM density at gas particle positions
-    // This needs to be done before applying the feedback that uses this DM density.
-    pbh_evaporation_calculate_dm_density_for_gas_particles();
-
-    // Then, apply the PBH evaporation feedback using the calculated DM densities
-    apply_receiver_pbh_evaporation_feedback();
-#endif
-
 }
 
 
@@ -882,6 +873,12 @@ void write_cpu_log(void)
 #if defined(RADTRANSFER)
           "rt_nonfluxops %10.2f  %5.1f%%\n"
 #endif
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+	      "pbh_dmdensity     %10.2f  %5.1f%%\n"
+	      "pbh_dmcomm        %10.2f  %5.1f%%\n"
+	      "pbh_dmimbal       %10.2f  %5.1f%%\n"
+        "pbh_dmmisc        %10.2f  %5.1f%%\n"
+#endif
           "misc          %10.2f  %5.1f%%\n",
 
     All.CPU_Sum[CPU_ALL], 100.0,
@@ -964,6 +961,12 @@ void write_cpu_log(void)
 #endif
 #if defined(RADTRANSFER)
     All.CPU_Sum[CPU_RTNONFLUXOPS], (All.CPU_Sum[CPU_RTNONFLUXOPS]) / All.CPU_Sum[CPU_ALL] * 100,
+#endif
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+	  All.CPU_Sum[CPU_DMDENSCOMPUTE], (All.CPU_Sum[CPU_DMDENSCOMPUTE]) / All.CPU_Sum[CPU_ALL] * 100,
+    All.CPU_Sum[CPU_DMDENSCOMM], (All.CPU_Sum[CPU_DMDENSCOMM]) / All.CPU_Sum[CPU_ALL] * 100,
+    All.CPU_Sum[CPU_DMDENSWAIT], (All.CPU_Sum[CPU_DMDENSWAIT]) / All.CPU_Sum[CPU_ALL] * 100,
+    All.CPU_Sum[CPU_DMDENSMISC], (All.CPU_Sum[CPU_DMDENSMISC]) / All.CPU_Sum[CPU_ALL] * 100,
 #endif
     All.CPU_Sum[CPU_MISC], (All.CPU_Sum[CPU_MISC]) / All.CPU_Sum[CPU_ALL] * 100);
 

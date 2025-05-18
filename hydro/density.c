@@ -33,7 +33,7 @@ int density_isactive(int n)
     /* first check our 'marker' for particles which have finished iterating to an Hsml solution (if they have, dont do them again) */
     if(P[n].TimeBin < 0) {return 0;}
     if(P[n].Type == 0) {if(SphP[n].recent_refinement_flag == 1) return 1;}
-    
+
 #if defined(GRAIN_FLUID)
     if((1 << P[n].Type) & (GRAIN_PTYPES)) {return 1;} /* any of the particle types flagged as a valid grain-type is active here */
 #endif
@@ -63,7 +63,7 @@ int density_isactive(int n)
         /* check if there is going to be a SNe this timestep, in which case, we want the density info! */
         if(P[n].SNe_ThisTimeStep>0) return 1;
 #endif
-        
+
 #if defined(GALSF)
         if(P[n].DensAroundStar <= 0) return 1;
         if(All.ComovingIntegrationOn == 0) // only do stellar age evaluation if we have to //
@@ -228,7 +228,7 @@ void hydrokerneldensity_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int 
 #if defined(RT_SOURCE_INJECTION)
 #if defined(RT_BH_ANGLEWEIGHT_PHOTON_INJECTION)
     if(All.TimeStep == 0) // we only do this on the 0'th timestep, since we haven't done a BH loop yet to get the angle weights we'll use normally
-#endif    
+#endif
     if((1 << P[i].Type) & (RT_SOURCES)) {ASSIGN_ADD(P[i].KernelSum_Around_RT_Source, out->KernelSum_Around_RT_Source, mode);}
 #endif
 
@@ -294,7 +294,7 @@ int density_evaluate(int target, int mode, int *exportflag, int *exportnodecount
 #if defined(RT_SOURCE_INJECTION)
 #if defined(RT_BH_ANGLEWEIGHT_PHOTON_INJECTION)
                     if(All.TimeStep == 0) // we only do this on the 0'th timestep, since we haven't done a BH loop yet to get the angle weights we'll use normally
-#endif                        
+#endif
                     if((1 << local.Type) & (RT_SOURCES)) {out.KernelSum_Around_RT_Source += 1.-u*u;}
 #endif
                     out.DhsmlNgb += -(NUMDIMS * kernel.hinv * kernel.wk + u * kernel.dwk);
@@ -395,7 +395,7 @@ void density_evaluate_extra_physics_gas(struct INPUT_STRUCT_NAME *local, struct 
 #endif
         }
 #endif // BLACK_HOLES
-        
+
     } else { /* local.Type == 0 */
 
 #if defined(TURB_DRIVING)
@@ -455,7 +455,7 @@ void density(void)
     int i, npleft, iter=0, redo_particle, particle_set_to_minhsml_flag = 0, particle_set_to_maxhsml_flag = 0;
     Left = (MyFloat *) mymalloc("Left", NumPart * sizeof(MyFloat));
     Right = (MyFloat *) mymalloc("Right", NumPart * sizeof(MyFloat));
-    
+
 #ifdef DO_DENSITY_AROUND_STAR_PARTICLES /* define a variable for below to know which stellar types qualify here */
     int valid_stellar_types = 2+4+8+16, invalid_stellar_types = 1+32; // allow types 1,2,3,4 here //
 #if (defined(GRAIN_FLUID) || defined(RADTRANSFER)) && (!defined(GALSF) && !(defined(GALSF_FB_MECHANICAL) || defined(GALSF_FB_THERMAL)))
@@ -468,7 +468,7 @@ void density(void)
 #endif
 #endif
 #endif
-    
+
     /* initialize anything we need to about the active particles before their loop */
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i]) {
         if(density_isactive(i)) {
@@ -490,7 +490,7 @@ void density(void)
             if(P[i].Type == 5) {maxsoft = All.BlackHoleMaxAccretionRadius / All.cf_atime;}  // MaxAccretionRadius is now defined in params.txt in PHYSICAL units
 #endif
             if((PPP[i].Hsml < 0) || !isfinite(PPP[i].Hsml) || (PPP[i].Hsml > 0.99*maxsoft)) {PPP[i].Hsml = 0.99*maxsoft;} /* don't set to exactly maxsoft because our looping below won't treat this correctly */
-            
+
         }} /* done with intial zero-out loop */
 
     /* allocate buffers to arrange communication */
@@ -1028,13 +1028,13 @@ void density(void)
                     }}}
 #endif
             if(P[i].Type == 0) {SphP[i].recent_refinement_flag = 0;} // reset this flag after density re-computation
-            
+
         } // density_isactive(i)
-        
+
 #if defined(BH_WIND_SPAWN_SET_BFIELD_POLTOR) /* re-assign magnetic fields after getting the correct density for newly-spawned cells when these options are enabled */
         if(P[i].Type==0) {if(P[i].ID==All.AGNWindID && SphP[i].IniDen<0) {SphP[i].IniDen=SphP[i].Density; int k; for(k=0;k<3;k++) {SphP[i].BPred[k]=SphP[i].B[k]=SphP[i].IniB[k]*(All.UnitMagneticField_in_gauss/UNIT_B_IN_GAUSS)*(P[i].Mass/(All.cf_a2inv*SphP[i].Density));}}}
 #endif
-        
+
     } // for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
 
     /* collect some timing information */

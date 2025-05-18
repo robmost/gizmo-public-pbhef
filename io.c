@@ -383,7 +383,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                 }
 #endif
             break;
-            
+
         case IO_INIB:
 #if defined(BH_WIND_SPAWN_SET_BFIELD_POLTOR) && defined(BH_DEBUG_SPAWN_JET_TEST)
             for(n = 0; n < pc; pindex++)
@@ -392,9 +392,9 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                     for(k=0;k<3;k++) {*fp++ = (MyOutputFloat) SphP[pindex].IniB[k];}
                     n++;
                 }
-#endif               
+#endif
             break;
-            
+
         case IO_IDEN:
 #if defined(BH_WIND_SPAWN_SET_BFIELD_POLTOR) && defined(BH_DEBUG_SPAWN_JET_TEST)
             for(n = 0; n < pc; pindex++)
@@ -403,9 +403,9 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                     *fp++ = (MyOutputFloat) SphP[pindex].IniDen;
                     n++;
                 }
-#endif                
+#endif
             break;
-            
+
         case IO_UNSPMASS:
 #if defined(BH_WIND_SPAWN) && defined(BH_DEBUG_SPAWN_JET_TEST)
             for(n = 0; n < pc; pindex++)
@@ -414,9 +414,9 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                     *fp++ = (MyOutputFloat) P[pindex].unspawned_wind_mass;
                     n++;
                 }
-#endif           
+#endif
             break;
-            
+
         case IO_CRATE:
 #if defined(OUTPUT_COOLRATE_DETAIL) && defined(COOLING)
             for(n = 0; n < pc; pindex++)
@@ -513,7 +513,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                   }
 #endif
             break;
-            
+
         case IO_DTOSTAR:
 #ifdef GALSF_SFR_IMF_SAMPLING_DISTRIBUTE_SF
             for(n = 0; n < pc; pindex++)
@@ -611,7 +611,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                     for(k = 0; k < NUM_ISMDUSTCHEM_ELEMENTS; k++) {fp[k] = (MyOutputFloat) SphP[pindex].ISMDustChem_Dust_Metal[k];}
                     double source_total = 0.; // Convert dust source mass fractions to fraction of dust
                     for(k = 0; k < NUM_ISMDUSTCHEM_SOURCES; k++) source_total += SphP[pindex].ISMDustChem_Dust_Source[k];
-                    for(k = 0; k < NUM_ISMDUSTCHEM_SOURCES; k++) 
+                    for(k = 0; k < NUM_ISMDUSTCHEM_SOURCES; k++)
                     {
                         if(source_total<=0 || SphP[pindex].ISMDustChem_Dust_Metal[0]<=0) {fp[k+NUM_ISMDUSTCHEM_ELEMENTS] = (MyOutputFloat) 0.;}
                         else {fp[k+NUM_ISMDUSTCHEM_ELEMENTS] = (MyOutputFloat) SphP[pindex].ISMDustChem_Dust_Source[k]/source_total;}
@@ -621,7 +621,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                 }
 #endif
         break;
-            
+
         case IO_DUSTCHEMSPECIESMET:    /* gas dust species following Species routines */
 #if (GALSF_ISMDUSTCHEM_MODEL & 2)
             for(n = 0; n < pc; pindex++)
@@ -821,7 +821,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
             break;
 
-            
+
         case IO_HYDROACCEL:        /* 'hydro' acceleration */
 #ifdef OUTPUT_HYDROACCELERATION
             for(n = 0; n < pc; pindex++)
@@ -834,7 +834,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
             break;
 
-            
+
         case IO_DTENTR:		/* rate of change of internal energy */
 #ifdef OUTPUT_CHANGEOFENERGY
             for(n = 0; n < pc; pindex++)
@@ -933,7 +933,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
             break;
 
-            
+
         case IO_COSMICRAY_SLOPES:    /* piecewise spectral slopes in the cosmic ray spectrum  */
             break;
 
@@ -1019,7 +1019,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
             break;
 
-            
+
         case IO_GRADRHO:        /* density gradient */
 #if defined(OUTPUT_GRADIENT_RHO)
             for(n = 0; n < pc; pindex++)
@@ -1032,7 +1032,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
             break;
 
-                                                               
+
         case IO_GRADVEL:        /* velocity gradients */
 #if defined(OUTPUT_GRADIENT_VEL)
             for(n = 0; n < pc; pindex++)
@@ -1046,7 +1046,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
             break;
 
-            
+
         case IO_GRADMAG:        /* magnetic field gradients */
 #if defined(OUTPUT_GRADIENT_MAG)
             for(n = 0; n < pc; pindex++)
@@ -1060,7 +1060,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
             break;
 
-            
+
         case IO_COOLRATE:		/* current cooling rate of particle  */
 #ifdef OUTPUT_COOLRATE
             for(n = 0; n < pc; pindex++)
@@ -1141,7 +1141,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 
         case IO_STAGE_PROTOSTAR:
             break;
-            
+
         case IO_AGE_PROTOSTAR:
             break;
 
@@ -1190,7 +1190,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                     n++;
                 }
 #endif
-            break;	    
+            break;
 
         case IO_TIDALTENSORPS:   /* 3x3 configuration-space tidal tensor */
 #ifdef OUTPUT_TIDAL_TENSOR
@@ -1398,7 +1398,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                     temp = ThermalProperties(u, SphP[pindex].Density * All.cf_a3inv, pindex, &mu, &ne, &nh0, &nhp, &nHe0, &nHeII, &nHepp);
                     *fp++ = (MyOutputFloat) temp;
                     n++;
-                }	    
+                }
 #endif
             break;
 
@@ -1490,7 +1490,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                 }
 #endif
             break;
-            
+
         case IO_RAD_TEMP:
 #if defined(RADTRANSFER) && defined(RT_INFRARED)
             for(n = 0; n < pc; pindex++)
@@ -1512,7 +1512,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                 }
 #endif
             break;
-            
+
         case IO_RAD_FLUX:
 #if defined(OUTPUT_RT_RAD_FLUX) && defined(RT_EVOLVE_FLUX)
             for(n = 0; n < pc; pindex++)
@@ -1788,6 +1788,30 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
         break;
 
+	case IO_DENSDM:             /* DM mass density of particle */
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+        for(n = 0; n < pc; pindex++) {
+            if(P[pindex].Type == type)
+            {
+                *fp++ = P[pindex].DensityDM;
+                n++;
+            }
+        }
+#endif
+        break;
+
+	case IO_PBHEF_Dtu:         /* energy injection rate due to PBH evaporation */
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+        for(n = 0; n < pc; pindex++) {
+            if(P[pindex].Type == type)
+            {
+                *fp++ = SphP[pindex].PBHEF_Dtu;
+                n++;
+            }
+        }
+#endif
+        break;
+
         case IO_LASTENTRY:
             endrun(213);
             break;
@@ -1845,7 +1869,7 @@ int get_bytes_per_blockelement(enum iofields blocknr, int mode)
         case IO_STAGE_PROTOSTAR:
             bytes_per_blockelement = sizeof(int);
             break;
-            
+
         case IO_AGE_PROTOSTAR:
         case IO_MASS:
         case IO_BH_DIST:
@@ -1987,7 +2011,7 @@ int get_bytes_per_blockelement(enum iofields blocknr, int mode)
                 bytes_per_blockelement = (N_RT_FREQ_BINS) * sizeof(MyOutputFloat);
 #endif
             break;
-            
+
         case IO_RAD_FLUX:
 #ifdef RADTRANSFER
             if(mode)
@@ -2032,7 +2056,7 @@ int get_bytes_per_blockelement(enum iofields blocknr, int mode)
             else
                 bytes_per_blockelement = (NUM_ISMDUSTCHEM_SPECIES) * sizeof(MyOutputFloat);
 #endif
-            break;    
+            break;
 
             case IO_ISMDUSTCHEMMOL:
             if(mode)
@@ -2040,7 +2064,7 @@ int get_bytes_per_blockelement(enum iofields blocknr, int mode)
             else
                 bytes_per_blockelement = 2 * sizeof(MyOutputFloat);
             break;
-            
+
         case IO_CHIMES_ABUNDANCES:
 #ifdef CHIMES
             if(mode)
@@ -2094,6 +2118,14 @@ int get_bytes_per_blockelement(enum iofields blocknr, int mode)
                 bytes_per_blockelement = 20 * sizeof(MyOutputFloat);
             break;
 
+        case IO_DENSDM:
+		case IO_PBHEF_Dtu:
+            if(mode)
+                bytes_per_blockelement = sizeof(MyInputFloat);
+            else
+                bytes_per_blockelement = sizeof(MyOutputFloat);
+            break;
+
         case IO_LASTENTRY:
             endrun(214);
             break;
@@ -2129,7 +2161,7 @@ int get_datatype_in_block(enum iofields blocknr)
         case IO_STAGE_PROTOSTAR:
             typekey = 0;		/* native int */
             break;
-            
+
         default:
             typekey = 1;		/* native MyOutputFloat */
             break;
@@ -2293,7 +2325,7 @@ int get_values_per_blockelement(enum iofields blocknr)
             values = N_RT_FREQ_BINS;
 #endif
             break;
-            
+
         case IO_RAD_OPACITY:
 #if defined(OUTPUT_RT_RAD_OPACITY) && defined(RADTRANSFER)
             values = N_RT_FREQ_BINS;
@@ -2320,7 +2352,7 @@ int get_values_per_blockelement(enum iofields blocknr)
 #else
             values = 0;
 #endif
-            break; 
+            break;
 
         case IO_ISMDUSTCHEMMOL:
             values = 2;
@@ -2363,6 +2395,11 @@ int get_values_per_blockelement(enum iofields blocknr)
 
         case IO_LAST_CAUSTIC:
             values = 20;
+            break;
+
+        case IO_DENSDM:
+		case IO_PBHEF_Dtu:
+            values = 1;
             break;
 
         case IO_LASTENTRY:
@@ -2523,7 +2560,7 @@ long get_particles_in_block(enum iofields blocknr, int *typelist)
 #endif
             for(i = 1; i < 6; i++) {typelist[i] = 0;}
             return ngas;
-            
+
         case IO_AGE:
             for(i=0; i<6; i++) {if(!((1 << i) & (valid_star_types))) {typelist[i]=0;}}
             return nstars_tot;
@@ -2599,6 +2636,18 @@ long get_particles_in_block(enum iofields blocknr, int *typelist)
             for(i = 0; i < 6; i++) {if(((1 << i) & (GDE_TYPES))) {nsel += header.npart[i];} else {typelist[i] = 0;}}
             return nsel;
             break;
+        case IO_DENSDM:
+			for(i = 0; i < 6; i++) {typelist[i] = 0;}
+#ifdef PBH_EVAPORATION_FEEDBACK
+			typelist[0] = 1;
+			return ngas;
+#endif
+			break;
+
+		case IO_PBHEF_Dtu:
+			for(i = 1; i < 6; i++) {typelist[i] = 0;}
+			return ngas;
+			break;
 
         case IO_LASTENTRY:
             endrun(216);
@@ -2713,19 +2762,19 @@ int blockpresent(enum iofields blocknr)
 #if defined(GALSF_ISMDUSTCHEM_MODEL)
             return 1;
 #endif
-            break;               
-          
+            break;
+
         case IO_DUSTCHEMSPECIESMET:
 #if (GALSF_ISMDUSTCHEM_MODEL & 2)
             return 1;
 #endif
-            break; 
+            break;
 
         case IO_ISMDUSTCHEMMOL:
 #if defined(GALSF_ISMDUSTCHEM_MODEL)
             return 1;
 #endif
-            break; 
+            break;
 
         case IO_CHIMES_ABUNDANCES:
 #if defined(CHIMES_REDUCED_OUTPUT)
@@ -2807,18 +2856,18 @@ int blockpresent(enum iofields blocknr)
             return 1;
 #endif
             break;
-            
+
         case IO_IDEN:
         case IO_INIB:
 #if defined(BH_WIND_SPAWN_SET_BFIELD_POLTOR) && defined(BH_DEBUG_SPAWN_JET_TEST)
             return 1;
-#endif         
+#endif
             break;
 
         case IO_UNSPMASS:
 #if defined(BH_WIND_SPAWN) && defined(BH_DEBUG_SPAWN_JET_TEST)
             return 1;
-#endif   
+#endif
             break;
 
         case IO_CRATE:
@@ -2873,7 +2922,7 @@ int blockpresent(enum iofields blocknr)
             return 1;
 #endif
             break;
-            
+
         case IO_DIVB:
 #if defined(MAGNETIC) && defined(OUTPUT_BFIELD_DIVCLEAN_INFO)
             return 1;
@@ -2989,7 +3038,7 @@ int blockpresent(enum iofields blocknr)
             return 1;
 #endif
             break;
-	    
+
 
         case IO_BHMASS:
 #ifdef BLACK_HOLES
@@ -3026,7 +3075,7 @@ int blockpresent(enum iofields blocknr)
 
         case IO_STAGE_PROTOSTAR:
             break;
-            
+
         case IO_AGE_PROTOSTAR:
             break;
 
@@ -3216,6 +3265,21 @@ int blockpresent(enum iofields blocknr)
 #endif
             break;
 
+        case IO_DENSDM:
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+			return 1;
+#else
+			return 0;
+#endif
+			break;
+
+		case IO_PBHEF_Dtu:
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+			return 1;
+#else
+			return 0;
+#endif
+
         case IO_LASTENTRY: /* will not occur */
             break;
     }
@@ -3277,10 +3341,10 @@ void get_Tab_IO_Label(enum iofields blocknr, char *label)
             break;
         case IO_IDEN:
             strncpy(label, "IDEN", 4);
-            break; 
+            break;
         case IO_UNSPMASS:
             strncpy(label, "USPM", 4);
-            break;     
+            break;
         case IO_CRATE:
             strncpy(label, "CRATE", 4);
             break;
@@ -3457,7 +3521,7 @@ void get_Tab_IO_Label(enum iofields blocknr, char *label)
             break;
         case IO_SINK_FORM_MASS:
             strncpy(label, "SMAS", 4);
-            break;	    
+            break;
         case IO_BHMDOT:
             strncpy(label, "BHMD", 4);
             break;
@@ -3632,7 +3696,12 @@ void get_Tab_IO_Label(enum iofields blocknr, char *label)
         case IO_DYNERRORDEFAULT:
             strncpy(label, "derd", 4);
             break;
-
+        case IO_DENSDM:
+            strncpy(label, "dDM", 4);
+            break;
+		case IO_PBHEF_Dtu:
+            strncpy(label, "PBHF", 4);
+            break;
         case IO_LASTENTRY:
             endrun(217);
             break;
@@ -3708,10 +3777,10 @@ void get_dataset_name(enum iofields blocknr, char *buf)
             break;
         case IO_INIB:
             strcpy(buf, "IniB");
-            break;    
+            break;
         case IO_UNSPMASS:
             strcpy(buf, "Unspawned_Wind_Mass");
-            break;     
+            break;
         case IO_CRATE:
             strcpy(buf, "CoolingRate");
             break;
@@ -3888,7 +3957,7 @@ void get_dataset_name(enum iofields blocknr, char *buf)
             break;
         case IO_SINK_FORM_MASS:
             strcpy(buf, "SinkInitialMass");
-            break;	    
+            break;
         case IO_BHMDOT:
             strcpy(buf, "BH_Mdot");
             break;
@@ -4044,6 +4113,12 @@ void get_dataset_name(enum iofields blocknr, char *buf)
             break;
         case IO_DYNERRORDEFAULT:
             strcpy(buf, "DynamicErrorDefault");
+            break;
+        case IO_DENSDM:
+            strcpy(buf, "DensityDM");
+            break;
+		case IO_PBHEF_Dtu:
+            strcpy(buf, "PBHEF_Dtu");
             break;
         case IO_LASTENTRY:
             endrun(218);
@@ -4337,7 +4412,7 @@ void write_file(char *fname, int writeTask, int lastTask)
                                 case 0:
                                     hdf5_datatype = H5Tcopy(H5T_NATIVE_UINT);
                                     break;
-                                    
+
                                 case 1:
 #ifdef OUTPUT_IN_DOUBLEPRECISION
                                     hdf5_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
@@ -4345,11 +4420,11 @@ void write_file(char *fname, int writeTask, int lastTask)
                                     hdf5_datatype = H5Tcopy(H5T_NATIVE_FLOAT);
 #endif
                                     break;
-                                    
+
                                 case 2:
                                     hdf5_datatype = H5Tcopy(H5T_NATIVE_UINT64);
                                     break;
-                                    
+
                                 case 3:
 #ifdef OUTPUT_POSITIONS_IN_DOUBLE
                                     hdf5_datatype = H5Tcopy(H5T_NATIVE_DOUBLE);
@@ -4499,7 +4574,7 @@ void write_header_attributes_in_hdf5(hid_t handle)
 
     {int tmp=GIZMO_VERSION; hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "GIZMO_version", H5T_NATIVE_INT, hdf5_dataspace, H5P_DEFAULT);
         H5Awrite(hdf5_attribute, H5T_NATIVE_INT, &tmp); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);}
-    
+
     hdf5_dataspace = H5Screate(H5S_SIMPLE); H5Sset_extent_simple(hdf5_dataspace, 1, adim, NULL);
     hdf5_attribute = H5Acreate(handle, "NumPart_ThisFile", H5T_NATIVE_INT, hdf5_dataspace, H5P_DEFAULT);
     H5Awrite(hdf5_attribute, H5T_NATIVE_INT, header.npart); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
@@ -4803,7 +4878,7 @@ void write_header_attributes_in_hdf5(hid_t handle)
     H5Awrite(hdf5_attribute, H5T_NATIVE_INT, &holder); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);}
 #ifdef GALSF_ISMDUSTCHEM_PASSIVE
     {int holder=1; hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "ISMDustChem_PassiveDustEvolution", H5T_NATIVE_INT, hdf5_dataspace, H5P_DEFAULT);
-    H5Awrite(hdf5_attribute, H5T_NATIVE_INT, &holder); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);}    
+    H5Awrite(hdf5_attribute, H5T_NATIVE_INT, &holder); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);}
 #endif
 #endif
 #endif // METALS
@@ -4821,7 +4896,7 @@ void write_header_attributes_in_hdf5(hid_t handle)
     hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "InterstellarRadiationFieldStrength", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
     H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.InterstellarRadiationFieldStrength); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
 #endif
-    
+
 #if defined(BH_WIND_CONTINUOUS) || defined(BH_WIND_KICK) || defined(BH_WIND_SPAWN)
     hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "BAL_f_accretion", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
     H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.BAL_f_accretion); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
@@ -4947,6 +5022,13 @@ void write_header_attributes_in_hdf5(hid_t handle)
     {unsigned long long holder = (unsigned long long) All.AGNWindID; hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "Spawned_Cell_ID", H5T_NATIVE_ULLONG, hdf5_dataspace, H5P_DEFAULT);
     H5Awrite(hdf5_attribute, H5T_NATIVE_ULLONG, &holder); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);}
 #endif
+#endif
+
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+    hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "PBH_MassFraction", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
+    H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.PBH_MassFraction); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
+    hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "PBH_InitialMass", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
+    H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.PBH_InitialMass); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
 #endif
 
 }

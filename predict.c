@@ -12,8 +12,8 @@
 /*
  * This file was originally part of the GADGET3 code developed by
  * Volker Springel. The code has been modified
- * substantially in detail (although the actual algorithm 
- * structure remains essentially the same) 
+ * substantially in detail (although the actual algorithm
+ * structure remains essentially the same)
  * by Phil Hopkins (phopkins@caltech.edu) for GIZMO.
  */
 
@@ -21,7 +21,7 @@ void reconstruct_timebins(void)
 {
     int i, bin;
     long long glob_sum;
-    
+
     for(bin = 0; bin < TIMEBINS; bin++)
     {
         TimeBinCount[bin] = 0;
@@ -38,11 +38,11 @@ void reconstruct_timebins(void)
         TimeBin_BH_Medd[bin] = 0;
 #endif
     }
-    
+
     for(i = 0; i < NumPart; i++)
     {
         bin = P[i].TimeBin;
-        
+
         if(TimeBinCount[bin] > 0)
         {
             PrevInTimeBin[i] = LastInTimeBin[bin];
@@ -58,7 +58,7 @@ void reconstruct_timebins(void)
         TimeBinCount[bin]++;
         if(P[i].Type == 0)
             TimeBinCountGas[bin]++;
-        
+
 #ifdef GALSF
         if(P[i].Type == 0)
             TimeBinSfr[bin] += SphP[i].Sfr;
@@ -73,9 +73,9 @@ void reconstruct_timebins(void)
         }
 #endif
     }
-    
+
     make_list_of_active_particles();
-    
+
     for(i = FirstActiveParticle, NumForceUpdate = 0; i >= 0; i = NextActiveParticle[i])
     {
         NumForceUpdate++;
@@ -85,7 +85,7 @@ void reconstruct_timebins(void)
             terminate("inconsistent list");
         }
     }
-    
+
     sumup_large_ints(1, &NumForceUpdate, &glob_sum);
     GlobNumForceUpdate = glob_sum;
 }
@@ -103,20 +103,20 @@ void drift_particle(int i, integertime time1)
         terminate("no prediction into past allowed");
     }
     if(time1 == time0) {return;}
-    
+
     if(All.ComovingIntegrationOn) {dt_drift = get_drift_factor(time0, time1);}
         else {dt_drift = (time1 - time0) * All.Timebase_interval;}
-    
-    
+
+
 #if !defined(FREEZE_HYDRO)
 #if defined(HYDRO_MESHLESS_FINITE_VOLUME)
     if(P[i].Type==0) {advect_mesh_point(i,dt_drift);} else {for(j=0;j<3;j++) {P[i].Pos[j] += P[i].Vel[j] * dt_drift;}}
 #elif (SINGLE_STAR_TIMESTEPPING > 0)
     double fewbody_drift_dx[3], fewbody_kick_dv[3]; // if super-timestepping, the updates above account for COM motion of the binary; now we account for the internal motion
-    if( (P[i].Type == 5) && (P[i].SuperTimestepFlag>=2) ) 
+    if( (P[i].Type == 5) && (P[i].SuperTimestepFlag>=2) )
     {
         double COM_Vel[3]; //center of mass velocity
-        for(j=0;j<3;j++) 
+        for(j=0;j<3;j++)
         {
             COM_Vel[j] = P[i].Vel[j] + P[i].comp_dv[j] * P[i].comp_Mass/(P[i].Mass+P[i].comp_Mass); //center of mass velocity
             P[i].Pos[j] += COM_Vel[j] * dt_drift; //center of mass drift
@@ -141,15 +141,24 @@ void drift_particle(int i, integertime time1)
 #if (NUMDIMS==2)
     P[i].Pos[2]=0; // force zero-ing
 #endif
-    
+
     double divv_fac = P[i].Particle_DivVel * dt_drift;
     double divv_fac_max = 0.3; //1.5; // don't allow Hsml to change too much in predict-step //
+
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
     if(ags_density_isactive(i) && P[i].Type>0) {divv_fac_max=4;} // can [should] allow larger changes when using adapting soft for all
 #endif
     if(divv_fac > +divv_fac_max) divv_fac = +divv_fac_max;
     if(divv_fac < -divv_fac_max) divv_fac = -divv_fac_max;
-    
+
+#ifdef PBH_EVAPORATION_FEEDBACK
+    double divv_facDM = P[i].Particle_DivVelDM * dt_drift;
+    double divv_fac_maxDM = 0.3; //1.5; // don't allow Hsml to change too much in predict-step //
+    if(divv_facDM > +divv_fac_maxDM) divv_facDM = +divv_fac_maxDM;
+    if(divv_facDM < -divv_fac_maxDM) divv_facDM = -divv_fac_maxDM;
+#endif
+
+
 #ifdef GRAIN_FLUID
     if((1 << P[i].Type) & (GRAIN_PTYPES))
     {
@@ -168,21 +177,21 @@ void drift_particle(int i, integertime time1)
         if(PPP[i].AGS_Hsml > maxsoft) {PPP[i].AGS_Hsml = maxsoft;}
     } else {PPP[i].AGS_Hsml = ForceSoftening_KernelRadius(i);} /* non-AGS-active particles use fixed softening */
 #endif
-    
+
 #ifdef DM_FUZZY
     do_dm_fuzzy_drift_kick(i, dt_drift, 1);
 #endif
-    
+
 #ifdef GDE_DISTORTIONTENSOR
     do_phase_space_drift(i, dt_drift);
 #endif
-    
+
     if((P[i].Type == 0) && (P[i].Mass > 0))
         {
             double dt_gravkick, dt_hydrokick, dt_entr;
             dt_entr = dt_hydrokick = (time1 - time0) * UNIT_INTEGERTIME_IN_PHYSICAL;
             if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(time0, time1);} else {dt_gravkick = dt_hydrokick;}
-            
+
 #ifdef PMGRID
             for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += (P[i].GravAccel[j] + P[i].GravPM[j]) * dt_gravkick + (SphP[i].HydroAccel[j] * dt_hydrokick)*All.cf_atime;} /* make sure v is in code units */
 #else
@@ -190,22 +199,26 @@ void drift_particle(int i, integertime time1)
 #endif
 #if (SINGLE_STAR_TIMESTEPPING > 0)
 	        if((P[i].Type == 5) && (P[i].SuperTimestepFlag>=2)) {for(j=0;j<3;j++) {SphP[i].VelPred[j] += fewbody_kick_dv[j];}}
-#endif	    
-            
+#endif
+
 #if defined(TURB_DRIVING)
             for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += SphP[i].TurbAccel[j] * dt_gravkick;}
 #endif
 #ifdef RT_RAD_PRESSURE_OUTPUT
             for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += SphP[i].Rad_Accel[j] * All.cf_atime * dt_hydrokick;}
 #endif
-            
+
 #ifdef HYDRO_MESHLESS_FINITE_VOLUME
             P[i].Mass = DMAX(P[i].Mass + SphP[i].DtMass * dt_entr, 0.5 * SphP[i].MassTrue);
 #endif
-            
+
             SphP[i].Density *= exp(-divv_fac);
+
+#ifdef PBH_EVAPORATION_FEEDBACK
+	    	P[i].DensityDM *= exp(-divv_facDM);
+#endif
             double etmp = SphP[i].InternalEnergyPred + SphP[i].DtInternalEnergy * dt_entr;
-#if defined(RADTRANSFER) && defined(RT_EVOLVE_ENERGY) /* block here to deal with tricky cases where radiation energy density is -much- larger than thermal */ 
+#if defined(RADTRANSFER) && defined(RT_EVOLVE_ENERGY) /* block here to deal with tricky cases where radiation energy density is -much- larger than thermal */
             int kfreq; double erad_tot=0,tot_e_min=0,enew=0,int_e_min=0,dErad=0,rsol_fac=C_LIGHT_CODE_REDUCED/C_LIGHT_CODE; for(kfreq=0;kfreq<N_RT_FREQ_BINS;kfreq++) {erad_tot+=SphP[i].Rad_E_gamma_Pred[kfreq];}
             if(erad_tot > 0)
             {
@@ -219,11 +232,11 @@ void drift_particle(int i, integertime time1)
             if(etmp<0.5*SphP[i].InternalEnergyPred) {SphP[i].InternalEnergyPred *= 0.5;} else {SphP[i].InternalEnergyPred=etmp;}
 #endif
             if(SphP[i].InternalEnergyPred<All.MinEgySpec) SphP[i].InternalEnergyPred=All.MinEgySpec;
-            
+
 #ifdef HYDRO_PRESSURE_SPH
             SphP[i].EgyWtDensity *= exp(-divv_fac);
 #endif
-            
+
 #if (HYDRO_FIX_MESH_MOTION > 0)
             PPP[i].Hsml *= exp((double)divv_fac / ((double)NUMDIMS));
             if(PPP[i].Hsml < All.MinHsml) {PPP[i].Hsml = All.MinHsml;}
@@ -236,7 +249,7 @@ void drift_particle(int i, integertime time1)
 
             set_eos_pressure(i);
         }
-    
+
     /* check for reflecting or outflow or otherwise special boundaries: if so, do the reflection/boundary! */
     apply_special_boundary_conditions(i,P[i].Mass,0);
 
@@ -307,7 +320,7 @@ void do_box_wrapping(void)
     boxsize[0] = boxSize_X;
     boxsize[1] = boxSize_Y;
     boxsize[2] = boxSize_Z;
-    
+
     for(i = 0; i < NumPart; i++)
     {
         for(j = 0; j < 3; j++)
@@ -337,7 +350,7 @@ void do_box_wrapping(void)
                 }
 #endif
             }
-            
+
             while(P[i].Pos[j] >= boxsize[j])
             {
                 P[i].Pos[j] -= boxsize[j];
@@ -376,13 +389,13 @@ void do_box_wrapping(void)
 /* ====================================================================== */
 
 
-/* this function returns the effective (grid-equivalent) particle 'size'; useful for things like 
+/* this function returns the effective (grid-equivalent) particle 'size'; useful for things like
     time-stepping and limiter functions */
 double INLINE_FUNC Get_Particle_Size(int i)
 {
-    /* in previous versions of the code, we took NumNgb^(1/NDIMS) here; however, now we 
-        take that when NumNgb is computed (at the end of the density routine), so we 
-        don't have to re-compute it each time. That makes this function fast enough to 
+    /* in previous versions of the code, we took NumNgb^(1/NDIMS) here; however, now we
+        take that when NumNgb is computed (at the end of the density routine), so we
+        don't have to re-compute it each time. That makes this function fast enough to
         call -inside- of loops (e.g. hydro computations) */
 #if (NUMDIMS == 1)
     return 2.00000 * PPP[i].Hsml / PPP[i].NumNgb; // (2)^(1/1)
@@ -419,11 +432,11 @@ double evaluate_NH_from_GradRho(MyFloat gradrho[3], double hsml, double rho, dou
     {
 #ifdef RT_USE_TREECOL_FOR_NH
         gradrho_mag = include_h * rho * hsml / numngb_ndim; if(target>0) {gradrho_mag += P[target].SigmaEff;}
-#else             
+#else
         gradrho_mag = sqrt(gradrho[0]*gradrho[0]+gradrho[1]*gradrho[1]+gradrho[2]*gradrho[2]);
         if(gradrho_mag > 0) {gradrho_mag = rho*rho/gradrho_mag;} else {gradrho_mag=0;}
         if(include_h > 0) if(numngb_ndim > 0) gradrho_mag += include_h * rho * hsml / numngb_ndim; // quick-and-dirty approximation to the effective neighbor number needed here
-#endif        
+#endif
     }
     return gradrho_mag * All.cf_a2inv; // (physical units) // *(Z/Zsolar) add metallicity dependence
 }
@@ -435,8 +448,8 @@ double evaluate_NH_from_GradRho(MyFloat gradrho[3], double hsml, double rho, dou
 
 
 #ifdef MAGNETIC
-/* this function is needed to control volume fluxes of the normal components of B and phi in the 
-    -bad- situation where the meshless method 'faces' do not properly close (usually means you are 
+/* this function is needed to control volume fluxes of the normal components of B and phi in the
+    -bad- situation where the meshless method 'faces' do not properly close (usually means you are
     using boundary conditions that you should not) */
 double Get_DtB_FaceArea_Limiter(int i)
 {
@@ -503,7 +516,7 @@ double INLINE_FUNC Get_Gas_PhiField_DampingTimeInv(int i_particle_id)
 #else
     // only see a small performance drop from fastestwavespeed above to maxsignalvel below, despite the fact that below is purely local (so allows more flexible adapting to high dynamic range)
     damping_tinv = 0.0;
-    
+
     if(PPP[i_particle_id].Hsml > 0)
     {
         double h_eff = Get_Particle_Size(i_particle_id);
@@ -541,7 +554,7 @@ double INLINE_FUNC Get_Gas_PhiField_DampingTimeInv(int i_particle_id)
         double area = fabs(SphP[i_particle_id].Face_Area[0]) + fabs(SphP[i_particle_id].Face_Area[1]) + fabs(SphP[i_particle_id].Face_Area[2]);
         area /= Get_Particle_Expected_Area(PPP[i_particle_id].Hsml);
         prefac_tinv *= (1. + area/area_0)*(1. + area/area_0);
-        
+
         double vsig_max = DMAX( DMAX(vsig1,vsig2) , prefac_fastest * All.FastestWaveSpeed );
         damping_tinv = prefac_tinv * All.DivBcleanParabolicSigma * (vsig_max / (All.cf_atime * h_eff));
     }
@@ -611,8 +624,8 @@ void advect_mesh_point(int i, double dt)
     // ok now have the updated x/y/z positions relative to the origin, convert these back to the simulation coordinate frame
     for(k=0;k<3;k++) {P[i].Pos[k] = dp[k] - dp_offset[k];}
 #endif // ok done with cylindrical/spherical coordinates
-    
-    
+
+
     // ok anything else ('normal' coordinates), does down here
     for(k=0;k<3;k++) {P[i].Pos[k] += SphP[i].ParticleVel[k] * dt;} // for standard grid velocities, this is trivial //
     return;

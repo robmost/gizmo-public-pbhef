@@ -61,10 +61,10 @@ void begrun(void)
       printf("Size of hydro-cell structure   %d  [bytes]\n\n", (int) sizeof(struct gas_cell_data));
 
 #ifdef PBH_EVAPORATION_FEEDBACK)
-      printf("\nPBH Evaporation feedback activated\nReceived-based approach, feedback calculated at gas positions\n");
+      printf("\nPBH evaporation feedback activated\nReceiver-based approach, feedback calculated at gas positions\n");
 #endif
 #ifdef PBH_EVAPORATION_FEEDBACK_DM
-      printf("\nPBH Evaporation feedback DM activated\nDonor-based approach, feedback calculated at DM positions\n");
+      printf("\nPBH evaporation feedback activated\nDonor-based approach, feedback calculated at DM positions (NOT IMPLEMENTED)\n");
 #endif
     }
 
@@ -441,6 +441,13 @@ void begrun(void)
       All.NetworkTempThreshold = all.NetworkTempThreshold;
 #endif
 
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+      strcpy(All.PBH_MassFraction, all.PBH_MassFraction);
+      strcpy(All.PBH_InitialMass, all.PBH_InitialMass);
+      strcpy(All.PBH_EvaporationConstant, all.PBH_EvaporationConstant);
+      strcpy(All.PBH_Alpha, all.PBH_Alpha);
+#endif
+
       if(All.TimeMax != all.TimeMax) {readjust_timebase(All.TimeMax, all.TimeMax);}
     }
 
@@ -598,19 +605,33 @@ void set_units(void)
 #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
     if(ThisTask == 0)
     {
-      printf("PBH Evaporation Feedback Parameters: PBH_MassFraction_f = %g, PBH_InitialMass_grams = %g\n", All.PBH_MassFraction_f, All.PBH_InitialMass_grams);
+      printf("PBH evaporation feedback parameters: PBH_MassFraction = %g, PBH_InitialMass = %g\n", All.PBH_MassFraction, All.PBH_InitialMass);
     }
 
-    // Calculate the PBH evaporation constant in code units
-    // C_U = hbar * c^6 / G^2  (units: g^3 cm^2 s^-3 in cgs)
-    double pbh_evaporation_constant_cgs = PLANCK_HBAR_CGS * pow(C_LIGHT_CGS, 6.0) / pow(GRAVITY_G_CGS, 2.0);
+    // Convert initial mass in code units
+    All.PBH_InitialMass /= UNIT_MASS_IN_CGS;
 
-    All.PBH_EvaporationConstant = pbh_evaporation_constant_cgs / (pow(UNIT_MASS_IN_CGS, 3.0) * pow(UNIT_LENGTH_IN_CGS, 2.0) * pow(UNIT_TIME_IN_CGS, -3.0));
+    // Calculate the PBH evaporation constant in code units
+    // C = hbar * c^6 / G^2  (units: g^3 cm^2 s^-3 in cgs)
+    double constant_cgs = PLANCK_HBAR_CGS * pow(C_LIGHT_CGS, 6.0) / pow(GRAVITY_G_CGS, 2.0);
+    All.PBH_EvaporationConstant = constant_cgs / (pow(UNIT_MASS_IN_CGS, 3.0) * pow(UNIT_LENGTH_IN_CGS, 2.0) * pow(UNIT_TIME_IN_CGS, -3.0));
+
+    // Calculate the PBH evaporation rate alpha. Alpha is considered dimensionless in the Mosbech et al. (2022) paper.
+    All.PBH_Alpha = calculate_alpha(All.PBH_InitialMass);
+
+    // If alpha is not strictly positive, then there's no heating from this mechanism.
+    if(All.PBH_Alpha <= 0.0 && ThisTask == 0)
+    {
+      printf("Alpha coefficient calculated as %g (<=0) using PBH_InitialMass = %g grams.\n", All.PBH_Alpha, All.PBH_InitialMass);
+      printf("PBH evaporation heating will be zero for this configuration of PBH initial mass.\n");
+    }
 
     if(ThisTask == 0)
     {
-      printf("PBH_EvaporationConstant (cgs): %g\n", pbh_evaporation_constant_cgs);
+      printf("PBH_InitialMass (code units): %g\n", All.PBH_InitialMass);
+      printf("PBH_EvaporationConstant (cgs): %g\n", constant_cgs);
       printf("PBH_EvaporationConstant (code units): %g\n", All.PBH_EvaporationConstant);
+      printf("PBH_Alpha (dimensionless): %g\n", All.PBH_Alpha);
     }
 #endif
 
@@ -2070,12 +2091,12 @@ void read_parameter_file(char *fname)
 #endif  // CHIMES
 
 #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-      strcpy(tag[nt], "PBH_MassFraction_f");
-      addr[nt] = &All.PBH_MassFraction_f;
+      strcpy(tag[nt], "PBH_MassFraction");
+      addr[nt] = &All.PBH_MassFraction;
       id[nt++] = REAL;
 
-      strcpy(tag[nt], "PBH_InitialMass_grams"); // This tag must match your parameter file
-      addr[nt] = &All.PBH_InitialMass_grams;
+      strcpy(tag[nt], "PBH_InitialMass");
+      addr[nt] = &All.PBH_InitialMass;
       id[nt++] = REAL;
 #endif
 
@@ -2316,8 +2337,8 @@ void read_parameter_file(char *fname)
 #endif
 #endif
 #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-                if(strcmp("PBH_MassFraction_f",tag[i])==0) {*((double *)addr[i])=0.1; printf("Tag %s (%s) not set in parameter file: defaulting to a fraction of PBHs in DM particles of (=%g) \n",tag[i],alternate_tag[i],All.PBH_MassFraction_f); continue;}
-                if(strcmp("PBH_InitialMass_grams",tag[i])==0) {*((double *)addr[i])=1.0e15; printf("Tag %s (%s) not set in parameter file: defaulting to an initial PBH mass relevant at z~99 of (=%g grams) \n",tag[i],alternate_tag[i],All.PBH_InitialMass_grams); continue;}
+                if(strcmp("PBH_MassFraction",tag[i])==0) {*((double *)addr[i])=0.1; printf("Tag %s (%s) not set in parameter file: defaulting to a fraction of PBHs in DM particles of (=%g) \n",tag[i],alternate_tag[i],All.PBH_MassFraction); continue;}
+                if(strcmp("PBH_InitialMass",tag[i])==0) {*((double *)addr[i])=1.0e15; printf("Tag %s (%s) not set in parameter file: defaulting to an initial PBH mass relevant at z~99 of (=%g grams) \n",tag[i],alternate_tag[i],All.PBH_InitialMass); continue;}
 #endif
                 printf("ERROR. I miss a required value for tag '%s' (or alternate name '%s') in parameter file '%s'.\n", tag[i], alternate_tag[i], fname);
                 errorFlag = 1;
@@ -2611,13 +2632,13 @@ void read_parameter_file(char *fname)
 #endif
 
 #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-    if(All.PBH_MassFraction_f < 0.0 || All.PBH_MassFraction_f > 1.0)
+    if(All.PBH_MassFraction < 0.0 || All.PBH_MassFraction > 1.0)
     {
-        if(ThisTask == 0) {printf("PBH_MassFraction_f must be between 0 and 1 (inclusive)\n"); endrun(1);}
+        if(ThisTask == 0) {printf("PBH_MassFraction must be between 0 and 1 (inclusive)\n"); endrun(1);}
     }
-    if(All.PBH_InitialMass_grams <= 0.0)
+    if(All.PBH_InitialMass <= 0.0)
     {
-        if(ThisTask == 0) {printf("PBH_InitialMass_grams must be > 0\n"); endrun(1);}
+        if(ThisTask == 0) {printf("PBH_InitialMass must be > 0\n"); endrun(1);}
     }
 #endif
 

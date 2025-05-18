@@ -58,8 +58,17 @@ void compute_hydro_densities_and_forces(void)
 {
   if(All.TotN_gas > 0)
     {
+#ifdef PBH_EVAPORATION_FEEDBACK
+        PRINT_STATUS("PBH evaporation feedback: receiver-based approach (at gas particles)");
+#endif
+#ifdef PBH_EVAPORATION_FEEDBACK_DM
+	PRINT_STATUS("PBH evaporation feedback: donor-based approach (at DM particles)");
+#endif
         PRINT_STATUS("Start hydrodynamics computation...");
         density();		/* computes density, and pressure */
+#ifdef PBH_EVAPORATION_FEEDBACK
+	dm_density();          /* computes dark matter density around gas particles */
+#endif
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
         ags_density();
 #endif
@@ -142,17 +151,17 @@ void compute_stellar_feedback(void)
     thermal_fb_calc(); /* thermal feedback */
     MPI_Barrier(MPI_COMM_WORLD); CPU_Step[CPU_SNIIHEATING] += measure_time(); /* collect timings and reset clock for next timing */
 #endif
-    
+
 #if defined(GALSF_FB_FIRE_RT_HIIHEATING)
     HII_heating_singledomain(); /* local photo-ionization heating */
     MPI_Barrier(MPI_COMM_WORLD); CPU_Step[CPU_HIIHEATING] += measure_time(); /* collect timings and reset clock for next timing */
 #endif
-    
+
 #ifdef GALSF_FB_FIRE_RT_LOCALRP
     radiation_pressure_winds_consolidated(); /* local radiation pressure */
     MPI_Barrier(MPI_COMM_WORLD); CPU_Step[CPU_LOCALWIND] += measure_time(); /* collect timings and reset clock for next timing */
 #endif
-    
+
     CPU_Step[CPU_MISC] += measure_time();
 }
 #endif // GALSF //

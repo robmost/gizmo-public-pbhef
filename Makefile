@@ -9,25 +9,25 @@
 #
 #  (1) Copy the file "Template-Config.sh"  to  "Config.sh"
 #
-#        cp Template-Config.sh Config.sh 
+#        cp Template-Config.sh Config.sh
 #
 #  (2) Edit "Config.sh" as needed for your application
 #
 #  (3) Run "make"
 #
 #
-#  New compile-time options should be added to the 
+#  New compile-time options should be added to the
 #  file "Template-Config.sh" only. Usually, the should be added
 #  there in the disabled/default version.
 #
 #  "Config.sh" should *not* be checked in to the repository
 #
-#  Note: It is possible to override the default name of the 
+#  Note: It is possible to override the default name of the
 #  Config.sh file, if desired, as well as the name of the
 #  executable. For example:
 #
 #   make  CONFIG=MyNewConf.sh  EXEC=GIZMO
-# 
+#
 #-----------------------------------------------------------------
 #
 # You might also be looking for the target system SYSTYPE option
@@ -41,7 +41,7 @@
 #        e.g. export SYSTYPE=Magny
 # or
 #
-# (B) set SYSTYPE in Makefile.systype 
+# (B) set SYSTYPE in Makefile.systype
 #     This file has priority over your shell variable.:
 #
 #     Uncomment your system in  "Makefile.systype".
@@ -53,7 +53,7 @@
 #
 # This file was originally part of the GADGET3 code developed by
 #   Volker Springel. The code has been modified
-#   slighty by Phil Hopkins (phopkins@caltech.edu) for GIZMO (mostly 
+#   slighty by Phil Hopkins (phopkins@caltech.edu) for GIZMO (mostly
 #   dealing with new files and filename conventions)
 #
 #############
@@ -125,9 +125,9 @@ HDF5INCL = -I$(TACC_HDF5_INC) -DH5_USE_16_API
 HDF5LIB  = -L$(TACC_HDF5_LIB) -lhdf5 -lz
 #MPICHLIB =
 OPT     += -DUSE_MPI_IN_PLACE
-## modules to load: 
+## modules to load:
 ## module load intel mvapich2 gsl hdf5 fftw2
-##  -- performance is very similar with impi (intel-mpi) instead of mpavich2, 
+##  -- performance is very similar with impi (intel-mpi) instead of mpavich2,
 ##   if preferred use that with MPICHLIB line uncommented
 ## newest version of code needed for compatibility with calls in MPI-2 libraries
 ##
@@ -272,7 +272,7 @@ endif
 #
 # [old: There are still odd memory issues. The machine should have 3.3gb/core available after OS, etc, but in practice we need to allocate less than this. MPI errors
 #   have also been appearing in large runs (for almost all users) related to memory. Be careful for now, and communicate to TACC support staff re: memory issues.]
-#   I am using ~3gb/core for low task numbers, lower still for higher task numbers. 
+#   I am using ~3gb/core for low task numbers, lower still for higher task numbers.
 ##
 endif
 
@@ -591,7 +591,7 @@ GMP_LIBS =
 MKL_INCL =
 MKL_LIBS =
 GSL_INCL = -I/usr/include
-GSL_LIBS = -L/usr/lib 
+GSL_LIBS = -L/usr/lib
 FFTW_INCL= -I/usr/include
 FFTW_LIBS= -L/usr/lib
 HDF5INCL = -I/usr/include/hdf5/openmpi -DH5_USE_16_API
@@ -671,8 +671,8 @@ HDF5INCL = -I$(HDF5_HOME)/include -DH5_USE_16_API
 HDF5LIB  = -L$(HDF5_HOME)/lib -lhdf5 -lz
 MPICHLIB = #
 OPT     += # -DUSE_MPI_IN_PLACE
-## modules to load: 
-## module load intel/2011.4.191 impi/4.0.2.003 gsl/1.15-gcc HDF5 
+## modules to load:
+## module load intel/2011.4.191 impi/4.0.2.003 gsl/1.15-gcc HDF5
 ##  -- the machine is quite picky, impi seems to be the only working mpi option right now
 ##  --  currently fftw2 isnt pre-installed, built library in my directory, with config flags:
 ##       ./configure --prefix=/home/phopkins/fftw --enable-mpi --enable-type-prefix --enable-float --with-gcc
@@ -733,7 +733,7 @@ OPT += -DUSE_FFTW3
 endif
 ##
 ## Notes [Fergus Horrobin]:
-## 
+##
 ## As of December 2021 it seems that the following way of loading the modules gives the best performance:
 ##		module load intel intelmpi gsl hdf5 fftw
 ## Experiment with OPENMP=2 or =4 especially for larger (>4 node) runs. MULTIPLEDOMAINS=16 seems to be helpful as
@@ -902,12 +902,12 @@ CXX      =  mpic++
 FC       =  $(CC)
 OPTIMIZE = -O2 -xhost -ipo -funroll-loops -no-prec-div -fp-model fast=2
 ifeq (OPENMP,$(findstring OPENMP,$(CONFIGVARS)))
-OPTIMIZE += -parallel -openmp # openmp required compiler flags 
+OPTIMIZE += -parallel -openmp # openmp required compiler flags
 endif
 ifeq (CHIMES,$(findstring CHIMES,$(CONFIGVARS)))
-CHIMESINCL = -I/home/ajr882/sundials/include  
-CHIMESLIBS = -L/home/ajr882/sundials/lib -lsundials_cvode -lsundials_nvecserial 
-endif 
+CHIMESINCL = -I/home/ajr882/sundials/include
+CHIMESLIBS = -L/home/ajr882/sundials/lib -lsundials_cvode -lsundials_nvecserial
+endif
 GMP_INCL = #
 GMP_LIBS = #
 MKL_INCL = -I$(MKLROOT)/include
@@ -918,7 +918,7 @@ FFTW_INCL= -I/projects/b1026/pascal/software/fftw/2.1.5-mvp/include
 FFTW_LIBS= -L/projects/b1026/pascal/software/fftw/2.1.5-mvp/lib
 HDF5INCL = -I/projects/b1026/pascal/software/hdf5/1.8.12/include -DH5_USE_16_API
 HDF5LIB  = -L/projects/b1026/pascal/software/hdf5/1.8.12/lib -lhdf5 -lz
-MPICHLIB = -lmpich 
+MPICHLIB = -lmpich
 OPT     += -DUSE_MPI_IN_PLACE
 #### modules to load:
 #module load mpi/mvapich2-intel2013.2
@@ -934,23 +934,23 @@ CXX      =  mpic++
 FC       =  $(CC)
 OPTIMIZE = -O2 -xhost -ipo -funroll-loops -no-prec-div -fp-model fast=2
 ifeq (OPENMP,$(findstring OPENMP,$(CONFIGVARS)))
-OPTIMIZE += -parallel -openmp -mt_mpi 
+OPTIMIZE += -parallel -openmp -mt_mpi
 endif
 ifeq (CHIMES,$(findstring CHIMES,$(CONFIGVARS)))
-CHIMESINCL = -I/home/sundials/include  
-CHIMESLIBS = -L/home/sundials/lib -lsundials_cvode -lsundials_nvecserial 
-endif 
+CHIMESINCL = -I/home/sundials/include
+CHIMESLIBS = -L/home/sundials/lib -lsundials_cvode -lsundials_nvecserial
+endif
 GMP_INCL = #
 GMP_LIBS = #
 MKL_INCL = -I$(MKLROOT)/include
 MKL_LIBS = -L$(MKLROOT)/lib/intel64 -lm -lmkl_core -lmkl_sequential -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_blacs_intelmpi_lp64
-GSL_INCL = 
-GSL_LIBS = 
-FFTW_INCL= -I/home/libraries/fftw-2.1.5_install/include 
-FFTW_LIBS= -L/home/libraries/fftw-2.1.5_install/lib 
-HDF5INCL = -DH5_USE_16_API 
+GSL_INCL =
+GSL_LIBS =
+FFTW_INCL= -I/home/libraries/fftw-2.1.5_install/include
+FFTW_LIBS= -L/home/libraries/fftw-2.1.5_install/lib
+HDF5INCL = -DH5_USE_16_API
 HDF5LIB  = -lhdf5 -lz
-MPICHLIB = 
+MPICHLIB =
 OPT     += -DUSE_MPI_IN_PLACE
 #### modules to load:
 #module load intel/2013.2
@@ -1142,7 +1142,7 @@ MPICHLIB =      # must be empty if using openmpi
 OPT     += -DFIX_PATHSCALE_MPI_STATUS_IGNORE_BUG
 ##
 ## Notes:
-## 
+##
 ## include the following in your .bashrc file (there is no default fftw2 module):
 ## module load intel/10.1 openmpi/1.2.4 gmp gsl hdf5 #now have to add fftw2 manually
 ## export TACC_FFTW2_INC=/opt/apps/intel10_1/openmpi_1_2_4/fftw2/2.1.5/include
@@ -1158,7 +1158,7 @@ endif
 
 #----------------------------------------------------------------------------------------------
 ifeq ($(SYSTYPE),"Ranger_pgi")
-CC       =  mpicc 
+CC       =  mpicc
 CXX      =  mpiCC
 FC       =  $(CC)
 OPTIMIZE = -tp barcelona-64 -fast -Mipa=fast,inline -Munroll -Mvect -O4
@@ -1174,19 +1174,19 @@ HDF5INCL = -I$(TACC_HDF5_INC)
 HDF5LIB  = -L$(TACC_HDF5_LIB) -lhdf5 -lz
 OPT     += -DFIX_PATHSCALE_MPI_STATUS_IGNORE_BUG
 OPT     += -DNOCALLSOFSYSTEM -DNO_ISEND_IRECV_IN_DOMAIN -DMPICH_IGNORE_CXX_SEEK
-## 
+##
 ## Notes:
 ##
 ## include the following in your .bashrc file:
 ##   module load pgi mvapich gmp gsl fftw2 hdf5
 ##   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/share/apps/binutils-amd/070220/lib64
-## 
+##
 endif
 
 #----------------------------------------------------------------------------------------------
 ifeq ($(SYSTYPE),"odyssey")
 CC       =  mpicc     # sets the C-compiler
-OPT      +=  -DMPICH_IGNORE_CXX_SEEK 
+OPT      +=  -DMPICH_IGNORE_CXX_SEEK
 FC       =  $(CC)
 OPTIMIZE = -g -O2 -Wall -Wno-unused-but-set-variable
 GSL_INCL =
@@ -1239,7 +1239,7 @@ OPT     += -DUSE_MPI_IN_PLACE -DHDF5_DISABLE_VERSION_CHECK
 ## The above settings and modules should work equally well on all the upgraded workstations as well as on Sunnyvale.
 ## The module system was just updated so this has not been tested in detail yet but seems to work as well or a bit
 ## better than it did with the old modules on a few test problems.
-endif 
+endif
 
 
 #----------------------------------------------------------------------------------------------
@@ -1279,10 +1279,27 @@ FFTW_INCL=  -I/afs/mpa/home/volker/Libs/include
 FFTW_LIBS=  -L/afs/mpa/home/volker/Libs/lib -Xlinker -R -Xlinker /afs/mpa/home/volker/Libs/lib
 MPICHLIB =
 HDF5INCL =  -I/afs/mpa/home/volker/Libs/include
-HDF5LIB  =  -L/afs/mpa/home/volker/Libs/lib -lhdf5 -lz 
+HDF5LIB  =  -L/afs/mpa/home/volker/Libs/lib -lhdf5 -lz
 OPT     +=  -DOLD_HDF5
 endif
 
+#----------------------------------------------------------------------------------------------
+ifeq ($(SYSTYPE),"MacbookProM1")
+CC       =  /opt/homebrew/bin/mpicc  # sets the C-compiler
+CXX      =  /opt/homebrew/bin/mpicxx
+OPTIMIZE =  -O3 -funroll-loops -m64 -Wall -g #-std=c99
+ifeq (OPENMP,$(findstring OPENMP,$(CONFIGVARS)))
+	OPTIMIZE += -fopenmp # openmp required compiler flags
+endif
+FC       =  $(CC)
+GSL_INCL =  -I/opt/homebrew/include/gsl
+GSL_LIBS =  -L/opt/homebrew/lib -lgsl -lgslcblas
+FFTW_INCL=  -I/opt/homebrew/include
+FFTW_LIBS=  -L/opt/homebrew/lib
+MPICHLIB =  -L/opt/homebrew/lib
+HDF5INCL =  -I/opt/homebrew/include -DH5_USE_16_API
+HDF5LIB  =  -L/opt/homebrew/lib -lhdf5 #-static -lz
+endif
 
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
@@ -1338,7 +1355,7 @@ EOSCOOL_OBJS =  cooling/cooling.o \
 				solids/grain_physics.o \
 				solids/ism_dust_chemistry.o \
 				nuclear/nuclear_network_solver.o \
-				nuclear/nuclear_network.o 
+				nuclear/nuclear_network.o
 
 STARFORM_OBJS = galaxy_sf/sfr_eff.o \
                 galaxy_sf/stellar_evolution.o \
@@ -1377,7 +1394,8 @@ FOF_OBJS =	structure/fof.o \
 
 MISC_OBJS = sidm/cbe_integrator.o \
 			sidm/dm_fuzzy.o \
-			sidm/sidm_core.o
+			sidm/sidm_core.o \
+			pbh_evaporation/pbh_evaporation.o
 
 ## name of executable and optimizations
 EXEC   = GIZMO
@@ -1433,8 +1451,8 @@ endif
 # chimes files are treated as special for now because they require special external libraries (e.g. sundials) that are otherwise not
 #   used anywhere else in the code, and have not had their macro logic cleaned up to allow appropriate compilation without chimes flags enabled
 ifeq (CHIMES,$(findstring CHIMES,$(CONFIGVARS)))
-OBJS    += cooling/chimes/chimes.o cooling/chimes/chimes_cooling.o cooling/chimes/init_chimes.o cooling/chimes/rate_equations.o cooling/chimes/update_rates.o 
-INCL    += cooling/chimes/chimes_interpol.h cooling/chimes/chimes_proto.h cooling/chimes/chimes_vars.h 
+OBJS    += cooling/chimes/chimes.o cooling/chimes/chimes_cooling.o cooling/chimes/init_chimes.o cooling/chimes/rate_equations.o cooling/chimes/update_rates.o
+INCL    += cooling/chimes/chimes_interpol.h cooling/chimes/chimes_proto.h cooling/chimes/chimes_vars.h
 endif
 
 # if HDF5 explicitly disabled, remove the linked libraries
@@ -1502,11 +1520,11 @@ endif
 LIBS = $(HDF5LIB) -g $(MPICHLIB) $(GSL_LIBS) -lgsl -lgslcblas \
 	   $(FFTW_LIBS) $(FFTW_LIBNAMES) -lm $(GRACKLELIBS) $(CHIMESLIBS)
 
-ifeq (PTHREADS_NUM_THREADS,$(findstring PTHREADS_NUM_THREADS,$(CONFIGVARS))) 
+ifeq (PTHREADS_NUM_THREADS,$(findstring PTHREADS_NUM_THREADS,$(CONFIGVARS)))
 LIBS += -lpthread
 endif
 
-$(EXEC): $(OBJS) $(FOBJS)  
+$(EXEC): $(OBJS) $(FOBJS)
 	$(FC) $(OPTIMIZE) $(OBJS) $(FOBJS) $(LIBS) $(RLIBS) -o $(EXEC)
 
 $(OBJS): $(INCL)  $(CONFIG)  compile_time_info.c

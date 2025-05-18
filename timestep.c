@@ -198,11 +198,11 @@ void find_timesteps(void)
             }
         }
 #endif
-        
+
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
         if(P[i].Type == 3 && P[i].Mass > 0) {xyz_local[0]=P[i].Pos[0]; xyz_local[1]=P[i].Pos[1]; xyz_local[2]=P[i].Pos[2]; special_particle_active_with_this_index=i; special_particle_mass_local=P[i].Mass;} // active on this processor, set
 #endif
-        
+
     }
 
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
@@ -349,7 +349,7 @@ integertime get_timestep(int p,		/*!< particle index */
 
 #ifdef ADAPTIVE_GRAVSOFT_FROM_TIDAL_CRITERION
     double tidal_mag = 0.; {int k,j; for(k=0;k<3;k++) {for(j=0;j<3;j++) {tidal_mag += P[p].tidal_tensorps[k][j]*P[p].tidal_tensorps[k][j];}}} // get the frobenius norm
-    tidal_mag = sqrt(tidal_mag); // can estimate time derivative here, via: dt_ttmag = (tidal_mag-P[p].tidal_tensor_mag_prev) / GET_PARTICLE_TIMESTEP_IN_PHYSICAL(p); 
+    tidal_mag = sqrt(tidal_mag); // can estimate time derivative here, via: dt_ttmag = (tidal_mag-P[p].tidal_tensor_mag_prev) / GET_PARTICLE_TIMESTEP_IN_PHYSICAL(p);
     double dt_tidalsoft = All.CourantFac * NUMDIMS * DMAX(DMAX(GET_PARTICLE_TIMESTEP_IN_PHYSICAL(p), dt), All.MinSizeTimestep) * (tidal_mag+P[p].tidal_tensor_mag_prev) / (fabs(tidal_mag-P[p].tidal_tensor_mag_prev) + MIN_REAL_NUMBER);
     if(((1 << P[p].Type) & (ADAPTIVE_GRAVSOFT_FROM_TIDAL_CRITERION)) && (P[p].tidal_tensor_mag_prev>0 && All.Time>All.TimeBegin)) {dt = DMIN(dt, dt_tidalsoft);} // use as a timestep criterion for tidal-ags-active particles
     P[p].tidal_tensor_mag_prev = tidal_mag; // save it (overwriting previous value)
@@ -369,11 +369,11 @@ integertime get_timestep(int p,		/*!< particle index */
     if(All.ComovingIntegrationOn){ // floor to the dynamical time of the universe
         double rho0 = (H0_CGS*H0_CGS*(3./(8.*M_PI*GRAVITY_G_CGS))*All.cf_a3inv / UNIT_DENSITY_IN_CGS);
         dt_tidal = DMIN(dt_tidal, sqrt(All.ErrTolIntAccuracy / (All.G * rho0)));
-    } 
+    }
 #ifdef ADAPTIVE_TREEFORCE_UPDATE
     P[p].tdyn_step_for_treeforce = dt_tidal; // hang onto this to decide how frequently to update the treeforce
 #endif
-    
+
 #if (SINGLE_STAR_TIMESTEPPING > 0)
     if(P[p].SuperTimestepFlag>=2) {dt_tidal = sqrt(2*All.ErrTolIntAccuracy) * P[p].COM_dt_tidal;}
 #endif
@@ -412,7 +412,7 @@ integertime get_timestep(int p,		/*!< particle index */
     }
 #if defined(SINGLE_STAR_FB_TIMESTEPLIMIT) && !defined(SELFGRAVITY_OFF)
     if(P[p].Type == 0) {dt = DMIN(dt, 0.5 * All.CourantFac * DMIN(P[p].min_bh_fb_time, P[p].min_bh_approach_time));}
-#endif    
+#endif
 #endif // SINGLE_STAR_TIMESTEPPING
 
 #ifdef ADAPTIVE_GRAVSOFT_FORALL
@@ -487,7 +487,7 @@ integertime get_timestep(int p,		/*!< particle index */
             dt_courant = All.CourantFac * (L_particle*All.cf_atime) / csnd;
 #ifdef BH_WIND_SPAWN
 	    if(P[p].ID == All.AGNWindID){dt_courant *= 0.5;} // be more careful if this is a spawned-in gas cell
-#endif			    
+#endif
             if(dt_courant < dt) dt = dt_courant;
 
             double dt_prefac_diffusion;
@@ -639,7 +639,7 @@ integertime get_timestep(int p,		/*!< particle index */
 #if defined(RADTRANSFER)
             {
                 double dt_rad = 1.e10 * dt; // make some ridiculously large number here
-                    
+
                 /* first check if we are using an explicit diffusion-type solver (FLD, OTVET). need to consider the standard diffusive timestep, which we calculate below */
 #if (defined(RT_OTVET) || defined(RT_FLUXLIMITEDDIFFUSION)) && defined(RT_COMPGRAD_EDDINGTON_TENSOR) && !defined(RT_EVOLVE_FLUX) /* for explicit diffusion, we include the usual second-order diffusion timestep */
                 int kf; for(kf=0;kf<N_RT_FREQ_BINS;kf++)
@@ -680,14 +680,14 @@ integertime get_timestep(int p,		/*!< particle index */
                 } // end of loop over frequency bins
 #endif // end of conditional to check if we're using FLD or OTVET with an explicit solver
 
-                
+
                 /* now consider the (simpler) CFL-type condition required for advective solvers like M1 or intensity/ray integrators */
 #if defined(RT_M1) || defined(RT_LOCALRAYGRID)
                 dt_courant = All.CourantFac * (L_particle*All.cf_atime) / C_LIGHT_CODE_REDUCED; /* courant-type criterion, using the reduced speed of light */
                 if(dt_courant < dt_rad) {dt_rad = dt_courant;}
 #endif // explicit advective-type solver check
 
-                
+
                 /* one more check - we can optionally limit the timestep for explicit chemical timesteps: implicit solve is fine locally, but gets propagation somewhat wrong if timesteps too large, as that depends on opacity, which depends on ionization step! */
 #if defined(RT_CHEM_PHOTOION) && defined(RT_TIMESTEP_LIMIT_RECOMBINATION) /* make sure this doesn't overshoot the recombination time for the opacity to change for ionizing photons */
                 double ne_cgs = (SphP[p].Density * All.cf_a3inv * UNIT_DENSITY_IN_NHCGS), dt_recombination = All.CourantFac * (3.3e12/ne_cgs) / UNIT_TIME_IN_CGS;
@@ -699,7 +699,7 @@ integertime get_timestep(int p,		/*!< particle index */
                 if(dt_rad < dt) dt = dt_rad; // set the actual radiation timestep!
             }
 #endif // RADTRANSFER
-            
+
 
 #ifdef VISCOSITY
             {
@@ -801,7 +801,7 @@ integertime get_timestep(int p,		/*!< particle index */
                 double dt_turb_driving = 1.9 * st_return_dt_between_updates();
                 if (dt > dt_turb_driving) {dt = dt_turb_driving;}
 #endif
-            
+
 
 #ifdef SUPER_TIMESTEP_DIFFUSION
             /* now use the timestep information above to limit the super-stepping timestep */
@@ -903,8 +903,8 @@ integertime get_timestep(int p,		/*!< particle index */
         if(dt > dt_smbh_max) {dt = dt_smbh_max;}
     }
 #endif
-    
-    
+
+
 #ifdef BLACK_HOLES
 
 #ifdef BH_WAKEUP_GAS
@@ -929,8 +929,8 @@ integertime get_timestep(int p,		/*!< particle index */
 #else
             dt_accr = 0.05 * DMAX(BPP(p).BH_Mass , All.MaxMassForParticleSplit) / BPP(p).BH_Mdot;
 #endif
-#ifdef SINGLE_STAR_FB_JETS	    
-            dt_accr = DMIN(dt_accr, target_mass_for_wind_spawning(p) / BPP(p).BH_Mdot); 
+#ifdef SINGLE_STAR_FB_JETS
+            dt_accr = DMIN(dt_accr, target_mass_for_wind_spawning(p) / BPP(p).BH_Mdot);
 #endif
         } // if(BPP(p).BH_Mdot > 0 && BPP(p).BH_Mass > 0)
 #ifdef BH_SEED_GROWTH_TESTS
@@ -963,7 +963,7 @@ integertime get_timestep(int p,		/*!< particle index */
             double vsig = P[p].BH_SurroundingGasVel;
 #if defined(SINGLE_STAR_FB_TIMESTEPLIMIT) && !defined(NOGRAVITY)
             vsig += P[p].MaxFeedbackVel;
-#endif                        
+#endif
             double dt_cour_sink = All.CourantFac * (L_particle*All.cf_atime) / vsig;
             if(dt > dt_cour_sink && dt_cour_sink > 0) {dt = 1.01 * dt_cour_sink;}
         }
@@ -980,8 +980,31 @@ integertime get_timestep(int p,		/*!< particle index */
     if((P[p].Type==5) || (P[p].Type==0 && P[p].ID==All.AGNWindID && SphP[p].IniDen<0)) {if(dt>All.BH_spawn_rinj/All.BAL_v_outflow && All.BH_spawn_rinj>0 && All.BAL_v_outflow>0) {dt=All.BH_spawn_rinj/All.BAL_v_outflow;}}
 #endif
 #endif // BLACK_HOLES
-    
 
+// Additional time step limiter based on the PBHEF injection energy rate
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+    if(P[p].Type == 0)
+    {
+       double beta    = 1.0;
+#ifdef PBH_EVAPORATION_FEEDBACK
+       double PBHEF_energy_rate = SphP[p].PBHEF_Dtu * P[p].Mass; // need to multiply by mass to get energy
+#endif
+       double dt_PBHEF;
+       if(PBHEF_energy_rate)
+       {
+           dt_PBHEF = pow((All.CourantFac * Get_Particle_Size(p) * 1.0 / beta * pow(SphP[p].Density / PBHEF_energy_rate, 1.0/5.0)), 5.0/3.0);
+       }
+       else
+       {
+           dt_PBHEF = 0;
+       }
+
+       if(dt_PBHEF > 0 && dt_PBHEF < dt)
+       {
+           dt = dt_PBHEF;
+       }
+    }
+#endif
 
 
     /* convert the physical timestep to dloga if needed. Note: If comoving integration has not been selected, All.cf_hubble_a=1. */
