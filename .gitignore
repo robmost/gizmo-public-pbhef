@@ -15,3 +15,4 @@ scripts/test_problems/outputs/*
 compile_time_info.c
 GIZMO_config.h
 GIZMO*
+ewald*.dat

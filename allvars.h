@@ -2083,8 +2083,8 @@ extern struct global_data_all_processes
   double MassTable[6];
 
   /* some filenames */
-  char InitCondFile[100],
-    OutputDir[100],
+  char InitCondFile[500],
+    OutputDir[500],
     SnapshotFileBase[100],
     RestartFile[100], ResubmitCommand[100], OutputListFilename[100];
     /* EnergyFile[100], CpuFile[100], InfoFile[100], TimingsFile[100], TimebinFile[100], */
