@@ -1,2 +1,9 @@
+# Local workspace files
 .vscode/*
 GIZMO-PBHEF.code-workspace
+.DS_Store
+
+# Ignore initial condition files and exact solutions in  test problems
+scripts/test_problems/ics/*
+scripts/test_problems/exact_solutions/*
+
