@@ -52,4 +52,5 @@
 #SYSTYPE="Zwicky"
 #SYSTYPE="BlueWaters"
 #SYSTYPE="PopOS"
-SYSTYPE="MacbookProM1"
+#SYSTYPE="MacbookProM1"
+SYSTYPE="NT"

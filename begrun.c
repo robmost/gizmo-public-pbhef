@@ -61,10 +61,14 @@ void begrun(void)
       printf("Size of hydro-cell structure   %d  [bytes]\n\n", (int) sizeof(struct gas_cell_data));
 
 #ifdef PBH_EVAPORATION_FEEDBACK
-      printf("\nPBH evaporation feedback activated\nReceiver-based approach, feedback calculated at gas positions\n");
+      printf("-----\n");
+      printf("PBHEF activated\nReceiver-based approach, feedback calculated at gas positions\n");
+      printf("-----\n");
 #endif
 #ifdef PBH_EVAPORATION_FEEDBACK_DM
-      printf("\nPBH evaporation feedback activated\nDonor-based approach, feedback calculated at DM positions (NOT IMPLEMENTED)\n");
+      printf("-----\n");
+      printf("PBHEF activated\nDonor-based approach, feedback calculated at DM positions (NOT IMPLEMENTED)\n");
+      printf("-----\n");
 #endif
     }
 
@@ -446,6 +450,9 @@ void begrun(void)
       All.PBH_InitialMass = all.PBH_InitialMass;
       All.PBH_EvaporationConstant = all.PBH_EvaporationConstant;
       All.PBH_Alpha = all.PBH_Alpha;
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+      All.PBH_EnergyID = all.PBH_EnergyID;
+#endif
 #endif
 
       if(All.TimeMax != all.TimeMax) {readjust_timebase(All.TimeMax, all.TimeMax);}
@@ -605,8 +612,15 @@ void set_units(void)
 #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
     if(ThisTask == 0)
     {
-      printf("PBH evaporation feedback parameters: PBH_MassFraction = %g, PBH_InitialMass = %g\n", All.PBH_MassFraction, All.PBH_InitialMass);
+      printf("PBHEF parameters: PBH_MassFraction = %g, PBH_InitialMass = %g\n", All.PBH_MassFraction, All.PBH_InitialMass);
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+      printf("PBHEF debug mode parameters: PBH_EnergyID = %d\n", All.PBH_EnergyID);
+#endif
     }
+
+    // Calculate the PBH evaporation rate alpha. Alpha is considered dimensionless in the Mosbech et al. (2022) paper.
+    // Calculate the PBH evaraporation rate alpha BEFORE converting the initial mass to code units.
+    All.PBH_Alpha = calculate_alpha(All.PBH_InitialMass);
 
     // Convert initial mass in code units
     All.PBH_InitialMass /= UNIT_MASS_IN_CGS;
@@ -616,14 +630,11 @@ void set_units(void)
     double constant_cgs = PLANCK_HBAR_CGS * pow(C_LIGHT_CGS, 6.0) / pow(GRAVITY_G_CGS, 2.0);
     All.PBH_EvaporationConstant = constant_cgs / (pow(UNIT_MASS_IN_CGS, 3.0) * pow(UNIT_LENGTH_IN_CGS, 2.0) * pow(UNIT_TIME_IN_CGS, -3.0));
 
-    // Calculate the PBH evaporation rate alpha. Alpha is considered dimensionless in the Mosbech et al. (2022) paper.
-    All.PBH_Alpha = calculate_alpha(All.PBH_InitialMass);
-
     // If alpha is not strictly positive, then there's no heating from this mechanism.
     if(All.PBH_Alpha <= 0.0 && ThisTask == 0)
     {
       printf("Alpha coefficient calculated as %g (<=0) using PBH_InitialMass = %g grams.\n", All.PBH_Alpha, All.PBH_InitialMass);
-      printf("PBH evaporation heating will be zero for this configuration of PBH initial mass.\n");
+      printf("PBHEF heating will be zero for this configuration of PBH initial mass.\n");
     }
 
     if(ThisTask == 0)
@@ -631,7 +642,7 @@ void set_units(void)
       printf("PBH_InitialMass (code units): %g\n", All.PBH_InitialMass);
       printf("PBH_EvaporationConstant (cgs): %g\n", constant_cgs);
       printf("PBH_EvaporationConstant (code units): %g\n", All.PBH_EvaporationConstant);
-      printf("PBH_Alpha (dimensionless): %g\n", All.PBH_Alpha);
+      printf("PBH_Alpha (dimensionless): %g\n\n", All.PBH_Alpha);
     }
 #endif
 
@@ -2098,6 +2109,11 @@ void read_parameter_file(char *fname)
       strcpy(tag[nt], "PBH_InitialMass");
       addr[nt] = &All.PBH_InitialMass;
       id[nt++] = REAL;
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+      strcpy(tag[nt], "PBH_EnergyID");
+      addr[nt] = &All.PBH_EnergyID;
+      id[nt++] = INT;
+#endif
 #endif
 
 
@@ -2339,6 +2355,9 @@ void read_parameter_file(char *fname)
 #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
                 if(strcmp("PBH_MassFraction",tag[i])==0) {*((double *)addr[i])=0.1; printf("Tag %s (%s) not set in parameter file: defaulting to a fraction of PBHs in DM particles of (=%g) \n",tag[i],alternate_tag[i],All.PBH_MassFraction); continue;}
                 if(strcmp("PBH_InitialMass",tag[i])==0) {*((double *)addr[i])=1.0e15; printf("Tag %s (%s) not set in parameter file: defaulting to an initial PBH mass relevant at z~99 of (=%g grams) \n",tag[i],alternate_tag[i],All.PBH_InitialMass); continue;}
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+                if(strcmp("PBH_EnergyID",tag[i])==0) {*((int *)addr[i])=0; printf("Tag %s (%s) not set in parameter file: defaulting to the PBH EnergyID (=%d) \n",tag[i],alternate_tag[i],All.PBH_EnergyID); continue;}
+#endif
 #endif
                 printf("ERROR. I miss a required value for tag '%s' (or alternate name '%s') in parameter file '%s'.\n", tag[i], alternate_tag[i], fname);
                 errorFlag = 1;

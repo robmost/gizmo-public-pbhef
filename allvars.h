@@ -2450,6 +2450,10 @@ extern struct global_data_all_processes
   double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
   double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */
   double PBH_Alpha;                  /*!< Evaporation rate, following the analytical fit from Mosbech et al. (2022) */
+
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+  int PBH_EnergyID;              /*!< ID of the particle that is used to store the energy from the PBH evaporation feedback*/
+#endif
 #endif
 
 }

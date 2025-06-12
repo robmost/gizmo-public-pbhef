@@ -784,17 +784,22 @@ void hydro_final_operations_and_cleanup(void)
 
 
 #ifdef PBH_EVAPORATION_FEEDBACK /* Done after the hydro loop */
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
-			SphP[i].DtInternalEnergy += (P[i].DensityDM / P[i].Mass);
-#else
             dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // should be in 10^10 Msol/kpc^3
             heat_source = UNIT_TIME_IN_CGS * All.PBH_MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.PBH_Alpha / pow(All.PBH_InitialMass, 3.0);
 
             // Add internal energy created by PBH evaporation
 			SphP[i].DtInternalEnergy += (1.0 / All.cf_atime * heat_source);
 			SphP[i].PBHEF_Dtu += (1.0 / All.cf_atime * heat_source);
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+            if ((P[i].ID == All.PBH_EnergyID) && (P[i].Type == 0)) {
+                printf("PBHEF: i=%d, Type=%d, ID=%llu, rhoDM=%g, rho=%g, rhoDm/rho=%g, f=%g,\n\
+                      C=%g, alpha=%g, PBHm0=%g, heat_source=%g, DtInternalEnergy=%g\n",\
+                       i, P[i].Type, P[i].ID, P[i].DensityDM, SphP[i].Density, dm_dens_over_gas_dens, All.PBH_MassFraction, \
+                       All.PBH_EvaporationConstant, All.PBH_Alpha, All.PBH_InitialMass, heat_source, SphP[i].DtInternalEnergy);
+            }
 #endif
 #endif
+
 
 
 #if defined(RT_RAD_PRESSURE_FORCES) && defined(RT_EVOLVE_FLUX) && !defined(RT_RADPRESSURE_IN_HYDRO) //#elif defined(RT_COMPGRAD_EDDINGTON_TENSOR) /* // -- moved for OTVET+FLD to drift-kick operation to deal with limiters more accurately -- // */

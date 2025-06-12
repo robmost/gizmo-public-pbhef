@@ -1302,6 +1302,24 @@ HDF5LIB  =  -L/opt/homebrew/lib -lhdf5 #-static -lz
 endif
 
 #----------------------------------------------------------------------------------------------
+ifeq ($(SYSTYPE),"NT")
+CC       =  mpicc   # sets the C-compiler
+CXX      =  mpicxx
+OPTIMIZE =  -O3 -funroll-loops -m64 -Wall -g #-std=c99
+ifeq (OPENMP,$(findstring OPENMP,$(CONFIGVARS)))
+    OPTIMIZE += -fopenmp # openmp required compiler flags
+endif
+FC       =  $(CC)
+GSL_INCL =  -I$(EBROOTGSL)/include
+GSL_LIBS =  -L$(EBROOTGSL)/lib -lgsl -lgslcblas
+FFTW_INCL=  -I$(EBROOTFFTW)/include
+FFTW_LIBS=  -I$(EBROOTFFTW)/lib
+MPICHLIB =  -L$(EBROOTOPENMPI)/lib
+HDF5INCL =  -I$(EBROOTHDF5)/include -DH5_USE_16_API
+HDF5LIB  =  -L$(EBROOTHDF5)/lib  -lhdf5 #-static -lz
+endif
+
+#----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
 #----------------------------------------------------------------------------------------------
 

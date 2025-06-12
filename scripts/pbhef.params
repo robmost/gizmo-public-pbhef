@@ -133,4 +133,5 @@ WindFreeTravelDensFac        0.1     % 'free-stream' until density < this * Crit
 %-------------- Parameters for primordial black-hole evaporation feedback (PBH_EVAPORATION_FEEDBACK/PBH_EVAPORATION_FEEDBACK_DM on)
 PBH_MassFraction             0.1     % Mass fraction of DM in PBHs (dimensionless)
 PBH_InitialMass              1.0e15  % Initial mass of PBHs, m_PBH,0 (grams). (For an initial redshift of ~99, the revelant PBH mass is 1e-18 Msun)
+PBH_EnergyID                 50      % Particle ID to track the feedback energy information (DEBUG_PBH_EVAPORATION_FEEDBACK on)
 
