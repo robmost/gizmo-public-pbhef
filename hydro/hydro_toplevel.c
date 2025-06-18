@@ -792,10 +792,10 @@ void hydro_final_operations_and_cleanup(void)
 			SphP[i].PBHEF_Dtu += (1.0 / All.cf_atime * heat_source);
 #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
             if ((P[i].ID == All.PBH_EnergyID) && (P[i].Type == 0)) {
-                printf("PBHEF: i=%d, Type=%d, ID=%llu, rhoDM=%g, rho=%g, rhoDm/rho=%g, f=%g,\n\
-                      C=%g, alpha=%g, PBHm0=%g, heat_source=%g, DtInternalEnergy=%g\n",\
-                       i, P[i].Type, P[i].ID, P[i].DensityDM, SphP[i].Density, dm_dens_over_gas_dens, All.PBH_MassFraction, \
-                       All.PBH_EvaporationConstant, All.PBH_Alpha, All.PBH_InitialMass, heat_source, SphP[i].DtInternalEnergy);
+                printf(" ..PBHEF: i=%d, Type=%d, ID=%llu, rhoDM=%g, rho=%g, rhoDm/rho=%g, f=%g,\n\
+          C=%g, alpha=%g, PBHm0=%g, heat_source=%g, DtInternalEnergy=%g\n", i, P[i].Type, P[i].ID, P[i].DensityDM*All.cf_a3inv,\
+          SphP[i].Density*All.cf_a3inv, dm_dens_over_gas_dens, All.PBH_MassFraction,\
+          All.PBH_EvaporationConstant, All.PBH_Alpha, All.PBH_InitialMass, heat_source, SphP[i].DtInternalEnergy);
             }
 #endif
 #endif

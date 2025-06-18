@@ -58,17 +58,14 @@ void compute_hydro_densities_and_forces(void)
 {
   if(All.TotN_gas > 0)
     {
-#ifdef PBH_EVAPORATION_FEEDBACK
-        PRINT_STATUS("PBH evaporation feedback: receiver-based approach (at gas particles)");
-#endif
-#ifdef PBH_EVAPORATION_FEEDBACK_DM
-	PRINT_STATUS("PBH evaporation feedback: donor-based approach (at DM particles)");
-#endif
         PRINT_STATUS("Start hydrodynamics computation...");
         density();		/* computes density, and pressure */
+
 #ifdef PBH_EVAPORATION_FEEDBACK
-	dm_density();          /* computes dark matter density around gas particles */
+        PRINT_STATUS(" ..PBHEF Receiver-based approach:  estimating DM densities (at gas particles)...");
+        dm_density();          /* computes dark matter density around gas particles */
 #endif
+
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
         ags_density();
 #endif
