@@ -784,18 +784,21 @@ void hydro_final_operations_and_cleanup(void)
 
 
 #ifdef PBH_EVAPORATION_FEEDBACK /* Done after the hydro loop */
-            dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // should be in 10^10 Msol/kpc^3
-            heat_source = UNIT_TIME_IN_CGS * All.PBH_MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.PBH_Alpha / pow(All.PBH_InitialMass, 3.0);
+            dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // dimensionless ratio of DM density to gas density
+            heat_source = All.PBH_MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.PBH_Alpha / (All.PBH_InitialMass * All.PBH_InitialMass * All.PBH_InitialMass);
 
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+            heat_source = All.PBH_MassFraction * All.PBH_Alpha * dm_dens_over_gas_dens; // Debug the constants
+#endif
             // Add internal energy created by PBH evaporation
 			SphP[i].DtInternalEnergy += (1.0 / All.cf_atime * heat_source);
 			SphP[i].PBHEF_Dtu += (1.0 / All.cf_atime * heat_source);
 #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
-            if ((P[i].ID == All.PBH_EnergyID) && (P[i].Type == 0)) {
-                printf(" ..PBHEF: i=%d, Type=%d, ID=%llu, rhoDM=%g, rho=%g, rhoDm/rho=%g, f=%g,\n\
-          C=%g, alpha=%g, PBHm0=%g, heat_source=%g, DtInternalEnergy=%g\n", i, P[i].Type, P[i].ID, P[i].DensityDM*All.cf_a3inv,\
+            if (P[i].ID == All.PBH_EnergyID) {
+                PRINT_STATUS(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, SphP[i].InternalEnergy=%g, rhoDM=%g, rho=%g, rhoDm/rho=%g, f=%g,\n\
+          C=%g, alpha=%g, PBHm0=%g, heat_source=%g, atime=%g, PBHEF_Dtu=%g, DtInternalEnergy=%g\n", i, P[i].Type, P[i].ID, SphP[i].InternalEnergy, P[i].DensityDM*All.cf_a3inv,\
           SphP[i].Density*All.cf_a3inv, dm_dens_over_gas_dens, All.PBH_MassFraction,\
-          All.PBH_EvaporationConstant, All.PBH_Alpha, All.PBH_InitialMass, heat_source, SphP[i].DtInternalEnergy);
+          All.PBH_EvaporationConstant, All.PBH_Alpha, All.PBH_InitialMass, heat_source, All.cf_atime, SphP[i].PBHEF_Dtu, SphP[i].DtInternalEnergy);
             }
 #endif
 #endif
