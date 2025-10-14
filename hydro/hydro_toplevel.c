@@ -189,13 +189,13 @@ struct INPUT_STRUCT_NAME
     MyFloat FaceClosureError;
     MyFloat InternalEnergyPred;
     MyFloat SoundSpeed;
-    integertime Timestep;
+    MyFloat dt_hydrostep_i;
     MyFloat DhsmlNgbFactor;
 #ifdef HYDRO_SPH
     MyFloat DhsmlHydroSumFactor;
     MyFloat alpha;
 #endif
-
+    
     /* matrix of the conserved variable gradients: rho, u, vx, vy, vz */
     struct
     {
@@ -225,7 +225,7 @@ struct INPUT_STRUCT_NAME
 #endif
     } Gradients;
     MyLongDouble NV_T[3][3];
-
+    
 #if defined(KERNEL_CRK_FACES)
     MyFloat Tensor_CRK_Face_Corrections[16];
 #endif
@@ -235,15 +235,15 @@ struct INPUT_STRUCT_NAME
 #ifdef HYDRO_PRESSURE_SPH
     MyFloat EgyWtRho;
 #endif
-
+    
 #if defined(TURB_DIFF_METALS) || (defined(METALS) && defined(HYDRO_MESHLESS_FINITE_VOLUME))
     MyFloat Metallicity[NUM_METAL_SPECIES+NUM_ADDITIONAL_PASSIVESCALAR_SPECIES_FOR_YIELDS_AND_DIFFUSION];
 #endif
-
+    
 #ifdef CHIMES_TURB_DIFF_IONS
     MyDouble ChimesNIons[CHIMES_TOTSIZE];
 #endif
-
+    
 #ifdef RT_SOLVER_EXPLICIT
     MyDouble Rad_E_gamma[N_RT_FREQ_BINS];
     MyDouble Rad_Kappa[N_RT_FREQ_BINS];
@@ -261,26 +261,26 @@ struct INPUT_STRUCT_NAME
     MyDouble Rad_Intensity_Pred[N_RT_FREQ_BINS][N_RT_INTENSITY_BINS];
 #endif
 #endif
-
+    
 #ifdef TURB_DIFFUSION
     MyFloat TD_DiffCoeff;
 #endif
-
+    
 #ifdef CONDUCTION
     MyFloat Kappa_Conduction;
 #endif
-
+    
 #ifdef MHD_NON_IDEAL
     MyFloat Eta_MHD_OhmicResistivity_Coeff;
     MyFloat Eta_MHD_HallEffect_Coeff;
     MyFloat Eta_MHD_AmbiPolarDiffusion_Coeff;
 #endif
-
+    
 #ifdef VISCOSITY
     MyFloat Eta_ShearViscosity;
     MyFloat Zeta_BulkViscosity;
 #endif
-
+    
 #ifdef MAGNETIC
     MyFloat BPred[3];
 #if defined(SPH_TP12_ARTIFICIAL_RESISTIVITY)
@@ -290,7 +290,7 @@ struct INPUT_STRUCT_NAME
     MyFloat PhiPred;
 #endif
 #endif // MAGNETIC //
-
+    
 #ifdef COSMIC_RAY_FLUID
     MyDouble CosmicRayPressure[N_CR_PARTICLE_BINS];
     MyDouble CosmicRayDiffusionCoeff[N_CR_PARTICLE_BINS];
@@ -301,19 +301,24 @@ struct INPUT_STRUCT_NAME
     MyDouble CosmicRayAlfvenEnergy[N_CR_PARTICLE_BINS][2];
 #endif
 #endif
-
+    
 #ifdef GALSF_SUBGRID_WINDS
     MyDouble DelayTime;
 #endif
-
+    
 #ifdef EOS_ELASTIC
     int CompositionType;
     MyFloat Elastic_Stress_Tensor[3][3];
 #endif
-
+    
 #ifndef DONOTUSENODELIST
     int NodeList[NODELISTLENGTH];
 #endif
+
+#if 0 //def USE_TIMESTEP_DILATION_FOR_ZOOMS
+    double DilationFactor;
+#endif
+    
 }
 *DATAIN_NAME, *DATAGET_NAME;
 
@@ -411,7 +416,7 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
     in->Pressure = SphP[i].Pressure;
     in->InternalEnergyPred = SphP[i].InternalEnergyPred;
     in->SoundSpeed = Get_Gas_effective_soundspeed_i(i);
-    in->Timestep = GET_PARTICLE_INTEGERTIME(i);
+    in->dt_hydrostep_i = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
     in->ConditionNumber = SphP[i].ConditionNumber;
     in->FaceClosureError = SphP[i].FaceClosureError;
 #ifdef MHD_CONSTRAINED_GRADIENT
@@ -555,6 +560,10 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
 
 #ifdef GALSF_SUBGRID_WINDS
     in->DelayTime = SphP[i].DelayTime;
+#endif
+
+#if 0 //def USE_TIMESTEP_DILATION_FOR_ZOOMS
+    in->DilationFactor = return_timestep_dilation_factor(i,0);
 #endif
 
 }

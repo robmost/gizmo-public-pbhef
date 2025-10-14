@@ -48,7 +48,7 @@ int does_particle_need_to_be_merged(int i)
 #endif
 #if defined(FIRE_SUPERLAGRANGIAN_JEANS_REFINEMENT) || defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
     if(P[i].Type>0) {return 0;} // don't allow merging of collisionless particles [only splitting, in these runs]
-    if(P[i].Type==3) {return 0;}
+    if(is_particle_a_special_zoom_target(i)) {return 0;}
 #endif
 #ifdef BH_WIND_SPAWN
     if(P[i].ID==All.AGNWindID && P[i].Type==0)
@@ -135,7 +135,15 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         
         double mcrit_0=1.*(4000.), T_eff = 1.23 * (5./3.-1.) * U_TO_TEMP_UNITS * SphP[i].InternalEnergyPred, nH_cgs = SphP[i].Density*All.cf_a3inv*UNIT_DENSITY_IN_NHCGS, MJ = 9.e6 * pow( 1 + T_eff/1.e4, 1.5) / sqrt(1.e-12 + nH_cgs);
         if(All.ComovingIntegrationOn) {MJ *= pow(1. + (100.*COSMIC_BARYON_DENSITY_CGS) / (SphP[i].Density*All.cf_a3inv*UNIT_DENSITY_IN_CGS), 3);}
-        double m_ref_mJ = 0.001 * MJ; int k; double dx,r2=0; for(k=0;k<3;k++) {dx=(P[i].Pos[k]-All.SMBH_SpecialParticle_Position_ForRefinement[k])*All.cf_atime; r2+=dx*dx;}
+        double m_ref_mJ = 0.001 * MJ;
+        int k,j; double dx,r2=0,r2min=MAX_REAL_NUMBER;
+        for(j=0;j<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;j++)
+        {
+            r2=0; for(k=0;k<3;k++) {dx=(P[i].Pos[k]-All.SMBH_SpecialParticle_Position_ForRefinement[j][k])*All.cf_atime; r2+=dx*dx;}
+            if(r2<r2min) {r2min=r2;}
+        }
+        r2 = r2min; // want minimum distance to nearest refinement center
+        
         double rbh = sqrt(r2) * UNIT_LENGTH_IN_PC/1000.;
         if(rbh > 1.e-10 && isfinite(rbh) && rbh < 1.e10)
         {
@@ -185,9 +193,10 @@ double target_mass_renormalization_factor_for_mergesplit(int i, int split_key)
         f0minfac = DMAX(f0minfac , 0.005); // may need to be further lowered later
         minimum_refinement_mass_in_solar = 1.e-9;
         f0 = DMIN(1., f0minfac*f0);
-#endif
+#else
         f0minfac = DMAX(f0minfac , 0.015); // may need to be further lowered later
         f0 = DMIN(DMAX(1.,1./m_ref_mJ), f0minfac*f0);
+#endif
 #endif
 #endif
 
@@ -1249,7 +1258,7 @@ void rearrange_particle_sequence(void)
 void apply_pm_hires_region_clipping_selection(int i)
 {
 #if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
-    if(P[i].Type==3) {return;}
+    if(is_particle_a_special_zoom_target(i)) {return;}
 #endif
 #ifdef PM_HIRES_REGION_CLIPPING
     int clip_flag = 0; // flag for clipping
@@ -1311,6 +1320,7 @@ int evaluate_starstar_merger_for_starcluster_eligibility(int i)
 {
     if(All.Time <= All.TimeBegin) {return 0;} // don't allow on first timestep
     if(P[i].Type != 4) {return 0;} // only stars
+    if(P[i].Mass*UNIT_MASS_IN_SOLAR > 1.e6) {return 0;} // stop merging beyond a certain point, only want to downgrade the resolution so much
     if(evaluate_stellar_age_Gyr(i) < 0.05) {return 0;} // sufficiently old (don't want to do this for extremely young stars as messes up feedback and early dynamics)
 #ifdef ADAPTIVE_GRAVSOFT_FROM_TIDAL_CRITERION // need to figure out if the new version of this makes sense
     double r_NGB = 1.25 * pow((All.DesNumNgb*All.G*P[i].Mass)/P[i].tidal_tensor_mag_prev , 1./3.); // kernel size enclosing some target neighbor number in a constant-density medium
@@ -1318,9 +1328,11 @@ int evaluate_starstar_merger_for_starcluster_eligibility(int i)
 #else
 #ifdef COMPUTE_TIDAL_TENSOR_IN_GRAVTREE
     double h_i=ForceSoftening_KernelRadius(i), tidal_mag=0., fac_self=-P[i].Mass*kernel_gravity(0.,1.,1.,1)/(h_i*h_i*h_i); int k,j; // get what's needed for tidal tensor computation
-    for(k=0;k<3;k++) {for(j=0;j<3;j++) {double ttkj=P[i].tidal_tensorps[k][j]; if(j==k) {ttkj+=fac_self;} // compute tidal tensor including self-contribution
-        tidal_mag+=ttkj*ttkj;}} // want the frobenius norm
-    if(tidal_mag > 0) {tidal_mag = sqrt(tidal_mag); // squared norm. note this is in code units
+    //for(k=0;k<3;k++) {for(j=0;j<3;j++) {double ttkj=P[i].tidal_tensorps[k][j]; if(j==k) {ttkj+=fac_self;} // compute tidal tensor including self-contribution
+    //    tidal_mag+=ttkj*ttkj;}} // want the frobenius norm
+    for(k=0;k<3;k++) {tidal_mag -= P[i].tidal_tensorps[k][k];} // want the trace, actually, and in general this -shouldn't- include the self-contribution
+    if(tidal_mag > 0) {
+        //tidal_mag = sqrt(tidal_mag); // squared norm. note this is in code units
         double ngb_dist = 1.25 * pow( (All.DesNumNgb * All.G * P[i].Mass / tidal_mag) , 1./3. ); // distance to the N'th nearest-neighbor
         if(ngb_dist > All.ForceSoftening[4]) {return 0;} // sufficiently dense region (need to have effective nearest-neighbor spacing approaching the minimum softening, with some arbitrary threshold we set)
     }

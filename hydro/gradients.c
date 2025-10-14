@@ -118,7 +118,6 @@ struct GasGraddata_in
     MyDouble Pos[3];
     MyFloat Mass;
     MyFloat Hsml;
-    integertime Timestep;
 #ifdef MHD_CONSTRAINED_GRADIENT
     MyDouble ConditionNumber;
     MyLongDouble NV_T[3][3];
@@ -267,7 +266,6 @@ static inline void particle2in_GasGrad(struct GasGraddata_in *in, int i, int gra
 #endif
 
     if(SHOULD_I_USE_SPH_GRADIENTS(SphP[i].ConditionNumber)) {in->Mass *= -1;}
-    in->Timestep = GET_PARTICLE_INTEGERTIME(i);
 #ifdef MHD_CONSTRAINED_GRADIENT
     in->ConditionNumber = SphP[i].ConditionNumber;
     if(gradient_iteration > 0) {if(SphP[i].FlagForConstrainedGradients <= 0) {in->Mass = 0;}}
@@ -1549,21 +1547,8 @@ int GasGrad_evaluate(int target, int mode, int *exportflag, int *exportnodecount
             {
                 j = ngblist[n]; /* since we use the -threaded- version above of ngb-finding, its super-important this is the lower-case ngblist here! */
                 if(GasGrad_isactive(j)==0) continue;
-
-                integertime TimeStep_J; TimeStep_J = GET_PARTICLE_INTEGERTIME(j);
-#if 0 //!defined(BOX_SHEARING) && !defined(_OPENMP) // (shearing box means the fluxes at the boundaries are not actually symmetric, so can't do this; OpenMP on some new compilers goes bad here because pointers [e.g. P...] are not thread-safe shared with predictive operations, and vectorization means no gain here with OMP anyways) //
-                if(local.Timestep > TimeStep_J) continue; /* compute from particle with smaller timestep */
-                /* use relative positions to break degeneracy */
-                if(local.Timestep == TimeStep_J)
-                {
-                    int n0=0; if(local.Pos[n0] == P[j].Pos[n0]) {n0++; if(local.Pos[n0] == P[j].Pos[n0]) n0++;}
-                    if(local.Pos[n0] < P[j].Pos[n0]) continue;
-                }
-                swap_to_j = TimeBinActive[P[j].TimeBin];
-#else
                 swap_to_j = 0;
-#endif
-
+                
                 kernel.dp[0] = local.Pos[0] - P[j].Pos[0];
                 kernel.dp[1] = local.Pos[1] - P[j].Pos[1];
                 kernel.dp[2] = local.Pos[2] - P[j].Pos[2];

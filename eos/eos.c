@@ -677,13 +677,23 @@ void calculate_and_assign_nonideal_mhd_coefficients(int i)
     double vT_crit = sqrt( BOLTZMANN_CGS*temperature * (xe + xi + xg*fabs(Z_grain) + psi_n) / m_carrier_weighted ); // salient thermal speed for superthermal drift
     double vA_crit = B_Gauss / sqrt(4.*M_PI*m_carrier_weighted*n_eff); // effective Alfven speed to compare as well
     double vT_an = DMIN(vT_crit, vA_crit); // speed for anomalous term to kick on
-    double vdrift_mag = ((B_Gauss / L_B) * C_LIGHT_CGS) / (4.*M_PI*ELECTRONCHARGE_CGS * n_eff * xi_AbsZi_eff), vslip_mag = eta_A/L_B, epstein_corr = sqrt(1. + (vdrift_mag*vdrift_mag + vslip_mag*vslip_mag)/(vT_crit*vT_crit));
-    double eta_an = (eta_prefac * units_cgs_to_code / xi_AbsZi_eff) * sqrt(1. + 4.*M_PI*C_LIGHT_CGS*C_LIGHT_CGS*ELECTRONMASS_CGS*n_eff*xe/(B_Gauss*B_Gauss)); // anomalous resistivity, set to max of either gyro frequency or electron plasma frequency (dust plasma frequency should be lower unless in dusty plasma regime, where behavior is much more complicated
-    eta_ohmic*=epstein_corr; eta_ad/=sqrt(epstein_corr); // epstein-type correction for superthermal drift or slip
-    if(vdrift_mag > vT_an/40.) {eta_ohmic += eta_an * exp(-vT_an/vdrift_mag) * sqrt(1. + (vdrift_mag*vdrift_mag)/(vT_an*vT_an));} // factor to represent boosted ohmic to diffuse when exceed critical limit
-    double eta_max = 1.e24;
-    if(eta_ohmic > eta_max) {eta_ohmic = eta_max;}
+    double vdrift_mag = ((B_Gauss / L_B) * C_LIGHT_CGS) / (4.*M_PI*ELECTRONCHARGE_CGS * n_eff * xi_AbsZi_eff); // drift magnitude in CGS
+    double vslip_mag_over_vT = (eta_A/L_B) / vT_crit; // vslip_perp over vT_crit in CGS
+    double one_plus_vslip2_veff2 = 0.5 + sqrt(0.25 + vslip_mag_over_vT*vslip_mag_over_vT); // 'effective' vslip, accounting for full nonlinear terms
+    eta_ohmic *= sqrt(one_plus_vslip2_veff2 + vdrift_mag*vdrift_mag/(vT_crit*vT_crit)); // epstein-type correction for superthermal drift or slip - here rescaling of Ohmic for drift+slip
+    eta_ad /= sqrt(one_plus_vslip2_veff2); // epstein-type correction for superthermal drift or slip - here rescaling of AD for slip
+    double eta_an = (eta_prefac * units_cgs_to_code / xi_AbsZi_eff) * sqrt(1. + 4.*M_PI*C_LIGHT_CGS*C_LIGHT_CGS*ELECTRONMASS_CGS*n_eff*xe/(B_Gauss*B_Gauss)); // anomalous resistivity, set to max of either gyro frequency or electron plasma frequency (dust plasma frequency should be lower unless in dusty plasma regime, where behavior is much more complicated)
+    if(eta_an < fabs(eta_hall)+fabs(eta_ad)) {eta_an = fabs(eta_hall)+fabs(eta_ad);} // anomalous term should always be largest frequency
+    eta_an *= sqrt(1. + (vdrift_mag*vdrift_mag)/(vT_an*vT_an)); // epstein-type correction for the anomalous term itself
+    if(vdrift_mag > vT_an/40.) {eta_ohmic += eta_an * exp(-vT_an/vdrift_mag);} // factor to represent boosted ohmic to diffuse when exceed critical limit
+    double eta_max_corr = 1.e24 * units_cgs_to_code; // limit maximum value to the diffusivity
+    if(eta_ohmic > eta_max_corr) {double fcorr=eta_max_corr/eta_ohmic; eta_ohmic*=fcorr; eta_hall*=fcorr; eta_ad*=fcorr;} // rescale so relative magnitude is preserved
 #endif
+    double etamag = fabs(eta_ohmic) + fabs(eta_hall) + fabs(eta_ad); // maximum (total) magnitude of the non-ideal terms
+    double etamax = 1.e24 * units_cgs_to_code; // cap coefficients -- this is problem specific but for disks and related problems, can safely assume this cap
+    double etacor = 1.; if(etamag > etamax) {etacor = etamax/etamag;} // suppression factor
+    eta_ohmic *= etacor; eta_hall *= etacor; eta_ad *= etacor; // applied
+
     SphP[i].Eta_MHD_OhmicResistivity_Coeff = eta_ohmic;     /*!< Ohmic resistivity coefficient [physical units of L^2/t] */
     SphP[i].Eta_MHD_HallEffect_Coeff = eta_hall;            /*!< Hall effect coefficient [physical units of L^2/t] */
     SphP[i].Eta_MHD_AmbiPolarDiffusion_Coeff = eta_ad;      /*!< Hall effect coefficient [physical units of L^2/t] */

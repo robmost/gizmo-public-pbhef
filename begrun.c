@@ -373,9 +373,7 @@ void begrun(void)
         All.PhotonMomentum_fOPT = all.PhotonMomentum_fOPT;
 #endif
 #ifdef COSMIC_RAY_FLUID
-#if (CRFLUID_DIFFUSION_MODEL == 0)
-        All.CosmicRayDiffusionCoeff = all.CosmicRayDiffusionCoeff;
-#endif
+      All.CosmicRayDiffusionCoeff = all.CosmicRayDiffusionCoeff;
 #endif
 #ifdef GALSF_FB_FIRE_AGE_TRACERS
       All.AgeTracerRateNormalization = all.AgeTracerRateNormalization;
@@ -1387,11 +1385,9 @@ void read_parameter_file(char *fname)
 
 
 #ifdef COSMIC_RAY_FLUID
-#if (CRFLUID_DIFFUSION_MODEL == 0)
         strcpy(tag[nt], "CosmicRayDiffusionCoeff");
         addr[nt] = &All.CosmicRayDiffusionCoeff;
         id[nt++] = REAL;
-#endif
 #endif
 
 

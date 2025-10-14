@@ -311,16 +311,8 @@ void force_drift_node(int no, integertime time1)
       Nodes[no].u.d.bitflags &= (~(1 << BITFLAG_NODEHASBEENKICKED));
     }
 
-  if(All.ComovingIntegrationOn)
-    {
-      dt_drift_hmax = get_drift_factor(Nodes[no].Ti_current, time1);
-      dt_drift = dt_drift_hmax;
-    }
-  else
-    {
-      dt_drift_hmax = (time1 - Nodes[no].Ti_current) * All.Timebase_interval;
-      dt_drift = dt_drift_hmax;
-    }
+    dt_drift = dt_drift_hmax = get_drift_factor(Nodes[no].Ti_current, time1, no, 1);
+    
 
     for(j = 0; j < 3; j++) {Nodes[no].u.d.s[j] += Extnodes[no].vs[j] * dt_drift;}
   Nodes[no].len += 2 * Extnodes[no].vmax * dt_drift;

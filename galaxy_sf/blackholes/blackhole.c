@@ -679,7 +679,7 @@ void blackhole_final_operations(void)
             {
                 double fac_bh_shift=0;
 #if (BH_REPOSITION_ON_POTMIN == 2)
-                dt = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(n);
+                dt = GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(n);
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
 		dt = P[n].dt_since_last_gas_search;
 #endif
@@ -767,7 +767,7 @@ void blackhole_final_operations(void)
 
         /* Correct for the mass loss due to radiation and BAL winds */
         /* always substract the radiation energy from BPP(n).BH_Mass && P[n].Mass */
-        dt = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(n);
+        dt = GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(n);
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
 	dt = P[n].dt_since_last_gas_search;
 #endif

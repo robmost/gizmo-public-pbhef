@@ -146,6 +146,17 @@
 #endif
 #endif
 
+
+#if defined(DILATION_FOR_STELLAR_KINEMATICS_ONLY) && !defined(USE_TIMESTEP_DILATION_FOR_ZOOMS)
+#define USE_TIMESTEP_DILATION_FOR_ZOOMS
+#endif
+#if defined(SPECIAL_POINT_WEIGHTED_MOTION) && !defined(SPECIAL_POINT_MOTION)
+#define SPECIAL_POINT_MOTION (SPECIAL_POINT_WEIGHTED_MOTION) /* doesn't seem to be working ???? */
+#endif
+#if defined(SPECIAL_POINT_MOTION) && !defined(BH_CALC_DISTANCES)
+#define BH_CALC_DISTANCES
+#endif
+
 #ifdef PERIODIC
 #define BOX_PERIODIC
 #endif
@@ -806,6 +817,19 @@ extern struct Chimes_depletion_data_structure *ChimesDepletionData;
 #endif // BOX_SHEARING
 
 
+#if defined(SPECIAL_POINT_MOTION)
+#if !defined(BH_CALC_DISTANCES)
+#define BH_CALC_DISTANCES /* make sure the distance tracking is actually enabled */
+#endif
+#if CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(SPECIAL_POINT_MOTION)
+#define SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES (SPECIAL_POINT_MOTION) /* set the special particle type to be used for tracking */
+#endif
+#endif
+#if defined(BH_CALC_DISTANCES) && !defined(SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
+#define SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES (5) /* default to type = 5 for this module */
+#endif
+
+
 
 #if defined(GRAVITY_ANALYTIC)
 #if CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(GRAVITY_ANALYTIC)
@@ -905,15 +929,32 @@ static MPI_Datatype MPI_TYPE_TIME = MPI_INT;
 #define  TIMEBINS        29
 #endif
 #define  TIMEBASE        (((integertime) 1)<<TIMEBINS)  /* The simulated timespan is mapped onto the integer interval [0,TIMESPAN], where TIMESPAN needs to be a power of 2. Note that (1<<28) corresponds to 2^29 */
-#define UNIT_INTEGERTIME_IN_PHYSICAL ((All.Timebase_interval/All.cf_hubble_a))
+
+#ifdef USE_TIMESTEP_DILATION_FOR_ZOOMS
+#define TIMESTEP_DILATION_FACTOR(i,mode) (return_timestep_dilation_factor(i,mode))
+#else
+#define TIMESTEP_DILATION_FACTOR(i,mode) (1)
+#endif
+#define UNIT_INTEGERTIME_IN_PHYSICAL(i) ((All.Timebase_interval/All.cf_hubble_a) * TIMESTEP_DILATION_FACTOR(i,0))
 #define GET_INTEGERTIME_FROM_TIMEBIN(bin) ((bin ? (((integertime) 1) << bin) : 0))
-#define GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(bin) ((GET_INTEGERTIME_FROM_TIMEBIN(bin) * UNIT_INTEGERTIME_IN_PHYSICAL))
+#define GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(bin, i) ((GET_INTEGERTIME_FROM_TIMEBIN(bin) * UNIT_INTEGERTIME_IN_PHYSICAL(i)))
 #ifndef WAKEUP
 #define GET_PARTICLE_INTEGERTIME(i) ((GET_INTEGERTIME_FROM_TIMEBIN(P[i].TimeBin)))
 #else
 #define GET_PARTICLE_INTEGERTIME(i) ((P[i].dt_step))
 #endif
-#define GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i) ((GET_PARTICLE_INTEGERTIME(i) * UNIT_INTEGERTIME_IN_PHYSICAL))
+#define GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i) ((GET_PARTICLE_INTEGERTIME(i) * UNIT_INTEGERTIME_IN_PHYSICAL(i)))
+
+#ifdef GALSF_LIMIT_FBTIMESTEPS_FROM_BELOW
+#define GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(i) DMAX(GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i), All.Dt_Min_Between_FBCalc_Gyr/UNIT_TIME_IN_GYR)
+#else
+#define GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(i) GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i)
+#endif
+
+#ifdef DILATION_FOR_STELLAR_KINEMATICS_ONLY
+#undef GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL
+#define GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(i) (GET_PARTICLE_INTEGERTIME(i) * (All.Timebase_interval/All.cf_hubble_a)) /* this timestep does -not- involve dilation */
+#endif
 
 
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
@@ -1103,6 +1144,8 @@ typedef unsigned long long peano1D;
 #define  HYDROGEN_MASSFRAC 1.0  /*!< mass fraction of hydrogen, relevant only for radiative cooling */
 #endif
 
+#define nH_CGS(i) HYDROGEN_MASSFRAC * UNIT_DENSITY_IN_CGS * SphP[i].Density * All.cf_a3inv / PROTONMASS_CGS  
+
 #define  MAX_REAL_NUMBER  1e56
 #define  MIN_REAL_NUMBER  1e-56
 
@@ -1130,6 +1173,8 @@ typedef unsigned long long peano1D;
 #define  SECONDS_PER_YEAR   (3.155e7)
 #define  HUBBLE_H100_CGS    (3.2407789e-18)	/* in h/sec */
 #define  ELECTRONVOLT_IN_ERGS (1.60217733e-12)
+#define HABING_FLUX_CGS      (1.6e-3)
+#define DRAINE_FLUX_CGS      (1.7 * HABING_FLUX_CGS)
 
 /* and a bunch of useful unit-conversion macros pre-bundled here, to help keep the 'h' terms and other correct */
 #define UNIT_MASS_IN_CGS        ((All.UnitMass_in_g/All.HubbleParam))
@@ -1156,7 +1201,9 @@ typedef unsigned long long peano1D;
 #define UNIT_PRESSURE_IN_EV     (((UNIT_PRESSURE_IN_CGS)/ELECTRONVOLT_IN_ERGS))
 #define UNIT_VEL_IN_KMS         (((UNIT_VEL_IN_CGS)/1.e5))
 #define UNIT_LUM_IN_SOLAR       (((UNIT_LUM_IN_CGS)/SOLAR_LUM_CGS))
-#define UNIT_FLUX_IN_HABING     (((UNIT_FLUX_IN_CGS)/1.6e-3))
+#define UNIT_FLUX_IN_HABING     (((UNIT_FLUX_IN_CGS)/HABING_FLUX_CGS))
+#define UNIT_EGY_DENSITY_IN_HABING ((UNIT_PRESSURE_IN_CGS)/(HABING_FLUX_CGS / C_LIGHT_CGS))
+
 
 #define U_TO_TEMP_UNITS         ((PROTONMASS_CGS/BOLTZMANN_CGS)*((UNIT_ENERGY_IN_CGS)/(UNIT_MASS_IN_CGS))) /* units to convert specific internal energy to temperature. needs to be multiplied by dimensionless factor=mean_molec_weight_in_amu*(gamma_eos-1) */
 #ifndef C_LIGHT_CODE
@@ -1682,9 +1729,7 @@ extern double TimeBin_BH_Medd[TIMEBINS];
 #endif
 #endif
 
-#ifdef HERMITE_INTEGRATION
-extern int HermiteOnlyFlag;     /*!< flag to only do Hermite integration for applicable particles (ie. stars) in the gravity routine - set =1 on the first prediction pass and =2 on the second correction pass */
-#endif
+
 extern int ThisTask;		/*!< the number of the local processor  */
 extern int NTask;		/*!< number of processors */
 extern int PTask;		/*!< note: NTask = 2^PTask */
@@ -1757,16 +1802,21 @@ extern int *DomainNodeIndex;
 extern int *DomainList, DomainNumChanged;
 extern peanokey *Key, *KeySorted;
 
+
+#ifdef HERMITE_INTEGRATION
+extern int HermiteOnlyFlag;     /*!< flag to only do Hermite integration for applicable particles (ie. stars) in the gravity routine - set =1 on the first prediction pass and =2 on the second correction pass */
+#endif
+
 #ifdef RT_CHEM_PHOTOION
-double rt_ion_nu_min[N_RT_FREQ_BINS];
-double rt_nu_eff_eV[N_RT_FREQ_BINS];
-double rt_ion_precalc_stellar_luminosity_fraction[N_RT_FREQ_BINS];
-double rt_ion_sigma_HI[N_RT_FREQ_BINS];
-double rt_ion_sigma_HeI[N_RT_FREQ_BINS];
-double rt_ion_sigma_HeII[N_RT_FREQ_BINS];
-double rt_ion_G_HI[N_RT_FREQ_BINS];
-double rt_ion_G_HeI[N_RT_FREQ_BINS];
-double rt_ion_G_HeII[N_RT_FREQ_BINS];
+extern double rt_ion_nu_min[N_RT_FREQ_BINS];
+extern double rt_nu_eff_eV[N_RT_FREQ_BINS];
+extern double rt_ion_precalc_stellar_luminosity_fraction[N_RT_FREQ_BINS];
+extern double rt_ion_sigma_HI[N_RT_FREQ_BINS];
+extern double rt_ion_sigma_HeI[N_RT_FREQ_BINS];
+extern double rt_ion_sigma_HeII[N_RT_FREQ_BINS];
+extern double rt_ion_G_HI[N_RT_FREQ_BINS];
+extern double rt_ion_G_HeI[N_RT_FREQ_BINS];
+extern double rt_ion_G_HeII[N_RT_FREQ_BINS];
 #endif
 
 
@@ -2231,12 +2281,17 @@ extern struct global_data_all_processes
 
 #endif // GALSF
 
+#ifdef GALSF_LIMIT_FBTIMESTEPS_FROM_BELOW
+    double Dt_Since_LastFBCalc_Gyr; // time since last feedback event occurred, needs to be set
+    double Dt_Min_Between_FBCalc_Gyr; // minimum timestep to enforce between feedback calculations, for optimization
+#endif
+    
 #if (defined(GALSF) && defined(METALS)) || defined(COOL_METAL_LINES_BY_SPECIES) || defined(GALSF_FB_FIRE_RT_LOCALRP) || defined(GALSF_FB_FIRE_RT_HIIHEATING) || defined(GALSF_FB_MECHANICAL) || defined(GALSF_FB_FIRE_RT_LONGRANGE) || defined(GALSF_FB_THERMAL)
 #define INIT_STELLAR_METALS_AGES_DEFINED // convenience flag for later to know these variables exist
     double InitMetallicityinSolar;
     double InitStellarAgeinGyr;
 #endif
-
+    
 #if defined(BH_WIND_CONTINUOUS) || defined(BH_WIND_KICK) || defined(BH_WIND_SPAWN)
     double BAL_f_accretion;
     double BAL_v_outflow;
@@ -2385,9 +2440,13 @@ extern struct global_data_all_processes
 #endif
     
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
-    double SMBH_SpecialParticle_Position_ForRefinement[3];
-    double Mass_Accreted_By_SpecialSMBHParticle;
-    double Mass_of_SpecialSMBHParticle;
+#if !(CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)) // allow to be set to integer value to represent a >1 number of special zoom sites
+#undef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
+#define SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM (1)
+#endif
+    double SMBH_SpecialParticle_Position_ForRefinement[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM][3];
+    double Mass_Accreted_By_SpecialSMBHParticle[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM];
+    double Mass_of_SpecialSMBHParticle[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM];
 #endif
 
 #ifdef NUCLEAR_NETWORK
@@ -2474,6 +2533,9 @@ extern ALIGN(32) struct particle_data
     MyFloat GravPM[3];		        /*!< particle acceleration due to long-range PM gravity force */
 #endif
     MyFloat OldAcc;			        /*!< magnitude of old gravitational force. Used in relative opening criterion */
+#ifdef SPECIAL_POINT_MOTION
+    MyFloat Acc_Total_PrevStep[3];  /*!< old total acceleration on a given cell/particle */
+#endif
 #ifdef HERMITE_INTEGRATION
     MyFloat Hermite_OldAcc[3];
     MyFloat OldPos[3];
@@ -2673,10 +2735,18 @@ extern ALIGN(32) struct particle_data
 #ifdef BH_SEED_FROM_LOCALGAS_TOTALMENCCRITERIA
     MyFloat MencInRcrit;
 #endif
+    
 
 #ifdef BH_CALC_DISTANCES
     MyFloat min_dist_to_bh;
     MyFloat min_xyz_to_bh[3];
+#ifdef SPECIAL_POINT_MOTION
+    MyFloat vel_of_nearest_special[3];
+    MyFloat acc_of_nearest_special[3];
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+    MyFloat weight_sum_for_special_point_smoothing;
+#endif
+#endif
 #if defined(SINGLE_STAR_FIND_BINARIES) || (SINGLE_STAR_TIMESTEPPING > 0)
     MyDouble min_bh_t_orbital; //orbital time for binary
     MyDouble comp_dx[3]; //position offset of binary companion - this will be evolved in the Kepler solution while we use the Pos attribute to track the binary COM
@@ -2742,6 +2812,10 @@ extern ALIGN(32) struct particle_data
     MyFloat Time_Of_Last_MergeSplit;
 #endif
     
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+    MyFloat Time_Of_Last_SmoothedVelUpdate;
+#endif
+
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
     MyDouble AGS_Hsml;          /*!< smoothing length (for gravitational forces) */
     MyFloat AGS_zeta;           /*!< factor in the correction term */
@@ -3370,6 +3444,13 @@ extern struct gravdata_out
 #ifdef BH_CALC_DISTANCES
     MyFloat min_dist_to_bh;
     MyFloat min_xyz_to_bh[3];
+#ifdef SPECIAL_POINT_MOTION
+    MyFloat vel_of_nearest_special[3];
+    MyFloat acc_of_nearest_special[3];
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+    MyFloat weight_sum_for_special_point_smoothing;
+#endif
+#endif
 #ifdef SINGLE_STAR_FIND_BINARIES
     MyFloat min_bh_t_orbital; //orbital time for binary
     MyDouble comp_dx[3]; //position of binary companion
@@ -3536,6 +3617,9 @@ enum iofields
   IO_DTENTR,
   IO_TSTP,
   IO_BFLD,
+  IO_AMBIPOLAR,
+  IO_OHMIC,
+  IO_HALL,
   IO_IMF,
   IO_COSMICRAY_ENERGY,
   IO_COSMICRAY_KAPPA,
@@ -3731,15 +3815,18 @@ extern ALIGN(32) struct NODE
 #ifdef BH_CALC_DISTANCES
   MyFloat bh_mass;      /*!< holds the BH mass in the node.  Used for calculating tree based dist to closest bh */
   MyFloat bh_pos[3];    /*!< holds the mass-weighted position of the the actual black holes within the node */
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SPECIAL_POINT_MOTION)
+    MyFloat bh_vel[3];    /*!< holds the mass-weighted avg. velocity of black holes in the node */
+#endif
+#if defined(SPECIAL_POINT_MOTION)
+    MyFloat bh_acc[3]; /*!< holds the mass-weighted avg. acceleration of black holes in the node */
+#endif
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
   int N_BH;             /*!< holds the number of BH particles in the node. Used for refinement/search criteria */
 #endif
-#if defined(SINGLE_STAR_TIMESTEPPING)
-  MyFloat bh_vel[3];    /*!< holds the mass-weighted avg. velocity of black holes in the node */
-#ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
-  MyFloat MaxFeedbackVel;
+#if defined(SINGLE_STAR_TIMESTEPPING) && defined(SINGLE_STAR_FB_TIMESTEPLIMIT)
+    MyFloat MaxFeedbackVel;
 #endif
-#endif    
 #endif
 
 #ifdef RT_SEPARATELY_TRACK_LUMPOS

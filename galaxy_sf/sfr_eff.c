@@ -169,7 +169,7 @@ double return_probability_of_this_forming_bh_from_seed_model(int i)
     double Rcrit = ForceSoftening_KernelRadius(i); /* search radius of interest (note for adaptive softenings this will self-consistently take the kernel search radius of interest) */
     Z_threshold_solar = 0.1; /* based on Linhao's paper, we need to allow formation at somewhat higher metallicity or we tail to get BHs in the central density concentrations when they form */
     Rcrit = DMAX( Rcrit , 0.1/(UNIT_LENGTH_IN_KPC*All.cf_atime)); /* set a baseline Rcrit_min, otherwise we get statistics that are very noisy */
-#ifdef BH_CALC_DISTANCES
+#if defined(BH_CALC_DISTANCES) && !defined(SPECIAL_POINT_MOTION)
     if(P[i].min_dist_to_bh < 10.*Rcrit) {return 0;} /* don't allow formation if there is already a sink nearby, akin to SF sink rules */
 #endif
     surfacedensity = P[i].MencInRcrit / (M_PI*Rcrit*Rcrit) * UNIT_SURFDEN_IN_CGS * All.cf_a2inv; /* this is the -total- mass density inside the critical kernel radius Rcrit, evaluated within the tree walk */
@@ -211,7 +211,7 @@ double get_starformation_rate(int i, int mode)
 #if defined(SINGLE_STAR_SINK_DYNAMICS) && defined(SINGLE_STAR_SINK_FORMATION)
     int cell_can_be_singlestar = is_particle_single_star_eligible(i); // call function to determine if we're actually eligible to be a true single-star element
 #if defined(SINGLE_STAR_AND_SSP_HYBRID_MODEL) && defined(FIRE_SUPERLAGRANGIAN_JEANS_REFINEMENT)
-    //if(cell_can_be_singlestar<=0) {return 0;} // in this case, we want to temporarily de-activate the FIRE SF modules [but not in general, only for our tests]
+    //if(cell_can_be_singlestar<=0) {return 0;} // for special cases, where we want to temporarily de-activate the FIRE SF modules [but not in general, only for our tests]
 #endif
 #endif
 

@@ -495,8 +495,8 @@ void force_update_node_recursive(int no, int sib, int father)
 #endif
 #ifdef BH_CALC_DISTANCES
         MyFloat bh_mass=0, bh_pos_times_mass[3]={0,0,0};   /* position of each black hole in the node times its mass; divide by total mass at the end to get COM */
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
-        MyFloat bh_mom[3] = {0,0,0}; int N_BH = 0;
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
+        MyFloat bh_mom[3] = {0,0,0}, bh_force[3] = {0,0,0}; int N_BH = 0;
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
         MyFloat max_feedback_vel=0;
 #endif        
@@ -594,10 +594,15 @@ void force_update_node_recursive(int no, int sib, int father)
                         bh_pos_times_mass[0] += Nodes[p].bh_pos[0] * Nodes[p].bh_mass;
                         bh_pos_times_mass[1] += Nodes[p].bh_pos[1] * Nodes[p].bh_mass;
                         bh_pos_times_mass[2] += Nodes[p].bh_pos[2] * Nodes[p].bh_mass;
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
                         bh_mom[0] += Nodes[p].bh_vel[0] * Nodes[p].bh_mass;
                         bh_mom[1] += Nodes[p].bh_vel[1] * Nodes[p].bh_mass;
                         bh_mom[2] += Nodes[p].bh_vel[2] * Nodes[p].bh_mass;
+#ifdef SPECIAL_POINT_MOTION
+                        bh_force[0] += Nodes[p].bh_acc[0] * Nodes[p].bh_mass;
+                        bh_force[1] += Nodes[p].bh_acc[1] * Nodes[p].bh_mass;
+                        bh_force[2] += Nodes[p].bh_acc[2] * Nodes[p].bh_mass;
+#endif
                         N_BH += Nodes[p].N_BH;
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
                         if(Nodes[p].bh_mass > 0) {max_feedback_vel = DMAX(Nodes[p].MaxFeedbackVel, max_feedback_vel);}
@@ -704,22 +709,27 @@ void force_update_node_recursive(int no, int sib, int father)
                     }
 #endif
 #ifdef BH_CALC_DISTANCES
-                    if(pa->Type == 5)
+                    if(pa->Type == SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
                     {
                         bh_mass += pa->Mass;    /* actual value is not used for distances */
                         bh_pos_times_mass[0] += pa->Pos[0] * pa->Mass;  /* positition times mass; divide by total mass later */
                         bh_pos_times_mass[1] += pa->Pos[1] * pa->Mass;
                         bh_pos_times_mass[2] += pa->Pos[2] * pa->Mass;
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
                         N_BH += 1;
 #endif
-#ifdef SINGLE_STAR_TIMESTEPPING
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SPECIAL_POINT_MOTION)
                         bh_mom[0] += pa->Vel[0] * pa->Mass;
                         bh_mom[1] += pa->Vel[1] * pa->Mass;
                         bh_mom[2] += pa->Vel[2] * pa->Mass;
-#ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
+#endif
+#if defined(SPECIAL_POINT_MOTION)
+                        bh_force[0] += pa->Acc_Total_PrevStep[0] * pa->Mass;
+                        bh_force[1] += pa->Acc_Total_PrevStep[1] * pa->Mass;
+                        bh_force[2] += pa->Acc_Total_PrevStep[2] * pa->Mass;
+#endif
+#if defined(SINGLE_STAR_TIMESTEPPING) && defined(SINGLE_STAR_FB_TIMESTEPLIMIT)
                         max_feedback_vel = DMAX(pa->MaxFeedbackVel, max_feedback_vel);
-#endif                        
 #endif
                     }
 #endif
@@ -872,7 +882,7 @@ void force_update_node_recursive(int no, int sib, int father)
 #endif
 #ifdef BH_CALC_DISTANCES
         Nodes[no].bh_mass = bh_mass;
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
         Nodes[no].N_BH = N_BH;
 #endif
         if(bh_mass > 0)
@@ -880,13 +890,18 @@ void force_update_node_recursive(int no, int sib, int father)
             Nodes[no].bh_pos[0] = bh_pos_times_mass[0] / bh_mass;  /* weighted position is sum(pos*mass)/sum(mass) */
             Nodes[no].bh_pos[1] = bh_pos_times_mass[1] / bh_mass;
             Nodes[no].bh_pos[2] = bh_pos_times_mass[2] / bh_mass;
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
             Nodes[no].bh_vel[0] = bh_mom[0] / bh_mass;
             Nodes[no].bh_vel[1] = bh_mom[1] / bh_mass;
             Nodes[no].bh_vel[2] = bh_mom[2] / bh_mass;
-#ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
+#endif
+#if defined(SPECIAL_POINT_MOTION)
+            Nodes[no].bh_acc[0] = bh_force[0] / bh_mass;
+            Nodes[no].bh_acc[1] = bh_force[1] / bh_mass;
+            Nodes[no].bh_acc[2] = bh_force[2] / bh_mass;
+#endif
+#if defined(SINGLE_STAR_TIMESTEPPING) && defined(SINGLE_STAR_FB_TIMESTEPLIMIT)
             Nodes[no].MaxFeedbackVel = max_feedback_vel;
-#endif                        
 #endif
         }
 #endif
@@ -986,9 +1001,12 @@ void force_exchange_pseudodata(void)
 #ifdef BH_CALC_DISTANCES
         MyFloat bh_mass;
         MyFloat bh_pos[3];
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
         int N_BH;
         MyFloat bh_vel[3];
+#ifdef SPECIAL_POINT_MOTION
+        MyFloat bh_acc[3];
+#endif
 #ifdef  SINGLE_STAR_FB_TIMESTEPLIMIT
         MyFloat MaxFeedbackVel;
 #endif        
@@ -1077,11 +1095,16 @@ void force_exchange_pseudodata(void)
             DomainMoment[i].bh_pos[0] = Nodes[no].bh_pos[0];
             DomainMoment[i].bh_pos[1] = Nodes[no].bh_pos[1];
             DomainMoment[i].bh_pos[2] = Nodes[no].bh_pos[2];
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
             DomainMoment[i].bh_vel[0] = Nodes[no].bh_vel[0];
             DomainMoment[i].bh_vel[1] = Nodes[no].bh_vel[1];
             DomainMoment[i].bh_vel[2] = Nodes[no].bh_vel[2];
             DomainMoment[i].N_BH = Nodes[no].N_BH;
+#if defined(SPECIAL_POINT_MOTION)
+            DomainMoment[i].bh_acc[0] = Nodes[no].bh_acc[0];
+            DomainMoment[i].bh_acc[1] = Nodes[no].bh_acc[1];
+            DomainMoment[i].bh_acc[2] = Nodes[no].bh_acc[2];
+#endif
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
             DomainMoment[i].MaxFeedbackVel = Nodes[no].MaxFeedbackVel;
 #endif            
@@ -1183,11 +1206,16 @@ void force_exchange_pseudodata(void)
                     Nodes[no].bh_pos[0] = DomainMoment[i].bh_pos[0];
                     Nodes[no].bh_pos[1] = DomainMoment[i].bh_pos[1];
                     Nodes[no].bh_pos[2] = DomainMoment[i].bh_pos[2];
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
                     Nodes[no].bh_vel[0] = DomainMoment[i].bh_vel[0];
                     Nodes[no].bh_vel[1] = DomainMoment[i].bh_vel[1];
                     Nodes[no].bh_vel[2] = DomainMoment[i].bh_vel[2];
                     Nodes[no].N_BH = DomainMoment[i].N_BH;
+#ifdef SPECIAL_POINT_MOTION
+                    Nodes[no].bh_acc[0] = DomainMoment[i].bh_acc[0];
+                    Nodes[no].bh_acc[1] = DomainMoment[i].bh_acc[1];
+                    Nodes[no].bh_acc[2] = DomainMoment[i].bh_acc[2];
+#endif
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
                     Nodes[no].MaxFeedbackVel = DomainMoment[i].MaxFeedbackVel;
 #endif                        
@@ -1255,9 +1283,12 @@ void force_treeupdate_pseudos(int no)
 #ifdef BH_CALC_DISTANCES
     MyFloat bh_mass=0;
     MyFloat bh_pos_times_mass[3]={0,0,0};
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
     MyFloat bh_mom[3] = {0,0,0};
     int N_BH = 0;
+#ifdef SPECIAL_POINT_MOTION
+    MyFloat bh_force[3] = {0,0,0};
+#endif
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
     MyFloat max_feedback_vel=0;
 #endif    
@@ -1330,11 +1361,16 @@ void force_treeupdate_pseudos(int no)
             bh_pos_times_mass[0] += Nodes[p].bh_pos[0] * Nodes[p].bh_mass;
             bh_pos_times_mass[1] += Nodes[p].bh_pos[1] * Nodes[p].bh_mass;
             bh_pos_times_mass[2] += Nodes[p].bh_pos[2] * Nodes[p].bh_mass;
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
             N_BH += Nodes[p].N_BH;
             bh_mom[0] += Nodes[p].bh_vel[0] * Nodes[p].bh_mass;
             bh_mom[1] += Nodes[p].bh_vel[1] * Nodes[p].bh_mass;
             bh_mom[2] += Nodes[p].bh_vel[2] * Nodes[p].bh_mass;
+#ifdef SPECIAL_POINT_MOTION
+            bh_force[0] += Nodes[p].bh_acc[0] * Nodes[p].bh_mass;
+            bh_force[1] += Nodes[p].bh_acc[1] * Nodes[p].bh_mass;
+            bh_force[2] += Nodes[p].bh_acc[2] * Nodes[p].bh_mass;
+#endif
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
             if(Nodes[p].bh_mass > 0) {max_feedback_vel = DMAX(max_feedback_vel, Nodes[p].MaxFeedbackVel);}
 #endif
@@ -1485,7 +1521,7 @@ void force_treeupdate_pseudos(int no)
 #endif
 #ifdef BH_CALC_DISTANCES
     Nodes[no].bh_mass = bh_mass;
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
     Nodes[no].N_BH = N_BH;
 #endif
     if(bh_mass > 0)
@@ -1493,10 +1529,15 @@ void force_treeupdate_pseudos(int no)
             Nodes[no].bh_pos[0] = bh_pos_times_mass[0] / bh_mass;
             Nodes[no].bh_pos[1] = bh_pos_times_mass[1] / bh_mass;
             Nodes[no].bh_pos[2] = bh_pos_times_mass[2] / bh_mass;
-#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES)
+#if defined(SINGLE_STAR_TIMESTEPPING) || defined(SINGLE_STAR_FIND_BINARIES) || defined(SPECIAL_POINT_MOTION)
             Nodes[no].bh_vel[0] = bh_mom[0] / bh_mass;
             Nodes[no].bh_vel[1] = bh_mom[1] / bh_mass;
             Nodes[no].bh_vel[2] = bh_mom[2] / bh_mass;
+#if defined(SPECIAL_POINT_MOTION)
+            Nodes[no].bh_acc[0] = bh_force[0] / bh_mass;
+            Nodes[no].bh_acc[1] = bh_force[1] / bh_mass;
+            Nodes[no].bh_acc[2] = bh_force[2] / bh_mass;
+#endif
 #ifdef SINGLE_STAR_FB_TIMESTEPLIMIT
             Nodes[no].MaxFeedbackVel = max_feedback_vel;
 #endif            
@@ -1703,7 +1744,13 @@ int force_treeevaluate(int target, int mode, int *exportflag, int *exportnodecou
     double Rad_Flux[N_RT_FREQ_BINS][3]; {int kf,k2; for(kf=0;kf<N_RT_FREQ_BINS;kf++) {for(k2=0;k2<3;k2++) {Rad_Flux[kf][k2]=0;}}}
 #endif
 #ifdef BH_CALC_DISTANCES
-    double min_dist_to_bh2=1.e37, min_xyz_to_bh[3]={1.e37,1.e37,1.e37};
+    double min_dist_to_bh2=MAX_REAL_NUMBER, min_xyz_to_bh[3]={MAX_REAL_NUMBER,MAX_REAL_NUMBER,MAX_REAL_NUMBER};
+#ifdef SPECIAL_POINT_MOTION
+    double vel_of_nearest_special[3]={0,0,0}, acc_of_nearest_special[3]={0,0,0};
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+    double weight_sum_for_special_point_smoothing = 0;
+#endif
+#endif
 #endif
 #ifdef SINGLE_STAR_FIND_BINARIES
     double min_bh_t_orbital=MAX_REAL_NUMBER, comp_dx[3], comp_dv[3], comp_Mass;
@@ -1872,17 +1919,35 @@ int force_treeevaluate(int target, int mode, int *exportflag, int *exportnodecou
 #ifdef ADAPTIVE_GRAVSOFT_FROM_TIDAL_CRITERION
                 {int ki,kj; for(ki=0;ki<3;ki++) {for(kj=0;kj<3;kj++) {j_zeta_tidal_tensorps_prevstep[ki][kj]=P[no].tidal_tensorps_prevstep[ki][kj];}}}
 #endif
+                
                 /* only proceed if the mass is positive and there is separation! */
                 if((r2 > 0) && (mass > 0))
                 {
 
 #ifdef BH_CALC_DISTANCES
-                if(P[no].Type == 5)             /* found a BH particle in grav calc */
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+                if(ptype == SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
                 {
+                    int kx; double wt_special = weight_function_for_weighted_motion_smoothing(sqrt(r2),1);
+                    weight_sum_for_special_point_smoothing += wt_special;
+                    for(kx=0;kx<3;kx++) {vel_of_nearest_special[kx] += wt_special * P[no].Vel[kx];}
+                    for(kx=0;kx<3;kx++) {acc_of_nearest_special[kx] += wt_special * P[no].Acc_Total_PrevStep[kx];}
+                }
+#endif
+                if(P[no].Type == SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES) /* found a BH particle in grav calc */
+                {
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+                    if(ptype != SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
+#endif
                     if(r2 < min_dist_to_bh2)    /* is this the closest BH part I've found yet? */
                     {
                         min_dist_to_bh2 = r2;   /* if yes: adjust min bh dist */
                         min_xyz_to_bh[0] = dx; min_xyz_to_bh[1] = dy; min_xyz_to_bh[2] = dz; /* remember, dx = x_BH - myx */
+#ifdef SPECIAL_POINT_MOTION
+                        int kx;
+                        for(kx=0;kx<3;kx++) {vel_of_nearest_special[kx] = P[no].Vel[kx];}
+                        for(kx=0;kx<3;kx++) {acc_of_nearest_special[kx] = P[no].Acc_Total_PrevStep[kx];}
+#endif
                     }
 #ifdef SINGLE_STAR_TIMESTEPPING
                     double bh_dvx=P[no].Vel[0]-vel_x, bh_dvy=P[no].Vel[1]-vel_y, bh_dvz=P[no].Vel[2]-vel_z, vSqr=bh_dvx*bh_dvx+bh_dvy*bh_dvy+bh_dvz*bh_dvz, M_total=P[no].Mass+pmass, r2soft=SinkParticle_GravityKernelRadius;
@@ -2209,14 +2274,31 @@ int force_treeevaluate(int target, int mode, int *exportflag, int *exportnodecou
 #endif
 
 #ifdef BH_CALC_DISTANCES // NOTE: moved this to AFTER the checks for node opening, because we only want to record BH positions from the nodes that actually get used for the force calculation - MYG
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+                if(ptype == SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
+                {
+                    int kx; double wt_special = weight_function_for_weighted_motion_smoothing(sqrt(r2),1);
+                    weight_sum_for_special_point_smoothing += wt_special;
+                    for(kx=0;kx<3;kx++) {vel_of_nearest_special[kx] = Extnodes[no].vs[kx];}
+                    for(kx=0;kx<3;kx++) {acc_of_nearest_special[kx] = 0;} /* no accel for now, that will be computed later, but keep this if needed */
+                }
+#endif
                 if(nop->bh_mass > 0)        /* found a node with non-zero BH mass */
                 {
                     double bh_dx = nop->bh_pos[0] - pos_x, bh_dy = nop->bh_pos[1] - pos_y, bh_dz = nop->bh_pos[2] - pos_z;  /* SHEA:  now using bh_pos instead of center */
                     GRAVITY_NEAREST_XYZ(bh_dx,bh_dy,bh_dz,-1);
                     double bh_r2 = bh_dx * bh_dx + bh_dy * bh_dy + bh_dz * bh_dz; // + (nop->len)*(nop->len);
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+                    if(ptype != SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
+#endif
                     if(bh_r2 < min_dist_to_bh2)
                     {
                         min_dist_to_bh2 = bh_r2; min_xyz_to_bh[0] = bh_dx; min_xyz_to_bh[1] = bh_dy; min_xyz_to_bh[2] = bh_dz; /* remember, dx = x_BH - myx */
+#ifdef SPECIAL_POINT_MOTION
+                        int kx;
+                        for(kx=0;kx<3;kx++) {vel_of_nearest_special[kx] = nop->bh_vel[kx];}
+                        for(kx=0;kx<3;kx++) {acc_of_nearest_special[kx] = nop->bh_acc[kx];}
+#endif
                     }
 #ifdef SINGLE_STAR_TIMESTEPPING
                     double bh_dvx=nop->bh_vel[0]-vel_x, bh_dvy=nop->bh_vel[1]-vel_y, bh_dvz=nop->bh_vel[2]-vel_z, vSqr=bh_dvx*bh_dvx+bh_dvy*bh_dvy+bh_dvz*bh_dvz, M_total=nop->bh_mass+pmass, r2soft;
@@ -2714,6 +2796,15 @@ int force_treeevaluate(int target, int mode, int *exportflag, int *exportnodecou
         P[target].min_xyz_to_bh[0] = min_xyz_to_bh[0];   /* remember, dx = x_BH - myx */
         P[target].min_xyz_to_bh[1] = min_xyz_to_bh[1];
         P[target].min_xyz_to_bh[2] = min_xyz_to_bh[2];
+#ifdef SPECIAL_POINT_MOTION
+        {int k;
+            for(k=0;k<3;k++) {P[target].vel_of_nearest_special[k] = vel_of_nearest_special[k];}
+            for(k=0;k<3;k++) {P[target].acc_of_nearest_special[k] = acc_of_nearest_special[k];}
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+            P[target].weight_sum_for_special_point_smoothing = weight_sum_for_special_point_smoothing; /* weighted sum needed */
+#endif
+        }
+#endif
 #ifdef SINGLE_STAR_FIND_BINARIES
         P[target].is_in_a_binary=0; P[target].min_bh_t_orbital=min_bh_t_orbital; //orbital time for binary
         if (min_bh_t_orbital<MAX_REAL_NUMBER)
@@ -2784,6 +2875,15 @@ int force_treeevaluate(int target, int mode, int *exportflag, int *exportnodecou
         GravDataResult[target].min_xyz_to_bh[0] = min_xyz_to_bh[0];   /* remember, dx = x_BH - myx */
         GravDataResult[target].min_xyz_to_bh[1] = min_xyz_to_bh[1];
         GravDataResult[target].min_xyz_to_bh[2] = min_xyz_to_bh[2];
+#ifdef SPECIAL_POINT_MOTION
+        {int k;
+            for(k=0;k<3;k++) {GravDataResult[target].vel_of_nearest_special[k] = vel_of_nearest_special[k];}
+            for(k=0;k<3;k++) {GravDataResult[target].acc_of_nearest_special[k] = acc_of_nearest_special[k];}
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+            GravDataResult[target].weight_sum_for_special_point_smoothing = weight_sum_for_special_point_smoothing; /* weighted sum needed */
+#endif
+        }
+#endif
 #ifdef SINGLE_STAR_FIND_BINARIES
         GravDataResult[target].is_in_a_binary=0; GravDataResult[target].min_bh_t_orbital=min_bh_t_orbital; // orbital time for binary
         if (min_bh_t_orbital<MAX_REAL_NUMBER)

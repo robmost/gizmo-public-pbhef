@@ -156,8 +156,15 @@ void init(void)
      to PartAllocFactor*TreeAllocFactor. */
 
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
-    All.SMBH_SpecialParticle_Position_ForRefinement[0]=All.SMBH_SpecialParticle_Position_ForRefinement[1]=All.SMBH_SpecialParticle_Position_ForRefinement[2]=0;
-    All.Mass_Accreted_By_SpecialSMBHParticle=0; All.Mass_of_SpecialSMBHParticle=0;
+    for(i = 0; i < SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM; i++)
+    {
+        All.SMBH_SpecialParticle_Position_ForRefinement[i][0]=All.SMBH_SpecialParticle_Position_ForRefinement[i][1]=All.SMBH_SpecialParticle_Position_ForRefinement[i][2]=0;
+        All.Mass_Accreted_By_SpecialSMBHParticle[i]=0; All.Mass_of_SpecialSMBHParticle[i]=0;
+    }
+#endif
+    
+#ifdef GALSF_LIMIT_FBTIMESTEPS_FROM_BELOW
+    if(RestartFlag != 1) {All.Dt_Since_LastFBCalc_Gyr=0; All.Dt_Min_Between_FBCalc_Gyr=((double)(GALSF_LIMIT_FBTIMESTEPS_FROM_BELOW))/1.e9;}
 #endif
 
 #ifdef BOX_PERIODIC
@@ -201,6 +208,7 @@ void init(void)
     for(i = 0; i < NumPart; i++)	/*  start-up initialization */
     {
         for(j = 0; j < 3; j++) {P[i].GravAccel[j] = 0;}
+
 #ifdef COMPUTE_TIDAL_TENSOR_IN_GRAVTREE /* init tidal tensor for first output (not used for calculation) */
         for(j=0;j<3;j++) {int kt; for(kt=0;kt<3;kt++) {P[i].tidal_tensorps[j][kt]=0;}}
 #ifdef ADAPTIVE_GRAVSOFT_FROM_TIDAL_CRITERION
@@ -298,12 +306,15 @@ void init(void)
 #if defined(FIRE_SUPERLAGRANGIAN_JEANS_REFINEMENT) || defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
             P[i].Time_Of_Last_MergeSplit = All.TimeBegin;
 #endif
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+            P[i].Time_Of_Last_SmoothedVelUpdate = All.TimeBegin;
+#endif
         }
 
 #if defined(INIT_STELLAR_METALS_AGES_DEFINED) && defined(GALSF)
         if(RestartFlag == 0) {P[i].StellarAge = -2.0 * All.InitStellarAgeinGyr / (UNIT_TIME_IN_GYR) * get_random_number(P[i].ID + 3);}
 #endif
-
+        
 #ifdef GRAIN_FLUID
         if((RestartFlag == 0) && ((1 << P[i].Type) & (GRAIN_PTYPES)))
         {

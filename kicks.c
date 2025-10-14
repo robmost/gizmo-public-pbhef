@@ -126,13 +126,14 @@ void do_hermite_prediction(void)
 		ti_step = GET_PARTICLE_INTEGERTIME(i);
 		tstart = P[i].Ti_begstep;    /* beginning of step */
 		tend = P[i].Ti_begstep + ti_step;    /* end of step */
-		double dt_grav = (tend - tstart) * All.Timebase_interval;
+            double dt_grav = get_gravkick_factor(tstart, tend, i, 0);
 		for(j=0; j<3; j++) {
 #ifdef PMGRID
             //Add the long-range kick from the first half-step, if necessary (since we are overwriting the previous kick operations with the Hermite scheme)
             if(All.PM_Ti_begstep == All.Ti_Current)	/* need to do long-range kick */
             {
-                P[i].OldVel[j] += P[i].GravPM[j] * (All.PM_Ti_endstep - All.PM_Ti_begstep)/2 * All.Timebase_interval;
+                double dt_grav_pm = get_gravkick_factor(All.PM_Ti_begstep, All.PM_Ti_begstep + (All.PM_Ti_endstep - All.PM_Ti_begstep)/2, i, 0);
+                P[i].OldVel[j] += P[i].GravPM[j] * dt_grav_pm;
             }
 #endif
 		    P[i].Pos[j] = P[i].OldPos[j] + dt_grav * (P[i].OldVel[j] + dt_grav/2 * (P[i].Hermite_OldAcc[j] + dt_grav/3 * P[i].OldJerk[j])) ;
@@ -149,7 +150,7 @@ void do_hermite_correction(void) // corrector step
                     ti_step = GET_PARTICLE_INTEGERTIME(i);
                     tstart = P[i].Ti_begstep;    /* beginning of step */
                     tend = P[i].Ti_begstep + ti_step;    /* end of step */
-                    double dt_grav = (tend - tstart) * All.Timebase_interval;
+                    double dt_grav = get_gravkick_factor(tstart, tend, i, 0);
                     for(j=0; j<3; j++) {
                         P[i].Vel[j] = P[i].OldVel[j] + dt_grav * 0.5*(P[i].Hermite_OldAcc[j] + P[i].GravAccel[j]) + (P[i].OldJerk[j] - P[i].GravJerk[j]) * dt_grav * dt_grav/12;
                         P[i].Pos[j] = P[i].OldPos[j] + dt_grav * 0.5*(P[i].Vel[j] + P[i].OldVel[j]) + (P[i].Hermite_OldAcc[j] - P[i].GravAccel[j]) * dt_grav * dt_grav/12;
@@ -157,7 +158,8 @@ void do_hermite_correction(void) // corrector step
                         //Add the long-range kick from the second half-step, if necessary (since we are overwriting the previous kick operations with the Hermite scheme)
                         if(All.PM_Ti_endstep == All.Ti_Current)	/* need to do long-range kick */
                         {
-                            P[i].OldVel[j] += P[i].GravPM[j] * (All.PM_Ti_endstep - All.PM_Ti_begstep)/2 * All.Timebase_interval;
+                            double dt_grav_pm = get_gravkick_factor(All.PM_Ti_begstep + (All.PM_Ti_endstep - All.PM_Ti_begstep)/2, All.PM_Ti_endstep, i, 0);
+                            P[i].OldVel[j] += P[i].GravPM[j] * dt_grav_pm;
                         }
 #endif
 		    }}}} //     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
@@ -169,11 +171,7 @@ void do_hermite_correction(void) // corrector step
 void apply_long_range_kick(integertime tstart, integertime tend)
 {
     int i, j;
-    double dt_gravkick, dvel[3];
-    
-    if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(tstart, tend);}
-        else {dt_gravkick = (tend - tstart) * All.Timebase_interval;}
-    
+    double dvel[3], dt_gravkick = get_gravkick_factor(tstart, tend, -1, 0);
     for(i = 0; i < NumPart; i++)
     {
         if(P[i].Mass > 0)
@@ -207,7 +205,7 @@ void do_the_kick(int i, integertime tstart, integertime tend, integertime tcurre
             double dMass=0; // fraction of delta_conserved to couple per kick step (each 'kick' is 1/2-timestep) // double dv[3], v_old[3], dMass, ent_old=0, d_inc = 0.5;
             if(mode != 0) // update the --conserved-- variables of each particle //
             {
-                dMass = ((tend - tstart) * UNIT_INTEGERTIME_IN_PHYSICAL) * SphP[i].DtMass; if(dMass * SphP[i].dMass < 0) {dMass = 0;} // slope-limit: no opposite reconstruction! //
+                dMass = ((tend - tstart) * UNIT_INTEGERTIME_IN_PHYSICAL(i)) * SphP[i].DtMass; if(dMass * SphP[i].dMass < 0) {dMass = 0;} // slope-limit: no opposite reconstruction! //
                 if((fabs(dMass) > fabs(SphP[i].dMass))) {dMass = SphP[i].dMass;} // try to get close to what the time-integration scheme would give //
                 SphP[i].dMass -= dMass;
             } else {dMass = SphP[i].dMass;}
@@ -234,20 +232,17 @@ void do_the_kick(int i, integertime tstart, integertime tend, integertime tcurre
     if(TimeBinActive[P[i].TimeBin])
     {
         /* get the timestep (physical units for dt_entr and dt_hydrokick) */
-        dt_entr = dt_hydrokick = (tend - tstart) * UNIT_INTEGERTIME_IN_PHYSICAL;
-        if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(tstart, tend);} else {dt_gravkick = dt_hydrokick;}
+        dt_entr = dt_hydrokick = (tend - tstart) * UNIT_INTEGERTIME_IN_PHYSICAL(i);
+        dt_gravkick = get_gravkick_factor(tstart, tend, i, 0);
         
         if(P[i].Type==0)
         {
             double grav_acc[3], dEnt_Gravity = 0;
-            for(j = 0; j < 3; j++)
-            {
-                grav_acc[j] = All.cf_a2inv * P[i].GravAccel[j];
+            for(j = 0; j < 3; j++) {grav_acc[j] = All.cf_a2inv * P[i].GravAccel[j];}
 #ifdef PMGRID
-                grav_acc[j] += All.cf_a2inv * P[i].GravPM[j];
+            for(j = 0; j < 3; j++) {grav_acc[j] += All.cf_a2inv * P[i].GravPM[j];}
 #endif
-            }
-            
+
 #ifdef HYDRO_MESHLESS_FINITE_VOLUME
             /* calculate the contribution to the energy change from the mass fluxes in the gravitation field */
             for(j=0;j<3;j++) {dEnt_Gravity += -(SphP[i].GravWorkTerm[j] * All.cf_atime * dt_hydrokick) * grav_acc[j];}
@@ -376,6 +371,14 @@ void do_the_kick(int i, integertime tstart, integertime tend, integertime tcurre
 #endif	    
             P[i].Vel[j] += dp[j] / mass_new; /* correctly accounts for mass change if its allowed */
         }
+
+#ifdef DILATION_FOR_STELLAR_KINEMATICS_ONLY
+        double a_fac = return_timestep_dilation_factor(i,0);
+        if(a_fac > 1.) {
+            double cfac = dt_gravkick * (1. - 1./a_fac);
+            for(j=0;j<3;j++) {P[i].Vel[j] += P[i].acc_of_nearest_special[j]*cfac;} /* add back in the mean kick of the surrounding stuff to dilate only the local dynamics */
+        }
+#endif
 
  
         /* check for reflecting or outflow or otherwise special boundaries: if so, do the reflection/boundary! */

@@ -31,10 +31,12 @@ void find_timesteps(void)
     CPU_Step[CPU_MISC] += measure_time();
 
     int i, bin, binold, prev, next;
-    integertime ti_step, ti_step_old, ti_min;
+    integertime ti_step, ti_step_old, ti_min, ti_stepmax, ti_max;
     double aphys;
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
-    double xyz_local[3]={-MAX_REAL_NUMBER,-MAX_REAL_NUMBER,-MAX_REAL_NUMBER}, xyz_global[3]; int special_particle_active_with_this_index=-1; double special_particle_mass_local=0, special_particle_mass_global=0;
+    int special_particle_active_with_this_index[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM], j_specialpartical_counter=0;
+    double xyz_local[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM][3], xyz_global[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM][3], special_particle_mass_local[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM]={0}, special_particle_mass_global[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM]={0};
+    for(i=0;i<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;i++) {special_particle_active_with_this_index[i] = -1; xyz_local[i][0]=xyz_local[i][1]=xyz_local[i][2] = -MAX_REAL_NUMBER;}
 #endif
 
     if(All.HighestActiveTimeBin == All.HighestOccupiedTimeBin || dt_displacement == 0)
@@ -72,23 +74,33 @@ void find_timesteps(void)
 #endif
 
 #if defined(FORCE_EQUAL_TIMESTEPS) || defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
+    ti_max = 0;
     for(i = FirstActiveParticle, ti_min = TIMEBASE; i >= 0; i = NextActiveParticle[i])
     {
 #if defined(FORCE_EQUAL_TIMESTEPS)
         ti_step = get_timestep(i, &aphys, 0);
 #elif defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
-        if(P[i].Type != 3) {ti_step = P[i].dt_step;} else {ti_step = TIMEBASE;} // set the source particle to have a timestep no more than 4 bins larger than the previous smallest active particle/cell bin timestep
+        if(is_particle_a_special_zoom_target(i)==0) {ti_step = P[i].dt_step;} else {ti_step = TIMEBASE;} // set the source particle to have a timestep no more than 4 bins larger than the previous smallest active particle/cell bin timestep
 #endif
         if(ti_step < ti_min) {ti_min = ti_step;}
+        if(ti_step > ti_max) {ti_max = ti_step;}
     }
     if(ti_min > (dt_displacement / All.Timebase_interval)) {ti_min = (dt_displacement / All.Timebase_interval);}
 
     ti_step = TIMEBASE;
     while(ti_step > ti_min) {ti_step >>= 1;}
-    integertime ti_min_glob;
+    ti_stepmax = TIMEBASE;
+    while(ti_stepmax > ti_max) {ti_stepmax >>= 1;}
+    integertime ti_min_glob, ti_max_glob;
     MPI_Allreduce(&ti_step, &ti_min_glob, 1, MPI_TYPE_TIME, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&ti_stepmax, &ti_max_glob, 1, MPI_TYPE_TIME, MPI_MAX, MPI_COMM_WORLD);
 #if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
+#if defined(USE_TIMESTEP_DILATION_FOR_ZOOMS)
+    ti_min_glob <<= 2; // 2^N times min timestep - shift to N bins higher
+#else
     ti_min_glob <<= 4; // 2^N times min timestep - shift to N bins higher
+#endif
+    if(ti_min_glob > ti_max_glob) {ti_min_glob = ti_max_glob;}
 #endif
 #endif
 
@@ -101,8 +113,15 @@ void find_timesteps(void)
 #else
         ti_step = get_timestep(i, &aphys, 0);
 #endif
+        ti_step = (integertime)(((double)ti_step) / TIMESTEP_DILATION_FACTOR(i,0));
+        
 #if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
-        if(P[i].Type == 3) {while(ti_step > ti_min_glob) {ti_step >>= 1;}} // set this per the above loop to minimum threshold relative to previous steps
+        if(ti_step < 0) {ti_step = ti_min_glob;}
+        if(is_particle_a_special_zoom_target(i)) {
+            if(ti_step > ti_min_glob) {ti_step = ti_min_glob;}
+            if(ti_step > ti_max_glob) {ti_step = ti_max_glob;}
+        }
+        //if(ti_min_glob > 0) {if(is_particle_a_special_zoom_target(i)) {while(ti_step > ti_min_glob) {ti_step >>= 1;}}} // set this per the above loop to minimum threshold relative to previous steps
 #endif
         /* make it a power 2 subdivision */
         ti_min = TIMEBASE;
@@ -188,11 +207,11 @@ void find_timesteps(void)
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
         if(P[i].Type == 5){
             if(All.Ti_Current == 0) { // first timestep
-                P[i].dt_since_last_gas_search = GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(P[i].TimeBin);
+                P[i].dt_since_last_gas_search = GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(P[i].TimeBin,i);
                 P[i].do_gas_search_this_timestep = 1;
             } else {
-                P[i].dt_since_last_gas_search += GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(P[i].TimeBin);
-                if(P[i].dt_since_last_gas_search > 0.49 * GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(P[i].BH_TimeBinGasNeighbor)){
+                P[i].dt_since_last_gas_search += GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(P[i].TimeBin,i);
+                if(P[i].dt_since_last_gas_search > 0.49 * GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(P[i].BH_TimeBinGasNeighbor,i)){
                     P[i].do_gas_search_this_timestep = 1;
                 } else {P[i].do_gas_search_this_timestep = 0;}
             }
@@ -200,22 +219,27 @@ void find_timesteps(void)
 #endif
         
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
-        if(P[i].Type == 3 && P[i].Mass > 0) {xyz_local[0]=P[i].Pos[0]; xyz_local[1]=P[i].Pos[1]; xyz_local[2]=P[i].Pos[2]; special_particle_active_with_this_index=i; special_particle_mass_local=P[i].Mass;} // active on this processor, set
+        if(is_particle_a_special_zoom_target(i) && P[i].Mass > 0) {xyz_local[j_specialpartical_counter][0]=P[i].Pos[0]; xyz_local[j_specialpartical_counter][1]=P[i].Pos[1]; xyz_local[j_specialpartical_counter][2]=P[i].Pos[2]; special_particle_active_with_this_index[j_specialpartical_counter]=i; special_particle_mass_local[j_specialpartical_counter]=P[i].Mass; j_specialpartical_counter++;} // active on this processor, set
 #endif
         
     }
 
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
-    MPI_Allreduce(xyz_local, xyz_global, 3, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD); // broadcast the new position of the SMBH particle
-    double mass_to_sum_local=All.Mass_Accreted_By_SpecialSMBHParticle, mass_to_sum_global=0; // define mass variables for passing
-    MPI_Allreduce(&mass_to_sum_local, &mass_to_sum_global, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); // broadcast the mass update of the SMBH particle
-    if(xyz_global[0] > -1.e10) { // this indicates that the special particle was active on one task
-        All.SMBH_SpecialParticle_Position_ForRefinement[0] = xyz_global[0]; All.SMBH_SpecialParticle_Position_ForRefinement[1] = xyz_global[1]; All.SMBH_SpecialParticle_Position_ForRefinement[2] = xyz_global[2]; // variable was updated, update global variable as needed
-        if(special_particle_active_with_this_index>=0) {P[special_particle_active_with_this_index].Mass += mass_to_sum_global; special_particle_mass_local += mass_to_sum_global;} // the special particle lives here with this id, so we can update it with this mass
-        All.Mass_Accreted_By_SpecialSMBHParticle = 0; // reset this variable on all processors because we have added it now to the special particle, to conserve mass properly
+    MPI_Allreduce(xyz_local, xyz_global, 3*SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD); // broadcast the new position of the SMBH particle
+    double mass_to_sum_local[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM],  mass_to_sum_global[SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM]={0}; // define mass variables for passing
+    int k; for(k=0;k<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;k++) {mass_to_sum_local[k] = All.Mass_Accreted_By_SpecialSMBHParticle[k];}
+    MPI_Allreduce(mass_to_sum_local, mass_to_sum_global, SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); // broadcast the mass update of the SMBH particle
+    for(k=0;k<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;k++)
+    {
+        if(xyz_global[k][0] > -1.e10) { // this indicates that the special particle was active on one task
+            All.SMBH_SpecialParticle_Position_ForRefinement[k][0] = xyz_global[k][0]; All.SMBH_SpecialParticle_Position_ForRefinement[k][1] = xyz_global[k][1]; All.SMBH_SpecialParticle_Position_ForRefinement[k][2] = xyz_global[k][2]; // variable was updated, update global variable as needed
+            if(special_particle_active_with_this_index[k]>=0) {P[special_particle_active_with_this_index[k]].Mass += mass_to_sum_global[k]; special_particle_mass_local[k] += mass_to_sum_global[k];} // the special particle lives here with this id, so we can update it with this mass
+            All.Mass_Accreted_By_SpecialSMBHParticle[k] = 0; // reset this variable on all processors because we have added it now to the special particle, to conserve mass properly
+        }
     }
-    MPI_Allreduce(&special_particle_mass_local, &special_particle_mass_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD); // broadcast the mass of the SMBH particle
-    if(special_particle_mass_global > 0) {All.Mass_of_SpecialSMBHParticle = special_particle_mass_global;} // update the mass of the SMBH particle for everyone to use
+    MPI_Allreduce(special_particle_mass_local, special_particle_mass_global, SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD); // broadcast the mass of the SMBH particle
+    for(k=0;k<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;k++) {if(special_particle_mass_global[k] > 0) {All.Mass_of_SpecialSMBHParticle[k] = special_particle_mass_global[k];}} // update the mass of the SMBH particle for everyone to use
+    // ???
 #endif
 
 
@@ -279,6 +303,33 @@ integertime get_timestep(int p,		/*!< particle index */
     }
 #endif
 
+    
+    
+#if defined(SPECIAL_POINT_MOTION)
+    {int k;
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+        if(P[p].Type != SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
+#endif
+        for(k=0;k<3;k++) {
+            double acc = All.cf_a2inv * P[p].GravAccel[k];
+#ifdef PMGRID
+            acc += All.cf_a2inv * P[p].GravPM[k];
+#endif
+            if(P[p].Type==0) {
+                acc += SphP[p].HydroAccel[k];
+#ifdef TURB_DRIVING
+                acc += SphP[p].TurbAccel[k];
+#endif
+#ifdef RT_RAD_PRESSURE_OUTPUT
+                acc += SphP[p].Rad_Accel[k];
+#endif
+            }
+            P[p].Acc_Total_PrevStep[k] = acc;
+        }
+    }
+#endif
+
+    
     if(flag == 0)
     {
         ax = All.cf_a2inv * P[p].GravAccel[0];
@@ -289,6 +340,7 @@ integertime get_timestep(int p,		/*!< particle index */
         ay += All.cf_a2inv * P[p].GravPM[1];
         az += All.cf_a2inv * P[p].GravPM[2];
 #endif
+        
 #if defined(TIDAL_TIMESTEP_CRITERION)
 #if defined(RT_USE_GRAVTREE) && !defined(SINGLE_STAR_FB_RT_HEATING)
         if(P[p].Type>0) // strictly this is better for accuracy, but not necessary
@@ -325,7 +377,7 @@ integertime get_timestep(int p,		/*!< particle index */
     if(flag > 0)
     {
         /* this is the non-standard mode; use timestep to get the maximum acceleration tolerated */
-        dt = flag * UNIT_INTEGERTIME_IN_PHYSICAL; /* convert dloga to physical timestep  */
+        dt = flag * UNIT_INTEGERTIME_IN_PHYSICAL(p); /* convert dloga to physical timestep  */
         ac = 2 * All.ErrTolIntAccuracy * All.cf_atime * KERNEL_CORE_SIZE * ForceSoftening_KernelRadius(p) / (dt * dt);
         *aphys = ac;
         return flag;
@@ -535,10 +587,11 @@ integertime get_timestep(int p,		/*!< particle index */
                     double tmp_grad = Get_Gas_BField(p,k);
                     b_mag += tmp_grad * tmp_grad;
                 }
-                double L_cond_inv = sqrt(b_grad / (1.e-37 + b_mag));
-                double L_cond = DMAX(L_particle , 1./(L_cond_inv + 1./L_particle)) * All.cf_atime;
+                double L_cond_inv = MIN_REAL_NUMBER + sqrt(b_grad / (MIN_REAL_NUMBER + b_mag));
+                double L_cond = DMAX(0.5*L_particle , DMIN(L_particle , 1./(L_cond_inv + 1./L_particle))) * All.cf_atime;
+                L_cond = DMIN( L_particle , DMAX(1./L_cond_inv, 0.5*L_particle) ) * All.cf_atime; // more conservative estimator - may be needed sometimes to deal accurately with steep local gradients //
                 double diff_coeff = fabs(SphP[p].Eta_MHD_OhmicResistivity_Coeff) + fabs(SphP[p].Eta_MHD_HallEffect_Coeff) + fabs(SphP[p].Eta_MHD_AmbiPolarDiffusion_Coeff);
-                double dt_conduction = dt_prefac_diffusion * L_cond*L_cond / (1.0e-37 + diff_coeff);
+                double dt_conduction = dt_prefac_diffusion * L_cond*L_cond / (MIN_REAL_NUMBER + diff_coeff);
 #ifdef SUPER_TIMESTEP_DIFFUSION
                 if(dt_conduction < dt_superstep_explicit) dt_superstep_explicit = dt_conduction; // explicit time-step
                 double dt_advective = dt_conduction * DMAX(1,DMAX(L_particle , 1/(MIN_REAL_NUMBER + L_cond_inv))*All.cf_atime / L_cond);
@@ -840,7 +893,7 @@ integertime get_timestep(int p,		/*!< particle index */
                         while(TimeBinActive[bin] == 0 && bin > binold) {bin--;} /* make sure the new step is synchronized */
                     }
                     /* now convert this -back- to a physical timestep */
-                    double dt_allowed = GET_INTEGERTIME_FROM_TIMEBIN(bin) * UNIT_INTEGERTIME_IN_PHYSICAL;
+                    double dt_allowed = GET_INTEGERTIME_FROM_TIMEBIN(bin) * UNIT_INTEGERTIME_IN_PHYSICAL(-1);
                     if(dt_superstep > 1.5*dt_allowed)
                     {
                         /* the next allowed timestep [because of synchronization] is not big enough to fit the 'big step'
@@ -897,7 +950,7 @@ integertime get_timestep(int p,		/*!< particle index */
 
 
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
-    if(P[p].Type == 3)
+    if(is_particle_a_special_zoom_target(p))
     {
         double dt_smbh_max = 1000./UNIT_TIME_IN_YR; // set a maximum physical timestep to prevent this centering from jumping
         if(dt > dt_smbh_max) {dt = dt_smbh_max;}
@@ -908,7 +961,7 @@ integertime get_timestep(int p,		/*!< particle index */
 #ifdef BLACK_HOLES
 
 #ifdef BH_WAKEUP_GAS
-    if(P[p].Type == 0) {double dt_bh = 2.*GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(P[p].LowestBHTimeBin); if(dt>dt_bh) {dt=0.99*dt_bh; P[p].LowestBHTimeBin=TIMEBINS;}}
+    if(P[p].Type == 0) {double dt_bh = 2.*GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(P[p].LowestBHTimeBin,p); if(dt>dt_bh) {dt=0.99*dt_bh; P[p].LowestBHTimeBin=TIMEBINS;}}
 #endif
 
     if(P[p].Type == 5)
@@ -918,7 +971,7 @@ integertime get_timestep(int p,		/*!< particle index */
 #else
       double dt_accr = All.MaxSizeTimestep;
 #endif
-        if(BPP(p).BH_Mdot > 0 && BPP(p).BH_Mass > 0)
+        if(BPP(p).BH_Mdot > 0 && BPP(p).BH_Mass > 0 && All.Time > All.TimeBegin)
         {
 #if (defined(BH_GRAVCAPTURE_GAS) || defined(BH_WIND_CONTINUOUS) || defined(BH_WIND_KICK)) && !defined(SINGLE_STAR_SINK_DYNAMICS)
             /* really want prefactor to be ratio of median gas mass to bh mass */
@@ -942,7 +995,7 @@ integertime get_timestep(int p,		/*!< particle index */
 #endif
         if(dt_accr > 0 && dt_accr < dt) {dt = dt_accr;}
 
-        double dt_ngbs = 4.1 * GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(BPP(p).BH_TimeBinGasNeighbor); /* standard wakeup-type threshold: use this by default here, unless dynamical interaction important (e.g. back-rx term from oscillation of BH c-o-m, which is important for single-sink sims */
+        double dt_ngbs = 4.1 * GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(BPP(p).BH_TimeBinGasNeighbor,p); /* standard wakeup-type threshold: use this by default here, unless dynamical interaction important (e.g. back-rx term from oscillation of BH c-o-m, which is important for single-sink sims */
         if(dt > dt_ngbs && dt_ngbs > 0) {dt = 1.01 * dt_ngbs; }
 
 #if defined(SINGLE_STAR_TIMESTEPPING)
@@ -965,12 +1018,12 @@ integertime get_timestep(int p,		/*!< particle index */
             vsig += P[p].MaxFeedbackVel;
 #endif                        
             double dt_cour_sink = All.CourantFac * (L_particle*All.cf_atime) / vsig;
-            if(dt > dt_cour_sink && dt_cour_sink > 0) {dt = 1.01 * dt_cour_sink;}
+            if(dt > dt_cour_sink && dt_cour_sink > 0 && isfinite(dt_cour_sink)) {dt = 1.01 * dt_cour_sink;}
         }
         if(P[p].StellarAge == All.Time)
         {   // want a brand new sink to be on the lowest occupied timebin
             long bin; for(bin = 0; bin < TIMEBINS; bin++) {if(TimeBinCount[bin] > 0) break;}
-            double dt_min =  GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(bin);
+            double dt_min =  GET_PHYSICAL_TIMESTEP_FROM_TIMEBIN(bin,p);
             if(dt > dt_min && dt_min > 0) dt = 1.01 * dt_min;
         }
 #endif // SINGLE_STAR_TIMESTEPPING
@@ -1283,7 +1336,7 @@ void process_wake_ups(void)
     }
 
     sumup_large_ints(1, &n, &ntot);
-    if(ThisTask == 0) {if(ntot > 0) {printf("%d%09d particles woken up.\n", (int) (ntot / 1000000000), (int) (ntot % 1000000000));}}
+    if(ThisTask == 0) {if(ntot > 0) {printf("%d%09d particles activated (in wakeup check).\n", (int) (ntot / 1000000000), (int) (ntot % 1000000000));}}
     NeedToWakeupParticles = 0;
     NeedToWakeupParticles_local = 0;
 }

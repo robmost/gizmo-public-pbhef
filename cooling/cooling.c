@@ -169,14 +169,17 @@ void do_the_cooling_for_particle(int i)
         
 
 #if defined(RADTRANSFER) /* account for cooling radiation which should, according to our modules, come out in certain bands */
-        double nHcgs = HYDROGEN_MASSFRAC * UNIT_DENSITY_IN_CGS * SphP[i].Density * All.cf_a3inv / PROTONMASS_CGS;    /* hydrogen number dens in cgs units */
+        double nHcgs = nH_CGS(i); /* hydrogen number dens in cgs units */
         double ratefact = (C_LIGHT_CODE_REDUCED/C_LIGHT_CODE) * nHcgs * nHcgs / (SphP[i].Density * All.cf_a3inv * UNIT_DENSITY_IN_CGS) * (dtime*UNIT_TIME_IN_CGS) / (UNIT_SPECEGY_IN_CGS) * P[i].Mass; /* need to account for RSOL factors in emission/absorption rates */
         double de_u = (unew - SphP[i].InternalEnergy) * P[i].Mass; /* change in the total internal energy of the gas cell [integrating over everything] */
         double de_rad_tot_final = 0, de_rad_tot = 0; for(k=0;k<N_RT_FREQ_BINS;k++) {de_rad_tot += SphP[i].Lambda_RadiativeCooling_toRHDBins[k] * ratefact;} /* energy gained by gas needs to be subtracted from radiation. positive lambda means gas cooling (gas energy loss, so radiation energy gain, so positive here) */
         /* Removing the de_u * de_rad_tot > 0 limiter because this is not ruled out physically, e.g. if gas is being heated by PdV work while radiating away energy. 
         Can only do the limiter if the cooling function accounts for radiative processes only. */
 	    //if(de_u * de_rad_tot > 0) {de_rad_tot = 0;} /* if radiation gains but gas net loses (or vice versa), could occur across different bands but don't do the routine below */
-        double de_u_rad = -de_rad_tot, de_u_work = de_u - de_u_rad; if(SphP[i].CoolingIsOperatorSplitThisTimestep==0) {de_u_work=SphP[i].DtInternalEnergy/nHcgs*ratefact; if((de_u_rad + de_u_work)*de_u < 0) {de_u=0;}} /* ok have a sign conflict here, this is potentially a problem, so we dont mess with the radiation here. verified this only occurs when the two almost exactly cancel and the remainer is very small (4 dex smaller than both) so its dominated by roundoff error, should be null in that case */
+        double de_u_rad = -de_rad_tot, de_u_work = de_u - de_u_rad;
+#ifndef COOLING_OPERATOR_SPLIT
+        if(SphP[i].CoolingIsOperatorSplitThisTimestep==0) {de_u_work=SphP[i].DtInternalEnergy/nHcgs*ratefact; if((de_u_rad + de_u_work)*de_u < 0) {de_u=0;}} /* ok have a sign conflict here, this is potentially a problem, so we dont mess with the radiation here. verified this only occurs when the two almost exactly cancel and the remainer is very small (4 dex smaller than both) so its dominated by roundoff error, should be null in that case */
+#endif
         double de_u_touse = de_u - de_u_work; /* this is the actual difference between the implicit hydro work term and the total term, i.e. a corrected de_u_rad, which we use below */
         if((de_u_touse<0) && (de_u_work>0) && (fabs(de_u)<fabs(de_u_touse))) {de_u_touse=-fabs(de_u);} /* de_u_rad*de_u_work >= 0 -- same sign, fabs(de_u) > fabs(de_u_rad), change from rad smaller than total; else (1) de_u_rad > 0, de_u_work < 0: rad heating, adiabatic cooling. rad field should lose |de_u_rad|, not lesser (let alone gain); de_u_rad < 0, de_u_work > 0: rad cooling, shock/compressive heating. rad field should gain |de_u_rad|, but can allow limiter; */
         
@@ -836,7 +839,14 @@ double find_abundances_and_rates(double logT, double rho, int target, double shi
         neold = n_elec;
         n_elec = nHp + nHep + 2 * nHepp;	/* eqn (38) */
 #ifdef COOL_LOW_TEMPERATURES
-        n_elec += return_electron_fraction_from_heavy_ions(target, pow(10.,logT), rho, n_elec);
+	    double temp = pow(10.,logT);
+        n_elec += return_electron_fraction_from_heavy_ions(target, temp, rho, n_elec);
+#ifdef SIMPLE_STEADYSTATE_CHEMISTRY
+        n_elec += return_electron_fraction_from_alkali(target, temp);
+	    n_elec += return_electron_fraction_from_Cplus(target, temp, neold, shieldfac);        
+        n_elec += return_electron_fraction_from_Oplus(target, nHp);
+	    n_elec += return_electron_fraction_from_molecular_ions(target, temp);
+#endif        
 #endif       
 	
 	// keep track of these bounds in case we need to switch to bisection
@@ -1018,20 +1028,11 @@ double CoolingRate(double logT,  double rho, double n_elec_guess, double *n_elec
 #if defined(GALSF_ISMDUSTCHEM_MODEL) && !defined(GALSF_ISMDUSTCHEM_PASSIVE)
             Z_C = DMAX(1.e-6, Z[2]/(0.5*All.SolarAbundances[2])); // gas-phase carbon abundance (relative to solar/2, usual assumption implicitly)
 #endif
-            double f_Cplus_CCO=1./(1.+nHcgs/3.e3), photoelec=0; // very crude estimate used to transition between C+ cooling curve and C/CO [nearly-identical] cooling curves above C+ critical density, where C+ rate rapidly declines
-#ifdef GALSF_FB_FIRE_RT_UVHEATING
-            photoelec = SphP[target].Rad_Flux_UV; if(gJH0>0 && shieldfac>0) {photoelec+=sqrt(shieldfac) * (gJH0/2.29e-10);} // uvb contribution //
-#endif
-#ifdef RT_PHOTOELECTRIC
-            photoelec = SphP[target].Rad_E_gamma[RT_FREQ_BIN_PHOTOELECTRIC] * (SphP[target].Density*All.cf_a3inv/P[target].Mass) * UNIT_PRESSURE_IN_CGS / 3.9e-14; photoelec=DMAX(DMIN(photoelec,1.e4),0); // convert to Habing field //
-#endif
-#if defined(RT_ISRF_BACKGROUND) && (!defined(RADTRANSFER) || defined(RT_USE_GRAVTREE)) // latter flag decides whether we do treecol/sobolev here to get the background intensity
-            photoelec += All.InterstellarRadiationFieldStrength * 1.7 * exp(-DMAX(P[target].Metallicity[0]/All.SolarAbundances[0],1e-4) * column * 500.); // RT_ISRF_BACKGROUND rescales the overal ISRF, factor of 1.7 gives Draine 1978 field in Habing units, extinction factor assumes the same FUV band-integrated dust opacity as RT module
-#endif
-#if !(defined(GALSF_FB_RT_UVHEATING) || defined(RT_PHOTOELECTRIC) || defined(RT_ISRF_BACKGROUND))
-            photoelec = 1; // if no explicit modeling of FUV, just assume Habing
-#endif
-            f_Cplus_CCO = (nHcgs/(340.*DMAX(0.1,photoelec))); f_Cplus_CCO=1./(1.+f_Cplus_CCO*f_Cplus_CCO/sqrt_T); // fco/(1-fco) ~ 0.0022 * ((n/50 cm^-3)/G0)^2 * (100K/T)^(1/2) from Tielens
+            // TODO: can now get detailed C+, C, O, and CO abundances from SIMPLE_STEADYSTATE_CHEMISTRY routines, and compute the explicit cooling terms for slightly more accurate cooling here
+// #ifdef SIMPLE_STEADYSTATE_CHEMISTRY            
+// #endif
+            double f_Cplus_CCO=1./(1.+nHcgs/3.e3); // very crude estimate used to transition between C+ cooling curve and C/CO [nearly-identical] cooling curves above C+ critical density, where C+ rate rapidly declines        
+            double photoelec=get_FUV_G0(target, shieldfac,0); f_Cplus_CCO = (nHcgs/(340.*DMAX(0.1,photoelec))); f_Cplus_CCO=1./(1.+f_Cplus_CCO*f_Cplus_CCO/sqrt_T); // fco/(1-fco) ~ 0.0022 * ((n/50 cm^-3)/G0)^2 * (100K/T)^(1/2) from Tielens
             double Lambda_Cplus = Z_C * (4.7e-28 * (pow(T,0.15) + 1.04e4*n_elec/sqrt_T) * exp(-DMIN(91.211/T,EXPmax)) + 2.08e-29*exp(-DMIN(23.6/T,EXPmax))); // fit from Barinovs et al., ApJ, 620, 537, 2005, and Wilson & Bell MNRAS 337 1027 2002; assuming factor of 0.5 depletion factor in ISM; rate per C+ relative to solar; + plus [CI]-609 µm line cooling from Hocuk⋆ et al. 2016MNRAS.456.2586H
             double Lambda_CCO = Z_C * T*sqrt_T * 2.73e-31 / (1. + (nHcgs/ncrit_CO)*(1.+1.*DMAX(column,0.017)/Sigma_crit_CO)); // fit from Hollenbach & McKee 1979 for CO (+CH/OH/HCN/OH/HCl/H20/etc., but those don't matter), with slight re-calibration of normalization (factor ~1.4 or so) to better fit the results from the full Glover+Clark network. As Glover+Clark show, if you shift gas out of CO into C+ and O, you have almost no effect on the integrated cooling rate, so this is a surprisingly good approximation without knowing anything about the detailed chemical/molecular state of the gas. uncertainties in e.g. ambient radiation are -much- larger. also note this rate is really carbon-dominated as the limiting abundance, so should probably use that.
             
@@ -1134,22 +1135,7 @@ double CoolingRate(double logT,  double rho, double n_elec_guess, double *n_elec
         /* Photoelectric heating following Bakes & Thielens 1994 (also Wolfire 1995); now with 'update' from Wolfire 2005 for PAH [fudge factor 0.5 below] */
         if((target >= 0) && (T < 1.0e6))
         {
-            double photoelec = 0;
-#ifdef GALSF_FB_FIRE_RT_UVHEATING
-            photoelec += SphP[target].Rad_Flux_UV;
-#ifdef COOL_UVB_SELFSHIELD_RAHMATI
-            if(gJH0>0 && shieldfac>0) {photoelec += sqrt(shieldfac) * (gJH0 / 2.29e-10);} // uvb contribution //
-#endif
-#endif
-#ifdef RT_PHOTOELECTRIC
-            photoelec += SphP[target].Rad_E_gamma[RT_FREQ_BIN_PHOTOELECTRIC] * (SphP[target].Density*All.cf_a3inv/P[target].Mass) * UNIT_PRESSURE_IN_CGS / 3.9e-14; // convert to Habing field //
-#endif
-#if defined(RT_ISRF_BACKGROUND) && (!defined(RADTRANSFER) || defined(RT_USE_GRAVTREE)) // latter flag decides whether we do treecol/sobolev here to get the background intensity // add a constant assumed FUV background, for isolated ISM simulations that don't get FUV from local sources self-consistently
-            double column = evaluate_NH_from_GradRho(P[target].GradRho,PPP[target].Hsml,SphP[target].Density,PPP[target].NumNgb,1,target) * UNIT_SURFDEN_IN_CGS; // converts to cgs            
-            photoelec += All.InterstellarRadiationFieldStrength * 1.7 * exp(-DMAX(P[target].Metallicity[0]/All.SolarAbundances[0],1e-4) * column * 500.); // RT_ISRF_BACKGROUND rescales the overal ISRF, factor of 1.7 gives Draine 1978 field in Habing units, extinction factor assumes the same FUV band-integrated dust opacity as RT module
-#endif
-            if(photoelec > 0) {if(photoelec > 1.e4) {photoelec = 1.e4;}}
-
+            double photoelec = get_FUV_G0(target, shieldfac,0);
             if(photoelec > 0)
             {
                 LambdaPElec = -1.3e-24 * photoelec / nHcgs * (P[target].Metallicity[0]/All.SolarAbundances[0]) * return_dust_to_metals_ratio_vs_solar(target,0); // negative sign for lambda b/c heating
@@ -1283,7 +1269,7 @@ double CoolingRate(double logT,  double rho, double n_elec_guess, double *n_elec
     if(target>=0) {SphP[target].NetHeatingRateQ = Q;}
 #endif
 #ifdef OUTPUT_MOLECULAR_FRACTION
-    if(target>0) {SphP[target].MolecularMassFraction = Get_Gas_Molecular_Mass_Fraction(target, T, nH0, n_elec, sqrt(shieldfac)*(gJH0/2.29e-10));}
+    if(target>=0) {SphP[target].MolecularMassFraction = Get_Gas_Molecular_Mass_Fraction(target, T, nH0, n_elec, sqrt(shieldfac)*(gJH0/2.29e-10));}
 #endif
 
 #ifndef COOLING_OPERATOR_SPLIT
@@ -1816,12 +1802,12 @@ void update_explicit_molecular_fraction(int i, double dtime_cgs)
 #if !defined(RT_LYMAN_WERNER)
     whichbin = RT_FREQ_BIN_PHOTOELECTRIC; // use photo-electric bin as proxy (very close) if don't evolve LW explicitly
 #endif
-    urad_G0 = SphP[i].Rad_E_gamma[whichbin] * (SphP[i].Density*All.cf_a3inv/P[i].Mass) * UNIT_PRESSURE_IN_CGS / 3.9e-14; // convert to Habing field //
+    urad_G0 = SphP[i].Rad_E_gamma[whichbin] * (SphP[i].Density*All.cf_a3inv/P[i].Mass) * UNIT_EGY_DENSITY_IN_HABING; // convert to Habing field //
 #endif
     urad_G0 += urad_from_uvb_in_G0; // include whatever is contributed from the meta-galactic background, fed into this routine
     urad_G0 = DMIN(DMAX( urad_G0 , 1.e-10 ) , 1.e10 ); // limit values, because otherwise exponential self-shielding approximation easily artificially gives 0 incident field
 #ifdef RT_INFRARED
-    urad_G0 += rt_irband_egydensity_in_band(i,11.2,500.) * UNIT_PRESSURE_IN_CGS / 3.9e-14; // add contribution from the adaptive band
+    urad_G0 += rt_irband_egydensity_in_band(i,11.2,500.) * UNIT_EGY_DENSITY_IN_HABING; // add contribution from the adaptive band
 #endif
     // define a number of variables needed in the shielding module
     double dx_cell = Get_Particle_Size(i) * All.cf_atime; // cell size
@@ -2061,7 +2047,40 @@ double gas_dust_heating_coeff(int i, double T, double Tdust)
     return 1.116e-32 * sqrt(T)*(1.-0.8*exp(-75./T)) * Z_sol * fdust;  // Meijerink & Spaans 2005; Hollenbach & McKee 1979,1989. Assumes 10 Angstrom minimum grain size.
 }
 
+/* Computes the normalized FUV flux in Habing units G0 
 
+Mode 0: Account only for dust-shielded FUV flux
+Mode 1: Use for the C photoionization rate: apply cross- and self-shielding factor from Tielens & Hollenbach 1985
+*/
+MyFloat get_FUV_G0(int target, MyFloat shieldfac, int mode)
+{
+    MyFloat G0 = 0.;
+#ifdef GALSF_FB_FIRE_RT_UVHEATING
+    G0 += SphP[target].Rad_Flux_UV;
+#ifdef COOL_UVB_SELFSHIELD_RAHMATI
+    if (gJH0 > 0 && shieldfac > 0)
+    {
+        G0 += sqrt(shieldfac) * (gJH0 / 2.29e-10);
+    } // uvb contribution //
+#endif
+#endif
+    double column = evaluate_NH_from_GradRho(P[target].GradRho, PPP[target].Hsml, SphP[target].Density, PPP[target].NumNgb, 1, target) * UNIT_SURFDEN_IN_CGS; // converts to cgs    
+#ifdef RT_PHOTOELECTRIC
+    G0 += SphP[target].Rad_E_gamma[RT_FREQ_BIN_PHOTOELECTRIC] * (SphP[target].Density * All.cf_a3inv / P[target].Mass) * UNIT_EGY_DENSITY_IN_HABING; // convert to Habing field //
+#endif
+#if defined(RT_ISRF_BACKGROUND) && (!defined(RADTRANSFER) || defined(RT_USE_GRAVTREE))                                                                        // latter flag decides whether we do treecol/sobolev here to get the background intensity // add a constant assumed FUV background, for isolated ISM simulations that don't get FUV from local sources self-consistently    
+    G0 += All.InterstellarRadiationFieldStrength * 1.7 * exp(-DMAX(P[target].Metallicity[0] / All.SolarAbundances[0], 1e-4) * column * 500.);                 // RT_ISRF_BACKGROUND rescales the overal ISRF, factor of 1.7 gives Draine 1978 field in Habing units, extinction factor assumes the same FUV band-integrated dust opacity as RT module
+#endif
+#ifdef SIMPLE_STEADYSTATE_CHEMISTRY
+    if(mode == 1){ // Gong 2017 Eq. 9
+        MyFloat tau_C = DMIN(column * P[target].Metallicity[2] / (12 * PROTONMASS_CGS) * 1.6e-17, 100.);
+        MyFloat r_H2 = DMIN(2.8e-22 * SphP[target].MolecularMassFraction * column * HYDROGEN_MASSFRAC / (2 * PROTONMASS_CGS), 100.);
+        G0 *= exp(-tau_C) * exp(-r_H2) / (1 + r_H2);
+    }
+#endif
+    G0 = DMAX(MIN_REAL_NUMBER, DMIN(G0,1e4));
+    return G0;
+}
 
 /* this function estimates the free electron fraction from heavy ions, assuming a simple mix of cold molecular gas, Mg, and dust, with the ions from singly-ionized Mg, to prevent artificially low free electron fractions */
 double return_electron_fraction_from_heavy_ions(int target, double temperature, double density_cgs, double n_elec_HHe)

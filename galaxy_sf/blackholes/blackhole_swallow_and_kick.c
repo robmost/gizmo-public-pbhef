@@ -75,7 +75,7 @@ static inline void INPUTFUNCTION_NAME(struct INPUT_STRUCT_NAME *in, int i, int l
 #if defined(BH_CALC_LOCAL_ANGLEWEIGHTS)
     in->BH_angle_weighted_kernel_sum = BlackholeTempInfo[j_tempinfo].BH_angle_weighted_kernel_sum;
 #endif
-    in->Dt = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
+    in->Dt = GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(i);
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
     in->Dt = P[i].dt_since_last_gas_search;
 #endif
@@ -228,6 +228,7 @@ int blackhole_swallow_and_kick_evaluate(int target, int mode, int *exportflag, i
                 double dpos[3]={0},dvel[3]={0}; for(k=0;k<3;k++) {dpos[k]=P[j].Pos[k]-local.Pos[k]; dvel[k]=Vel_j[k]-local.Vel[k];}
                 NEAREST_XYZ(dpos[0],dpos[1],dpos[2],-1); /*  find the closest image in the given box size  */
                 NGB_SHEARBOX_BOUNDARY_VELCORR_(local.Pos,P[j].Pos,dvel,-1); /* wrap velocities for shearing boxes if needed */
+                double r2=0; for(k=0;k<3;k++) {r2+=dpos[k]*dpos[k];}
 
                 
 #if defined(BH_RETURN_ANGMOM_TO_GAS) || defined(BH_RETURN_BFLUX)
@@ -265,7 +266,7 @@ int blackhole_swallow_and_kick_evaluate(int target, int mode, int *exportflag, i
                 
                 
                 /* we've found a particle to be swallowed.  This could be a BH merger, DM particle, or baryon w/ feedback */
-                if(P[j].SwallowID == local.ID && Mass_j > 0)
+                if(P[j].SwallowID == local.ID && Mass_j > 0 && r2 > 0)
                 {   /* accreted quantities to be added [regardless of particle type] */
                     f_accreted = 1; /* default to accreting entire particle */
 #ifdef BH_WIND_KICK
@@ -295,7 +296,7 @@ int blackhole_swallow_and_kick_evaluate(int target, int mode, int *exportflag, i
 		            if(P[j].Type == 0) { // we have to keep track of how much radiation energy is lost when we accrete this gas cell, and reinject it later
 			        double photon_energy = 0; int kfreq;
 			        for(kfreq=0;kfreq<N_RT_FREQ_BINS;kfreq++) {photon_energy += SphP[j].Rad_E_gamma[kfreq];}
-				out.accreted_photon_energy += photon_energy;
+                    out.accreted_photon_energy += photon_energy;
 		            }
 #endif
 #if defined(BH_FOLLOW_ACCRETED_MOMENTUM)
@@ -355,6 +356,12 @@ int blackhole_swallow_and_kick_evaluate(int target, int mode, int *exportflag, i
                             TimeBin_BH_Medd[bin] -= BPP(j).BH_Mdot / BPP(j).BH_Mass;
                         }
                         Mass_j = 0;
+                        #pragma omp atomic write
+                        BPP(j).BH_Mass_AlphaDisk = 0; // make sure the mass is -actually- zero'd here
+                        #pragma omp atomic write
+                        BPP(j).BH_Mdot = 0; // make sure the mass is -actually- zero'd here
+                        #pragma omp atomic write
+                        BPP(j).BH_Mass = 0; // make sure the mass is -actually- zero'd here
 #ifdef GALSF
                         out.Accreted_Age = P[j].StellarAge;
 #endif
@@ -595,7 +602,7 @@ void spawn_bh_wind_feedback(void)
         if(P[i].Type == 4) {ptype_can_spawn = 1;}
 #endif
 #if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES >= 4)
-        if(P[i].Type == 3) {ptype_can_spawn = 1;}
+        if(is_particle_a_special_zoom_target(i)) {ptype_can_spawn = 1;}
 #endif
         if((NumPart+n_particles_split+(int)(2.*(BH_WIND_SPAWN+0.1)) < nmax) && (ptype_can_spawn==1)) // basic condition: particle is a 'spawner' (sink), and code can handle the event safely without crashing.
         {
@@ -721,8 +728,11 @@ double get_spawned_cell_launch_speed(int i)
 {
     double v_magnitude = All.BAL_v_outflow; // velocity of the jet: default mode is to set this manually to a specific value in physical units
 
+#if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES == 3)
+    if(is_particle_a_special_zoom_target(i)) {return 1.e5/UNIT_VEL_IN_KMS;} // need an initial velocity for launch here //
+#endif
 #if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES >= 4)
-    if(P[i].Type == 3) {return 3.e4/UNIT_VEL_IN_KMS;} // need an initial velocity for launch here //
+    if(is_particle_a_special_zoom_target(i)) {return 3.e4/UNIT_VEL_IN_KMS;} // need an initial velocity for launch here //
 #endif
     
 #ifdef SNE_NONSINK_SPAWN
@@ -808,15 +818,11 @@ void get_wind_spawn_magnetic_field(int j, int mode, double *ny, double *nz, doub
 int blackhole_spawn_particle_wind_shell( int i, int dummy_cell_i_to_clone, int num_already_spawned )
 {
     double total_mass_in_winds = BPP(i).unspawned_wind_mass;
+
     int n_particles_split   = (int) floor( total_mass_in_winds / target_mass_for_wind_spawning(i) ); /* if we set BH_WIND_SPAWN we presumably wanted to do this in an exactly-conservative manner, which means we want to have an even number here. */
     int k=0; long j;
 
-#if (defined(SINGLE_STAR_FB_SNE) && defined(FLAG_NOT_IN_PUBLIC_CODE)) || defined(SINGLE_STAR_FB_SNE_N_EJECTA_QUADRANT)
-    if (n_particles_split<SINGLE_STAR_FB_SNE_N_EJECTA) {return 0;} // we have to wait until we get a full shell
-    else {n_particles_split = n_particles_split - (n_particles_split % SINGLE_STAR_FB_SNE_N_EJECTA);} // we only eject full shells, in practice this will be one shell at a time
-#endif
-
-    if((((int)BH_WIND_SPAWN) % 2) == 0) {if(( n_particles_split % 2 ) != 0) {n_particles_split -= 1;}} /* n_particles_split was not even. we'll wait to spawn this last particle, to keep an even number, rather than do it right now and break momentum conservation */
+    if((((int)BH_WIND_SPAWN) % 2) == 0) {if(( n_particles_split % 2 ) != 0) {n_particles_split -= 1;}} /* n_particles_split was not even. we'll wait to spawn this last particle, to keep an even number, rather than do it right now and break momentum conservation */	
     if( (n_particles_split == 0) || (n_particles_split < 1) ) {return 0;}
     int n0max = DMAX(20 , (int)(3.*(BH_WIND_SPAWN)+0.1));
 #if defined(SNE_NONSINK_SPAWN)
@@ -852,7 +858,7 @@ int blackhole_spawn_particle_wind_shell( int i, int dummy_cell_i_to_clone, int n
     d_r = DMIN(P[i].SinkRadius, d_r); //launch close to the sink
 #endif
 #if defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM) && defined(PARTICLE_EXCISION)
-    if(P[i].Type == 3) {double rmin=All.ForceSoftening[3], r=sqrt(r2), r0=0.5*(rmin+r)*(1.+0.1*get_random_number(i+j)); d_r=r0;} // make sure to spawn OUTSIDE of the excision radius!
+    if(is_particle_a_special_zoom_target(i)) {double rmin=All.ForceSoftening[3], r=sqrt(r2), r0=0.5*(rmin+r)*(1.+0.1*get_random_number(i+j)); d_r=r0;} // make sure to spawn OUTSIDE of the excision radius!
 #endif
 #if defined(SNE_NONSINK_SPAWN)
     if(P[i].Type == 4) {double rmin=All.ForceSoftening[4], r=sqrt(r2), r0=0.5*(rmin+r)*(0.5+1.5*get_random_number(i+j)); d_r=r0;} // need a generous padding to ensure no overlaps
@@ -1104,18 +1110,22 @@ int blackhole_spawn_particle_wind_shell( int i, int dummy_cell_i_to_clone, int n
 /* routine for injection from sink boundary around 'special' particle types */
 void special_rt_feedback_injection(void)
 {
-    double L0_cgs = 7.e45, MdotJetMsunYr=1.; int iBH0=-1;
-    if(All.Mass_of_SpecialSMBHParticle <= 0) {return;}
+    double L0_cgs = 7.e45, MdotJetMsunYr=1., mspecial_tot=0; int iBH0=-1, k;
+#if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES == 3)
+    L0_cgs = 1.e43; MdotJetMsunYr = 1.e-3;
+#endif
+    for(k=0;k<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;k++) {mspecial_tot += All.Mass_of_SpecialSMBHParticle[k];}
+    if(mspecial_tot <= 0) {return;}
     double delta_wt_sum = 0, delta_wt_sumsum, r_min = All.ForceSoftening[3] * All.cf_atime, r_max = 5. * r_min, dt = All.TimeStep, subgrid_lum = L0_cgs / (UNIT_ENERGY_IN_CGS/UNIT_TIME_IN_CGS), de_00 = subgrid_lum * dt; if(dt <= 0) {return;}
-    int n_wt = 0, i,k; for(i=0;i<NumPart;i++) {
-        if(P[i].Type == 3) {iBH0=i;}
+    int n_wt = 0, i; for(i=0;i<NumPart;i++) {
+        if(is_particle_a_special_zoom_target(i)) {iBH0=i;}
         if(P[i].Type != 0) {continue;}
         double dp[3], r2=0, wt, wt_new=0, r; for(k=0;k<3;k++) {dp[k]=All.cf_atime*(P[i].Pos[k]); r2+=dp[k]*dp[k];}
         r = sqrt(r2); if(r < r_min || r >= r_max) {continue;}
         double vol = P[i].Mass / (SphP[i].Density*All.cf_a3inv), cos_t = dp[0] / r;
         wt = 1.e-5 * pow(fabs(cos_t),8) * vol * (r_max*r_max/(r*r)-1.); delta_wt_sum += wt;
     }
-    MPI_Allreduce(&delta_wt_sum, &delta_wt_sumsum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); // broadcast the new position of the SMBH particle
+    MPI_Allreduce(&delta_wt_sum, &delta_wt_sumsum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD); // collect the information on weight sums
     if(All.Time <= All.TimeBegin) {return;}
     if(delta_wt_sumsum <= 0) {return;}
     for(i=0;i<NumPart;i++) {
@@ -1144,8 +1154,12 @@ void special_rt_feedback_injection(void)
 /* simple routine that evaluates the target cell mass for the spawning subroutine */
 double target_mass_for_wind_spawning(int i)
 {
+#if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES == 3) // replace later as needed //
+    if(is_particle_a_special_zoom_target(i)) {return 1.e-9/UNIT_MASS_IN_SOLAR;} //
+#endif
 #if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES >= 4) // replace later as needed //
-    if(P[i].Type==3) {return 1.e-6/UNIT_MASS_IN_SOLAR;} //
+    if(is_particle_a_special_zoom_target(i)) {return 1.e-6/UNIT_MASS_IN_SOLAR;} //
+    //if(P[i].Type==3) {return 1.e-6/UNIT_MASS_IN_SOLAR;} //
 #endif
 
 #if defined(SNE_NONSINK_SPAWN)

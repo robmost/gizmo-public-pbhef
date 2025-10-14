@@ -104,10 +104,8 @@ void drift_particle(int i, integertime time1)
     }
     if(time1 == time0) {return;}
     
-    if(All.ComovingIntegrationOn) {dt_drift = get_drift_factor(time0, time1);}
-        else {dt_drift = (time1 - time0) * All.Timebase_interval;}
-    
-    
+    dt_drift = get_drift_factor(time0, time1, i, 0);
+        
 #if !defined(FREEZE_HYDRO)
 #if defined(HYDRO_MESHLESS_FINITE_VOLUME)
     if(P[i].Type==0) {advect_mesh_point(i,dt_drift);} else {for(j=0;j<3;j++) {P[i].Pos[j] += P[i].Vel[j] * dt_drift;}}
@@ -141,7 +139,15 @@ void drift_particle(int i, integertime time1)
 #if (NUMDIMS==2)
     P[i].Pos[2]=0; // force zero-ing
 #endif
-    
+
+#ifdef DILATION_FOR_STELLAR_KINEMATICS_ONLY
+    double a_fac = return_timestep_dilation_factor(i,0);
+    if(a_fac > 1.) {
+        double cfac = dt_drift * (1. - 1./a_fac);
+        for(j=0;j<3;j++) {P[i].Pos[j] += P[i].vel_of_nearest_special[j]*cfac;} /* add back in the mean drift of the surrounding stuff to dilate only the local dynamics */
+    }
+#endif
+
     double divv_fac = P[i].Particle_DivVel * dt_drift;
     double divv_fac_max = 0.3; //1.5; // don't allow Hsml to change too much in predict-step //
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
@@ -179,12 +185,13 @@ void drift_particle(int i, integertime time1)
     
     if((P[i].Type == 0) && (P[i].Mass > 0))
         {
-            double dt_gravkick, dt_hydrokick, dt_entr;
-            dt_entr = dt_hydrokick = (time1 - time0) * UNIT_INTEGERTIME_IN_PHYSICAL;
-            if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(time0, time1);} else {dt_gravkick = dt_hydrokick;}
+            double dt_gravkick, dt_gravkick_pm, dt_hydrokick, dt_entr;
+            dt_entr = dt_hydrokick = (time1 - time0) * UNIT_INTEGERTIME_IN_PHYSICAL(i);
+            dt_gravkick = get_gravkick_factor(time0, time1, i, 0);
             
 #ifdef PMGRID
-            for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += (P[i].GravAccel[j] + P[i].GravPM[j]) * dt_gravkick + (SphP[i].HydroAccel[j] * dt_hydrokick)*All.cf_atime;} /* make sure v is in code units */
+            dt_gravkick_pm = get_gravkick_factor(time0, time1, -1, 0);
+            for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += (P[i].GravAccel[j]*dt_gravkick + P[i].GravPM[j]*dt_gravkick_pm) + (SphP[i].HydroAccel[j] * dt_hydrokick)*All.cf_atime;} /* make sure v is in code units */
 #else
             for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += (P[i].GravAccel[j]) * dt_gravkick + (SphP[i].HydroAccel[j] * dt_hydrokick)*All.cf_atime;} /* make sure v is in code units */
 #endif
@@ -417,8 +424,8 @@ double evaluate_NH_from_GradRho(MyFloat gradrho[3], double hsml, double rho, dou
     double gradrho_mag=0;
     if(rho>0)
     {
-#ifdef RT_USE_TREECOL_FOR_NH
-        gradrho_mag = include_h * rho * hsml / numngb_ndim; if(target>0) {gradrho_mag += P[target].SigmaEff;}
+#ifdef RT_USE_TREECOL_FOR_NH        
+        gradrho_mag = include_h * rho * hsml / numngb_ndim; if(target>=0) {gradrho_mag += P[target].SigmaEff;}
 #else             
         gradrho_mag = sqrt(gradrho[0]*gradrho[0]+gradrho[1]*gradrho[1]+gradrho[2]*gradrho[2]);
         if(gradrho_mag > 0) {gradrho_mag = rho*rho/gradrho_mag;} else {gradrho_mag=0;}
@@ -498,7 +505,7 @@ double INLINE_FUNC Get_Gas_PhiField_DampingTimeInv(int i_particle_id)
 #else
     double damping_tinv;
 #ifdef SELFGRAVITY_OFF
-    damping_tinv = All.DivBcleanParabolicSigma * All.FastestWaveSpeed / Get_Particle_Size(i_particle_id); // fastest wavespeed has units of [vphys]
+    damping_tinv = All.DivBcleanParabolicSigma * All.FastestWaveSpeed / (All.cf_atime*Get_Particle_Size(i_particle_id)); // fastest wavespeed has units of [vphys]
     //double damping_tinv = All.DivBcleanParabolicSigma * All.FastestWaveDecay * All.cf_a2inv; // no improvement over fastestwavespeed; decay has units [vphys/rphys]
 #else
     // only see a small performance drop from fastestwavespeed above to maxsignalvel below, despite the fact that below is purely local (so allows more flexible adapting to high dynamic range)
@@ -638,4 +645,16 @@ double calculate_face_area_for_cartesian_mesh(double *dp, double rinv, double l_
     return fabs(Face_Area_Norm);
 }
 
+#endif
+
+
+
+
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+double weight_function_for_weighted_motion_smoothing(double r, int mode)
+{
+    double wt = 1, amax = 1.e2, rmax_pc = 100., slope_index = 1, r_pc = r * All.cf_atime * UNIT_LENGTH_IN_PC;
+    if(r_pc < rmax_pc) {wt = DMAX(pow(r_pc / rmax_pc , slope_index) , 1./amax);}
+    if(mode) {return 1 - sqrt(wt);} else {return wt;}
+}
 #endif
