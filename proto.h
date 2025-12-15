@@ -1036,4 +1036,6 @@ void dm_density(void);
 int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration);
 int dm_density_isactive(int n);
 double calculate_alpha(double m_pbh_initial_grams);
+void init_pbh_mass_evolution(void);
+void get_current_pbh_mass(double a, double *mass_out);
 #endif

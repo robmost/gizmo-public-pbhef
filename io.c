@@ -141,7 +141,7 @@ void savepositions(int num)
         All.Ti_lastoutput = All.Ti_Current;
 
         CPU_Step[CPU_SNAPSHOT] += measure_time();
-}
+    }
 
 #ifdef FOF
     if(RestartFlag != 4)
@@ -5029,6 +5029,12 @@ void write_header_attributes_in_hdf5(hid_t handle)
     H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.PBH_MassFraction); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
     hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "PBH_InitialMass", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
     H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.PBH_InitialMass); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
+
+    double current_pbh_mass_for_header;
+    get_current_pbh_mass(All.Time, &current_pbh_mass_for_header);
+
+    hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "PBH_CurrentMass", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
+    H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &current_pbh_mass_for_header); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
 #endif
 
 }

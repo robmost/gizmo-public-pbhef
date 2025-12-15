@@ -784,25 +784,38 @@ void hydro_final_operations_and_cleanup(void)
 
 
 #ifdef PBH_EVAPORATION_FEEDBACK /* Done after the hydro loop */
-            dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // dimensionless ratio of DM density to gas density
-            heat_source = All.PBH_MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.PBH_Alpha / (All.PBH_InitialMass * All.PBH_InitialMass * All.PBH_InitialMass);
+            double current_pbh_mass;
+            get_current_pbh_mass(All.Time, &current_pbh_mass);
 
-// #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
-//             heat_source = All.PBH_MassFraction * All.PBH_Alpha * dm_dens_over_gas_dens; // Debug the constants
-// #endif
+            dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // dimensionless ratio of DM density to gas density
+            // Rate scales as m^-2 because f(t) scales as m(t)/m0.
+            // Eq 35: Rate ~ (f0 * rho_dm / rho_gas) * (1/m0) * C * alpha * m(t)^-2
+            if(current_pbh_mass > 0)
+            {
+                heat_source = All.PBH_MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.PBH_Alpha / (All.PBH_InitialMass * current_pbh_mass * current_pbh_mass);
+            }
+            else
+            {
+                heat_source = 0;
+            }
+
             // Add internal energy created by PBH evaporation
             SphP[i].DtInternalEnergy += heat_source;
 			SphP[i].PBHEF_Dtu += heat_source;
 
 #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
             if (P[i].ID == All.PBH_EnergyID) {
-                PRINT_STATUS(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, SphP[i].InternalEnergy=%g, rhoDM=%g, rho=%g, rhoDm/rho=%g, f=%g,\n\
-          C=%g, alpha=%g, PBHm0=%g, heat_source=%g, atime=%g, PBHEF_Dtu=%g, DtInternalEnergy=%g", i, P[i].Type, P[i].ID, SphP[i].InternalEnergy, P[i].DensityDM*All.cf_a3inv,\
-          SphP[i].Density*All.cf_a3inv, dm_dens_over_gas_dens, All.PBH_MassFraction,\
-          All.PBH_EvaporationConstant, All.PBH_Alpha, All.PBH_InitialMass, heat_source, All.cf_atime, SphP[i].PBHEF_Dtu, SphP[i].DtInternalEnergy);
-            }
+                printf(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, atime=%g, InternalEnergy=%g, rhoDM=%g, rho=%g,\n\
+                                       dm_dens_over_gas_dens=%g, f=%g, C=%g, alpha=%g,\n\
+                                       PBHm0=%g, PBHm(t)=%g, heat_source=%g, PBHEF_Dtu=%g, DtInternalEnergy=%g\n",
+                  i, P[i].Type, (unsigned long long) P[i].ID, All.cf_atime, SphP[i].InternalEnergy, P[i].DensityDM*All.cf_a3inv, SphP[i].Density*All.cf_a3inv,
+                  dm_dens_over_gas_dens, All.PBH_MassFraction, All.PBH_EvaporationConstant, All.PBH_Alpha,
+                  All.PBH_InitialMass, current_pbh_mass, heat_source, SphP[i].PBHEF_Dtu, SphP[i].DtInternalEnergy);
+                fflush(stdout);
+             }
 #endif
 #endif
+
 
 
 
@@ -1015,6 +1028,9 @@ void hydro_force_initial_operations_preloop(void)
             SphP[i].MaxKineticEnergyNgb = MIN_REAL_NUMBER;
 #endif
             SphP[i].DtInternalEnergy = 0; //SphP[i].dInternalEnergy = 0;//manifest-indiv-timestep-debug//
+#ifdef PBH_EVAPORATION_FEEDBACK
+            SphP[i].PBHEF_Dtu = 0; // Reset PBHEF specific energy change rate
+#endif
             for(k=0;k<3;k++) {SphP[i].HydroAccel[k] = 0;} //SphP[i].dMomentum[k] = 0;//manifest-indiv-timestep-debug//
 #ifdef HYDRO_MESHLESS_FINITE_VOLUME
             SphP[i].DtMass = 0; SphP[i].dMass = 0; for(k=0;k<3;k++) SphP[i].GravWorkTerm[k] = 0;

@@ -2449,10 +2449,14 @@ extern struct global_data_all_processes
   double PBH_MassFraction;           /*!< Mass fraction of dark matter in primordial black holes */
   double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
   double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */
-  double PBH_Alpha;                  /*!< Evaporation rate, following the analytical fit from Mosbech et al. (2022) */
-
+  double PBH_Alpha;                  /*!< PBH evaporation rate parameter, alpha, following the analytical fit from Mosbech et al. (2022) */
+#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+#define PBH_TABLE_SIZE 1000
+  double PBH_Table_ScaleFactor[PBH_TABLE_SIZE];  /*!< PBH mass loss lookup table, scale factors */
+  double PBH_Table_Mass[PBH_TABLE_SIZE];         /*!< PBH mass loss lookup table, PBH mass at given scale factor */
+#endif
 #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
-  int PBH_EnergyID;              /*!< ID of the particle that is used to store the energy from the PBH evaporation feedback*/
+  int PBH_EnergyID;                  /*!< ID of the particle to track for energy debugging */
 #endif
 #endif
 
@@ -3499,8 +3503,12 @@ extern struct io_header
                                      All other values, including 0 are interpreted as "don't know" for backwards compatability.
                                  */
   float lpt_scalingfactor;      /*!< scaling factor for 2lpt initial conditions */
-
+#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+  double PBH_CurrentMass;       /*!< Current PBH mass at the time of snapshot */
+  char fill[10];		        /*!< fills to 256 Bytes */
+#else
   char fill[18];		        /*!< fills to 256 Bytes */
+#endif
   char names[15][2];
 }
 header;				/*!< holds header for snapshot files */

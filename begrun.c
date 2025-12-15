@@ -644,6 +644,9 @@ void set_units(void)
       printf("PBH_EvaporationConstant (code units): %g\n", All.PBH_EvaporationConstant);
       printf("PBH_Alpha (dimensionless): %g\n\n", All.PBH_Alpha);
     }
+
+    // Initialize the mass evolution table
+    init_pbh_mass_evolution();
 #endif
 
 

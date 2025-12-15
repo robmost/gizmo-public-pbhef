@@ -460,4 +460,126 @@ double calculate_alpha(double m_pbh_initial_grams)
     else {return 2.011e-4;}
 }
 
-#endif // PBH_EVAPORATION_FEEDBACK || PBH_EVAPORATION_FEEDBACK_DM
+
+/*
+ * Initialize the PBH mass evolution lookup table.
+ * This function integrates the mass loss rate over the simulation time.
+ */
+void init_pbh_mass_evolution(void)
+{
+#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+    if(ThisTask == 0) printf("Initializing PBH mass evolution table...\n");
+
+    int i;
+    double current_mass = All.PBH_InitialMass;
+    double current_mass3 = current_mass * current_mass * current_mass;
+    double current_a = All.TimeBegin;
+
+    // Determine integration limits and step
+    double a_start = All.TimeBegin;
+    double a_end = All.TimeMax;
+    double da = (a_end - a_start) / (double)(PBH_TABLE_SIZE - 1);
+
+    // Calculate Mass Loss Constant (M^3 rate)
+    // The code calculates All.PBH_EvaporationConstant = (hbar * c^6 / G^2) in code units.
+    // We need K_mass3 such that d(M^3)/dt = -3 * K_mass_loss * alpha
+    // dM/dt = - (hbar * c^4 / G^2) * alpha / M^2
+    // M^2 dM = - (hbar * c^4 / G^2) * alpha dt
+    // integrated: M^3/3 = - (hbar * c^4 / G^2) * alpha * t + C
+    // d(M^3)/dt = -3 * (hbar * c^4 / G^2) * alpha
+    // So K_mass3 = 3 * (hbar * c^4 / G^2) * alpha
+
+    // We need (hbar * c^4 / G^2) in code units.
+    // All.PBH_EvaporationConstant has c^6. So divide by c^2.
+
+    double K_BH_const_code = All.PBH_EvaporationConstant / (C_LIGHT_CODE * C_LIGHT_CODE);
+    double decay_rate_M3 = 3.0 * K_BH_const_code * All.PBH_Alpha;
+
+    for(i = 0; i < PBH_TABLE_SIZE; i++)
+    {
+        All.PBH_Table_ScaleFactor[i] = current_a;
+        All.PBH_Table_Mass[i] = current_mass;
+
+        if (i < PBH_TABLE_SIZE - 1)
+        {
+            double dt;
+            double next_a = a_start + (i + 1) * da;
+
+            if(All.ComovingIntegrationOn)
+            {
+                // Integrate dt = da / (a * H(a))
+                // Use midpoint for better accuracy if needed, or just simple step
+                double a_mid = 0.5 * (current_a + next_a);
+                double obs_hubble = hubble_function(a_mid);
+                dt = (next_a - current_a) / (a_mid * obs_hubble);
+            }
+            else
+            {
+                // Non-cosmological: All.Time is time. All.TimeBegin is start time.
+                // So da is dt.
+                dt = next_a - current_a;
+            }
+
+            // Evolve mass
+            current_mass3 -= decay_rate_M3 * dt;
+            if(current_mass3 < 0) current_mass3 = 0;
+            current_mass = pow(current_mass3, 1.0/3.0);
+
+            current_a = next_a;
+        }
+    }
+
+    if(ThisTask == 0)
+    {
+        printf("PBH Mass Evolution Table Initialized.\n");
+        printf("Initial Mass: %g, Final Mass (at a=%g): %g\n\n", All.PBH_Table_Mass[0], All.PBH_Table_ScaleFactor[PBH_TABLE_SIZE-1], All.PBH_Table_Mass[PBH_TABLE_SIZE-1]);
+    }
+#else
+    if(ThisTask == 0) printf("PBH Mass Evolution not explicitly enabled. The PBH mass is fixed at the initial value.\n");
+#endif
+}
+
+/*
+ * Get the current PBH mass by interpolation from the lookup table.
+ */
+void get_current_pbh_mass(double a, double *mass_out)
+{
+#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+    // Handle out of bounds
+    if (a <= All.PBH_Table_ScaleFactor[0])
+    {
+        *mass_out = All.PBH_Table_Mass[0];
+        return;
+    }
+    if (a >= All.PBH_Table_ScaleFactor[PBH_TABLE_SIZE-1])
+    {
+        *mass_out = All.PBH_Table_Mass[PBH_TABLE_SIZE-1];
+        return;
+    }
+
+    // Binary search or direct index (since uniform spacing in 'a')
+    // Optimisation: uniform spacing allows O(1) lookup
+    double da = (All.TimeMax - All.TimeBegin) / (double)(PBH_TABLE_SIZE - 1);
+    int idx = (int)((a - All.PBH_Table_ScaleFactor[0]) / da);
+
+    if (idx < 0) idx = 0;
+    if (idx >= PBH_TABLE_SIZE - 1) idx = PBH_TABLE_SIZE - 2;
+
+    // Check if idx is correct (safe check due to floating point)
+    while (idx < PBH_TABLE_SIZE - 1 && a > All.PBH_Table_ScaleFactor[idx+1]) idx++;
+    while (idx > 0 && a < All.PBH_Table_ScaleFactor[idx]) idx--;
+
+    // Linear interpolation
+    double a0 = All.PBH_Table_ScaleFactor[idx];
+    double a1 = All.PBH_Table_ScaleFactor[idx+1];
+    double m0 = All.PBH_Table_Mass[idx];
+    double m1 = All.PBH_Table_Mass[idx+1];
+
+    double f = (a - a0) / (a1 - a0);
+    *mass_out = m0 + f * (m1 - m0);
+#else
+    *mass_out = All.PBH_InitialMass;
+#endif
+}
+
+#endif /* #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM) */

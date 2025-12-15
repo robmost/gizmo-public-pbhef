@@ -1317,6 +1317,10 @@ FFTW_LIBS=  -I$(EBROOTFFTW)/lib
 MPICHLIB =  -L$(EBROOTOPENMPI)/lib
 HDF5INCL =  -I$(EBROOTHDF5)/include -DH5_USE_16_API
 HDF5LIB  =  -L$(EBROOTHDF5)/lib  -lhdf5 #-static -lz
+ifeq (COOL_GRACKLE,$(findstring COOL_GRACKLE,$(CONFIGVARS)))
+GRACKLEINCL = -I/home/rmostogh/code/local/include
+GRACKLELIBS = -L/home/rmostogh/code/local/lib -lgrackle
+endif
 endif
 
 #----------------------------------------------------------------------------------------------
