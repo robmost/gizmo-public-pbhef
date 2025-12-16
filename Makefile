@@ -1369,7 +1369,6 @@ HYDRO_OBJS = 	hydro/hydro_toplevel.o \
 
 EOSCOOL_OBJS =  cooling/cooling.o \
 				cooling/grackle.o \
-				cooling/simple_chemistry.o \
 				eos/eos.o \
 				eos/hydrogen_molecule.o \
 				eos/cosmic_ray_fluid/cosmic_ray_alfven.o \

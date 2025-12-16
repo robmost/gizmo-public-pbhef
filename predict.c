@@ -186,9 +186,9 @@ void drift_particle(int i, integertime time1)
 
     if((P[i].Type == 0) && (P[i].Mass > 0))
         {
-            double dt_gravkick, dt_hydrokick, dt_entr;
-            dt_entr = dt_hydrokick = (time1 - time0) * UNIT_INTEGERTIME_IN_PHYSICAL;
-            if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(time0, time1);} else {dt_gravkick = dt_hydrokick;}
+            double dt_gravkick, dt_gravkick_pm, dt_hydrokick, dt_entr;
+            dt_entr = dt_hydrokick = (time1 - time0) * UNIT_INTEGERTIME_IN_PHYSICAL(i);
+            dt_gravkick = get_gravkick_factor(time0, time1, i, 0);
 
 #ifdef PMGRID
             dt_gravkick_pm = get_gravkick_factor(time0, time1, -1, 0);
