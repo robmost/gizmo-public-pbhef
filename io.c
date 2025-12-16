@@ -177,8 +177,7 @@ void savepositions(int num)
 
 
 
-/*! This function fills the write buffer with particle data. New output blocks can in
- *  principle be added here.
+/*! This function fills the write buffer with particle data. New output blocks can in principle be added here.
  */
 void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 {
@@ -201,11 +200,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
     MyBigFloat flde, psde;
 #endif
 #ifdef PMGRID
-    double dt_gravkick_pm = 0;
-    if(All.ComovingIntegrationOn)
-        {dt_gravkick_pm = get_gravkick_factor(All.PM_Ti_begstep, All.Ti_Current) - get_gravkick_factor(All.PM_Ti_begstep, (All.PM_Ti_begstep + All.PM_Ti_endstep) / 2);}
-    else
-        {dt_gravkick_pm = (All.Ti_Current - (All.PM_Ti_begstep + All.PM_Ti_endstep) / 2) * All.Timebase_interval;}
+    double dt_gravkick_pm = get_gravkick_factor((All.PM_Ti_begstep + All.PM_Ti_endstep) / 2, All.Ti_Current, -1, 0);
 #endif
 
     fp = (MyOutputFloat *) CommBuffer;
@@ -242,26 +237,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
             for(n = 0; n < pc; pindex++)
                 if(P[pindex].Type == type)
                 {
-#if 1
                     for(k=0;k<3;k++) {fp[k] = (MyOutputFloat) (P[pindex].Vel[k] * sqrt(All.cf_a3inv));} // JUST write the conserved velocity here, not the drifted one in this manner //
-#else
-                    double dt_gravkick, dt_hydrokick;
-                    integertime dt_integerstep = GET_PARTICLE_INTEGERTIME(pindex);
-                    dt_hydrokick = (All.Ti_Current - (P[pindex].Ti_begstep + dt_integerstep / 2)) * UNIT_INTEGERTIME_IN_PHYSICAL;
-                    if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(P[pindex].Ti_begstep, All.Ti_Current) - get_gravkick_factor(P[pindex].Ti_begstep, P[pindex].Ti_begstep + dt_integerstep / 2);} else {dt_gravkick = dt_hydrokick;}
-                    for(k = 0; k < 3; k++)
-                    {
-                        fp[k] = (MyOutputFloat) (P[pindex].Vel[k] + P[pindex].GravAccel[k] * dt_gravkick);
-#if (SINGLE_STAR_TIMESTEPPING > 0)
-			            if((P[pindex].Type == 5) && (P[pindex].SuperTimestepFlag >= 2)) {fp[k] += (MyOutputFloat) ((P[pindex].COM_GravAccel[k]-P[pindex].GravAccel[k]) * dt_gravkick);}
-#endif
-                        if(P[pindex].Type == 0) {fp[k] += (MyOutputFloat) (SphP[pindex].HydroAccel[k] * dt_hydrokick * All.cf_atime);}
-                    }
-#ifdef PMGRID
-                    for(k = 0; k < 3; k++) {fp[k] += (MyOutputFloat) (P[pindex].GravPM[k] * dt_gravkick_pm);}
-#endif
-                    for(k = 0; k < 3; k++) {fp[k] *= (MyOutputFloat) sqrt(All.cf_a3inv);}
-#endif
                     fp += 3;
                     n++;
                 }
@@ -875,6 +851,39 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
                 {
                     for(k=0;k<3;k++) {fp[k] = (MyOutputFloat) (Get_Gas_BField(pindex,k) * All.cf_a2inv * gizmo2gauss);}
                     fp += 3;
+                    n++;
+                }
+#endif
+            break;
+
+        case IO_AMBIPOLAR:   /* Ambipolar resistivity */
+#if defined(MHD_NON_IDEAL) && defined(OUTPUT_MHD_RESISTIVITY)
+            for(n = 0; n < pc; pindex++)
+                if(P[pindex].Type == type)
+                {
+                    *fp++ = (MyOutputFloat) SphP[pindex].Eta_MHD_AmbiPolarDiffusion_Coeff;
+                    n++;
+                }
+#endif
+            break;
+
+        case IO_OHMIC:   /* Ohmic resistivity */
+#if defined(MHD_NON_IDEAL) && defined(OUTPUT_MHD_RESISTIVITY)
+            for(n = 0; n < pc; pindex++)
+                if(P[pindex].Type == type)
+                {
+                    *fp++ = (MyOutputFloat) SphP[pindex].Eta_MHD_OhmicResistivity_Coeff;
+                    n++;
+                }
+#endif
+            break;
+
+        case IO_HALL:   /* Hall resistivity */
+#if defined(MHD_NON_IDEAL) && defined(OUTPUT_MHD_RESISTIVITY)
+            for(n = 0; n < pc; pindex++)
+                if(P[pindex].Type == type)
+                {
+                    *fp++ = (MyOutputFloat) SphP[pindex].Eta_MHD_HallEffect_Coeff;
                     n++;
                 }
 #endif
@@ -1844,6 +1853,9 @@ int get_bytes_per_blockelement(enum iofields blocknr, int mode)
         case IO_ACCEL:
         case IO_HYDROACCEL:
         case IO_BFLD:
+        case IO_AMBIPOLAR:
+        case IO_HALL:
+        case IO_OHMIC:
         case IO_INIB:
         case IO_GRADPHI:
         case IO_GRADRHO:
@@ -2229,6 +2241,9 @@ int get_values_per_blockelement(enum iofields blocknr)
         case IO_TSTP:
         case IO_VDIV:
         case IO_DIVB:
+	case IO_AMBIPOLAR:
+        case IO_HALL:
+        case IO_OHMIC:
         case IO_ABVC:
         case IO_AMDC:
         case IO_PHI:
@@ -2500,6 +2515,9 @@ long get_particles_in_block(enum iofields blocknr, int *typelist)
         case IO_SFR:
         case IO_DTENTR:
         case IO_BFLD:
+        case IO_AMBIPOLAR:
+        case IO_HALL:
+        case IO_OHMIC:
         case IO_VDIV:
         case IO_VORT:
         case IO_COSMICRAY_ENERGY:
@@ -2919,6 +2937,22 @@ int blockpresent(enum iofields blocknr)
 
         case IO_BFLD:
 #if defined(MAGNETIC)
+            return 1;
+#endif
+            break;
+
+        case IO_AMBIPOLAR:
+#if defined(MHD_NON_IDEAL) && defined(OUTPUT_MHD_RESISTIVITY)
+	    return 1;
+#endif
+            break;
+        case IO_HALL:
+#if defined(MHD_NON_IDEAL) && defined(OUTPUT_MHD_RESISTIVITY)
+            return 1;
+#endif
+            break;
+        case IO_OHMIC:
+#if defined(MHD_NON_IDEAL) && defined(OUTPUT_MHD_RESISTIVITY)
             return 1;
 #endif
             break;
@@ -3444,6 +3478,15 @@ void get_Tab_IO_Label(enum iofields blocknr, char *label)
         case IO_BFLD:
             strncpy(label, "BFLD", 4);
             break;
+        case IO_AMBIPOLAR:
+            strncpy(label, "AMBI", 4);
+            break;
+        case IO_OHMIC:
+            strncpy(label, "OHM ", 4);
+            break;
+        case IO_HALL:
+            strncpy(label, "HALL", 4);
+            break;
         case IO_VDIV:
             strncpy(label, "VDIV", 4);
             break;
@@ -3879,6 +3922,15 @@ void get_dataset_name(enum iofields blocknr, char *buf)
             break;
         case IO_BFLD:
             strcpy(buf, "MagneticField");
+            break;
+        case IO_AMBIPOLAR:
+            strcpy(buf, "AmbipolarResistivity");
+            break;
+        case IO_OHMIC:
+            strcpy(buf, "OhmicResistivity");
+            break;
+        case IO_HALL:
+            strcpy(buf, "HallResistivity");
             break;
         case IO_VDIV:
             strcpy(buf, "VelocityDivergence");

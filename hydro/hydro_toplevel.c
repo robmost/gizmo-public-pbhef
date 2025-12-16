@@ -189,7 +189,7 @@ struct INPUT_STRUCT_NAME
     MyFloat FaceClosureError;
     MyFloat InternalEnergyPred;
     MyFloat SoundSpeed;
-    integertime Timestep;
+    MyFloat dt_hydrostep_i;
     MyFloat DhsmlNgbFactor;
 #ifdef HYDRO_SPH
     MyFloat DhsmlHydroSumFactor;
@@ -315,6 +315,11 @@ struct INPUT_STRUCT_NAME
     int NodeList[NODELISTLENGTH];
 #endif
 
+#if 0 //def USE_TIMESTEP_DILATION_FOR_ZOOMS
+    double DilationFactor;
+#endif
+
+
 #ifdef PBH_EVAPORATION_FEEDBACK
     MyFloat DensityDM;
 #endif
@@ -415,7 +420,7 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
     in->Pressure = SphP[i].Pressure;
     in->InternalEnergyPred = SphP[i].InternalEnergyPred;
     in->SoundSpeed = Get_Gas_effective_soundspeed_i(i);
-    in->Timestep = GET_PARTICLE_INTEGERTIME(i);
+    in->dt_hydrostep_i = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
     in->ConditionNumber = SphP[i].ConditionNumber;
     in->FaceClosureError = SphP[i].FaceClosureError;
 #ifdef MHD_CONSTRAINED_GRADIENT
@@ -559,10 +564,6 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
 
 #ifdef GALSF_SUBGRID_WINDS
     in->DelayTime = SphP[i].DelayTime;
-#endif
-
-#ifdef PBH_EVAPORATION_FEEDBACK
-    in->DensityDM = P[i].DensityDM;
 #endif
 
 }

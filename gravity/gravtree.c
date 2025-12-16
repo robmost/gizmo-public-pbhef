@@ -378,10 +378,23 @@ void gravity_tree(void)
                 if(GravDataOut[j].min_dist_to_bh < P[place].min_dist_to_bh)
                 {
                     P[place].min_dist_to_bh = GravDataOut[j].min_dist_to_bh;
-                    P[place].min_xyz_to_bh[0] = GravDataOut[j].min_xyz_to_bh[0];
-                    P[place].min_xyz_to_bh[1] = GravDataOut[j].min_xyz_to_bh[1];
-                    P[place].min_xyz_to_bh[2] = GravDataOut[j].min_xyz_to_bh[2];
+                    for(k=0;k<3;k++) {P[place].min_xyz_to_bh[k] = GravDataOut[j].min_xyz_to_bh[k];}
+#ifdef SPECIAL_POINT_MOTION
+                    if(P[place].Type != SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
+                    {
+                        for(k=0;k<3;k++) {P[place].vel_of_nearest_special[k] = GravDataOut[j].vel_of_nearest_special[k];}
+                        for(k=0;k<3;k++) {P[place].acc_of_nearest_special[k] = GravDataOut[j].acc_of_nearest_special[k];}
+                    }
+#endif
                 }
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+                if(P[place].Type == SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
+                {
+                    for(k=0;k<3;k++) {P[place].vel_of_nearest_special[k] += GravDataOut[j].vel_of_nearest_special[k];} /* this is the weighted sum of the velocity around that cell */
+                    for(k=0;k<3;k++) {P[place].acc_of_nearest_special[k] += GravDataOut[j].acc_of_nearest_special[k];} /* this is the weighted sum of the velocity around that cell */
+                    P[place].weight_sum_for_special_point_smoothing += GravDataOut[j].weight_sum_for_special_point_smoothing; /* weighted sum needed */
+                }
+#endif
 #ifdef SINGLE_STAR_TIMESTEPPING
                 if(GravDataOut[j].min_bh_approach_time < P[place].min_bh_approach_time) {P[place].min_bh_approach_time = GravDataOut[j].min_bh_approach_time;}
                 if(GravDataOut[j].min_bh_freefall_time < P[place].min_bh_freefall_time) {P[place].min_bh_freefall_time = GravDataOut[j].min_bh_freefall_time;}
@@ -509,6 +522,21 @@ void gravity_tree(void)
 #ifdef COUNT_MASS_IN_GRAVTREE
         P[i].TreeMass += P[i].Mass;
         if(P[i].Type == 5) printf("Particle %d sees mass %g in the gravity tree\n", P[i].ID, P[i].TreeMass);
+#endif
+
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+        if(P[i].Type == SPECIAL_POINT_TYPE_FOR_NODE_DISTANCES)
+        {
+            for(j=0;j<3;j++) {P[i].vel_of_nearest_special[j] /= P[i].weight_sum_for_special_point_smoothing;}
+            for(j=0;j<3;j++) {P[i].acc_of_nearest_special[j] /= P[i].weight_sum_for_special_point_smoothing;}
+            /* now reset the local values for this to actually match these, recalling the special particle in this module is just a tracer element */
+            double dtime_phys = (All.Time - P[i].Time_Of_Last_SmoothedVelUpdate) / All.cf_hubble_a; /* want to convert to physical units */
+            if(dtime_phys > 0) {
+                for(j=0;j<3;j++) {
+                    P[i].Acc_Total_PrevStep[k] = (((P[i].vel_of_nearest_special[j] - P[i].Vel[j]) / All.cf_atime) / dtime_phys) / All.cf_a2inv; /* converting to cosmological units here */
+                    P[i].Vel[j] = P[i].vel_of_nearest_special[j];
+                }}
+        }
 #endif
 
         /* calculate 'old acceleration' for use in the relative tree-opening criterion */

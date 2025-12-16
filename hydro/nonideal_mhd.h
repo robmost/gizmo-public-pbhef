@@ -14,7 +14,7 @@
  */
 /* --------------------------------------------------------------------------------- */
 double bflux_from_nonideal_effects[3]={0};
-if((local.Mass > 0) && (P[j].Mass > 0))
+if((local.Mass > 0) && (P[j].Mass > 0) && (dt_hydrostep > 0))
 {
     // set the effective scalar coefficients //
     double eta_i, eta_j, eta_ohmic, eta_hall, eta_ad;
@@ -86,6 +86,9 @@ if((local.Mass > 0) && (P[j].Mass > 0))
         db_direct[0] = Face_Area_Vec[1]*b_flux_direct[2] - Face_Area_Vec[2]*b_flux_direct[1];
         db_direct[1] = Face_Area_Vec[2]*b_flux_direct[0] - Face_Area_Vec[0]*b_flux_direct[2];
         db_direct[2] = Face_Area_Vec[0]*b_flux_direct[1] - Face_Area_Vec[1]*b_flux_direct[0];
+
+        double db_dot_direct_diff=0, db_direct_diff[3]={0}, F_ddiff_prefac = -Face_Area_Norm * rinv * DMAX(eta_ohmic, fabs(eta_hall)+eta_ad);
+        for(k=0;k<3;k++) {db_direct_diff[k] = F_ddiff_prefac * d_scalar[k];} // direct differential for face pointing along dp //
         
         double bfluxmag = 0;
         for(k=0;k<3;k++) {bfluxmag += bflux_from_nonideal_effects[k]*bflux_from_nonideal_effects[k];}
@@ -104,9 +107,18 @@ if((local.Mass > 0) && (P[j].Mass > 0))
                 if((bflux_from_nonideal_effects[k]*db_direct_tmp < 0) && (fabs(db_direct_tmp) > 1.0*fabs(bflux_from_nonideal_effects[k]))) {bflux_from_nonideal_effects[k]=0;}
             }
             if((bflux_from_nonideal_effects[k]*db_direct[k] < 0) && (fabs(db_direct[k]) > 10.0*fabs(bflux_from_nonideal_effects[k]))) {bflux_from_nonideal_effects[k]=0;}
+            
+            db_dot_direct_diff += bflux_from_nonideal_effects[k] * db_direct_diff[k];
+        }
+
+        // check if projection along direct diffusion direction produces explicitly anti-diffusive behavior, and if so, subtract that term from the flux update //
+        if(db_dot_direct_diff < 0) {
+            double db_direct_diff_mag2=0; for(k=0;k<3;k++) {db_direct_diff_mag2 += db_direct_diff[k]*db_direct_diff[k];}
+            for(k=0;k<3;k++) {bflux_from_nonideal_effects[k] -= db_dot_direct_diff * db_direct_diff[k] / db_direct_diff_mag2;}
         }
         
         // finally add one more flux-limiter to prevent the change in B from exceeding a large threshold in a single timestep //
+#if 0
         double cmag_B2 = bhat_mag * (bhat[0]*bflux_from_nonideal_effects[0]+bhat[1]*bflux_from_nonideal_effects[1]+bhat[2]*bflux_from_nonideal_effects[2]);
         if(dt_hydrostep > 0)
         {
@@ -117,6 +129,7 @@ if((local.Mass > 0) && (P[j].Mass > 0))
                 bflux_from_nonideal_effects[0]*=corr_visc; bflux_from_nonideal_effects[1]*=corr_visc; bflux_from_nonideal_effects[2]*=corr_visc;
             }
         }
+#endif
         // -now- we can finally add this to the numerical fluxes //
         for(k=0;k<3;k++) {Fluxes.B[k] += bflux_from_nonideal_effects[k];}
     }

@@ -174,7 +174,7 @@ void blackhole_properties_loop(void) /* Note, normalize_temp_info_struct is now 
     for(i=0; i<N_active_loc_BHs; i++)
     {
         n = BlackholeTempInfo[i].index;
-        dt = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(n);
+        dt = GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(n);
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
         dt = P[n].dt_since_last_gas_search;
 #endif
@@ -189,6 +189,18 @@ void blackhole_properties_loop(void) /* Note, normalize_temp_info_struct is now 
     }// for(i=0; i<N_active_loc_BHs; i++)
 }
 
+
+#ifdef SINGLE_STAR_MERGE_AWAY_CLOSE_BINARIES
+/* routine to assess whether stellar properties allow for a star to be merged if in a too-close binary */
+int is_star_eligible_for_binary_merge_away(int j)
+{
+    int merge_key = 1;
+    if(BPP(j).ProtoStellarStage < 5) {merge_key = 0;} /* only allow mergers once the stars reach the main sequence */
+    double star_age = evaluate_stellar_age_Gyr(j) / UNIT_TIME_IN_GYR; /* stellar age */
+    if(BPP(j).BH_Mass < 2.*BPP(j).BH_Mdot*star_age) {merge_key = 0;} /* dont allow mergers if the star is still growing very rapidly */
+    return merge_key;
+}
+#endif
 
 
 #endif // top-level flag

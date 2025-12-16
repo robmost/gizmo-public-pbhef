@@ -79,7 +79,6 @@ int hydro_force_evaluate(int target, int mode, int *exportflag, int *exportnodec
     hinv_j=hinv3_j=hinv4_j=0;
     V_i = local.Mass / local.Density;
     Particle_Size_i = pow(V_i,1./NUMDIMS) * All.cf_atime; // in physical, used below in some routines //
-    dt_hydrostep_i = local.Timestep * UNIT_INTEGERTIME_IN_PHYSICAL; /* (physical) timestep */
     out.MaxSignalVel = kernel.sound_i;
     kernel_mode = 0; /* need dwk and wk */
     double cnumcrit2; cnumcrit2 = ((double)CONDITION_NUMBER_DANGER)*((double)CONDITION_NUMBER_DANGER) - local.ConditionNumber*local.ConditionNumber;
@@ -153,19 +152,15 @@ int hydro_force_evaluate(int target, int mode, int *exportflag, int *exportnodec
 #endif
 
                 /* check if I need to compute this pair-wise interaction from "i" to "j", or skip it and let it be computed from "j" to "i" */
-                integertime TimeStep_J; TimeStep_J = GET_PARTICLE_INTEGERTIME(j); dt_hydrostep_j = TimeStep_J * UNIT_INTEGERTIME_IN_PHYSICAL;
+                dt_hydrostep_j = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(j);
                 dt_hydrostep = DMAX(dt_hydrostep_i , dt_hydrostep_j); // this is used for flux-limiting, so we always want to be more conservative and use the larger timestep //
-                int j_is_active_for_fluxes = 0;
-#if 0 //!defined(BOX_SHEARING) && !defined(_OPENMP) // (shearing box means the fluxes at the boundaries are not actually symmetric, so can't do this; OpenMP on some new compilers goes bad here because pointers [e.g. P...] are not thread-safe shared with predictive operations, and vectorization means no gain here with OMP anyways) //
-                if(local.Timestep > TimeStep_J) {continue;} /* compute from particle with smaller timestep */
-                /* use relative positions to break degeneracy */
-                if(local.Timestep == TimeStep_J)
-                {
-                    int n0=0; if(local.Pos[n0] == P[j].Pos[n0]) {n0++; if(local.Pos[n0] == P[j].Pos[n0]) n0++;}
-                    if(local.Pos[n0] < P[j].Pos[n0]) {continue;}
-                }
-                if(TimeBinActive[P[j].TimeBin]) {j_is_active_for_fluxes = 1;}
+                double FluxCorrectionFactor_to_i = 1, FluxCorrectionFactor_to_j = 1; // these, by default, won't do anything, but will be used below in final flux assignment
+#if 0 //def USE_TIMESTEP_DILATION_FOR_ZOOMS
+                double DilationFactor_j = return_timestep_dilation_factor(j, 0);
+                FluxCorrectionFactor_to_i = sqrt(DilationFactor_j / local.DilationFactor); /* flux correction factor needed to restore energy conservation here */
+                FluxCorrectionFactor_to_j = (local.DilationFactor / DilationFactor_j) * FluxCorrectionFactor_to_i; /* want this relationship in general to hold */
 #endif
+                int j_is_active_for_fluxes = 0;
                 kernel.dp[0] = local.Pos[0] - P[j].Pos[0];
                 kernel.dp[1] = local.Pos[1] - P[j].Pos[1];
                 kernel.dp[2] = local.Pos[2] - P[j].Pos[2];
@@ -381,52 +376,52 @@ int hydro_force_evaluate(int target, int mode, int *exportflag, int *exportnodec
                 if(dmass_holder > 0) {dmass_limiter=P[j].Mass;} else {dmass_limiter=local.Mass;}
                 dmass_limiter *= 0.1;
                 if(fabs(dmass_holder) > dmass_limiter) {dmass_holder *= dmass_limiter / fabs(dmass_holder);}
-                if((local.Timestep < TimeStep_J) || (local.Timestep==TimeStep_J && j_is_active_for_fluxes==1)) {
-                    out.dMass += dmass_holder;
+                if((local.dt_hydrostep_i < dt_hydrostep_j) || (local.dt_hydrostep_i==dt_hydrostep_j && j_is_active_for_fluxes==1)) {
+                    out.dMass += FluxCorrectionFactor_to_i * dmass_holder;
                     #pragma omp atomic
-                    SphP[j].dMass -= dmass_holder; // here to ensure machine-accurate conservation with different timesteps we need to set this: careful to be thread-safe
+                    SphP[j].dMass -= FluxCorrectionFactor_to_j * dmass_holder; // here to ensure machine-accurate conservation with different timesteps we need to set this: careful to be thread-safe
                 }
-                if(local.Timestep==TimeStep_J && j_is_active_for_fluxes==0) {
-                    out.dMass += 0.5*dmass_holder;
+                if(local.dt_hydrostep_i==dt_hydrostep_j && j_is_active_for_fluxes==0) {
+                    out.dMass += FluxCorrectionFactor_to_i * 0.5*dmass_holder;
                     #pragma omp atomic
-                    SphP[j].dMass -= 0.5*dmass_holder; // here to ensure machine-accurate conservation with different timesteps we need to set this: careful to be thread-safe
+                    SphP[j].dMass -= FluxCorrectionFactor_to_j * 0.5*dmass_holder; // here to ensure machine-accurate conservation with different timesteps we need to set this: careful to be thread-safe
                 }
                  /* this gets subtracted here to ensure the exchange is exact */
-                out.DtMass += Fluxes.rho;
+                out.DtMass += FluxCorrectionFactor_to_i * Fluxes.rho;
                 double gravwork[3]; gravwork[0]=Fluxes.rho*kernel.dp[0]; gravwork[1]=Fluxes.rho*kernel.dp[1]; gravwork[2]=Fluxes.rho*kernel.dp[2];
-                for(k=0;k<3;k++) {out.GravWorkTerm[k] += gravwork[k];}
+                for(k=0;k<3;k++) {out.GravWorkTerm[k] += FluxCorrectionFactor_to_i * gravwork[k];}
 #ifdef METALS   /* if we have mass fluxes, we need to have metal fluxes if we're using them (or any other passive scalars) */
-                if(Fluxes.rho > 0) {out.Dyield[k] += (P[j].Metallicity[k] - local.Metallicity[k]) * dmass_holder;}
+                if(Fluxes.rho > 0) {out.Dyield[k] += FluxCorrectionFactor_to_i * (P[j].Metallicity[k] - local.Metallicity[k]) * dmass_holder;}
 #endif
 #endif
-                for(k=0;k<3;k++) {out.Acc[k] += Fluxes.v[k];}
-                out.DtInternalEnergy += Fluxes.p;
+                for(k=0;k<3;k++) {out.Acc[k] += FluxCorrectionFactor_to_i * Fluxes.v[k];}
+                out.DtInternalEnergy += FluxCorrectionFactor_to_i * Fluxes.p;
 #ifdef MAGNETIC
 #ifndef HYDRO_SPH
                 for(k=0;k<3;k++) {out.Face_Area[k] += Face_Area_Vec[k];}
 #endif
 #ifndef FREEZE_HYDRO
-                for(k=0;k<3;k++) {out.DtB[k]+=Fluxes.B[k];}
+                for(k=0;k<3;k++) {out.DtB[k] += FluxCorrectionFactor_to_i * Fluxes.B[k];}
                 out.divB += Fluxes.B_normal_corrected;
 #if defined(DIVBCLEANING_DEDNER) && defined(HYDRO_MESHLESS_FINITE_VOLUME) // mass-based phi-flux
-                out.DtPhi += Fluxes.phi;
+                out.DtPhi += FluxCorrectionFactor_to_i * Fluxes.phi;
 #endif
 #ifdef HYDRO_SPH
-                for(k=0;k<3;k++) {out.DtInternalEnergy+=magfluxv[k]*local.Vel[k]/All.cf_atime;}
-                out.DtInternalEnergy += resistivity_heatflux;
+                for(k=0;k<3;k++) {out.DtInternalEnergy += FluxCorrectionFactor_to_i * magfluxv[k]*local.Vel[k]/All.cf_atime;}
+                out.DtInternalEnergy += FluxCorrectionFactor_to_i * resistivity_heatflux;
 #else
                 double wt_face_sum = Face_Area_Norm * (-face_area_dot_vel+face_vel_i);
-                out.DtInternalEnergy += 0.5 * kernel.b2_i*All.cf_a2inv*All.cf_a2inv * wt_face_sum;
+                out.DtInternalEnergy += FluxCorrectionFactor_to_i * 0.5 * kernel.b2_i*All.cf_a2inv*All.cf_a2inv * wt_face_sum;
 #ifdef DIVBCLEANING_DEDNER
                 for(k=0; k<3; k++)
                 {
-                    out.DtB_PhiCorr[k] += Riemann_out.phi_normal_db * Face_Area_Vec[k];
-                    out.DtB[k] += Riemann_out.phi_normal_mean * Face_Area_Vec[k];
-                    out.DtInternalEnergy += Riemann_out.phi_normal_mean * Face_Area_Vec[k] * local.BPred[k]*All.cf_a2inv;
+                    out.DtB_PhiCorr[k] += FluxCorrectionFactor_to_i * Riemann_out.phi_normal_db * Face_Area_Vec[k];
+                    out.DtB[k] += FluxCorrectionFactor_to_i * Riemann_out.phi_normal_mean * Face_Area_Vec[k];
+                    out.DtInternalEnergy += FluxCorrectionFactor_to_i * Riemann_out.phi_normal_mean * Face_Area_Vec[k] * local.BPred[k]*All.cf_a2inv;
                 }
 #endif
 #ifdef MHD_NON_IDEAL
-                for(k=0;k<3;k++) {out.DtInternalEnergy += local.BPred[k]*All.cf_a2inv*bflux_from_nonideal_effects[k];}
+                for(k=0;k<3;k++) {out.DtInternalEnergy += FluxCorrectionFactor_to_i * local.BPred[k]*All.cf_a2inv*bflux_from_nonideal_effects[k];}
 #endif
 #endif
 #endif
@@ -436,40 +431,40 @@ int hydro_force_evaluate(int target, int mode, int *exportflag, int *exportnodec
                 if(j_is_active_for_fluxes)
                 {
 #ifdef HYDRO_MESHLESS_FINITE_VOLUME
-                    SphP[j].DtMass -= Fluxes.rho;
-                    for(k=0;k<3;k++) {SphP[j].GravWorkTerm[k] -= gravwork[k];}
+                    SphP[j].DtMass -= FluxCorrectionFactor_to_j * Fluxes.rho;
+                    for(k=0;k<3;k++) {SphP[j].GravWorkTerm[k] -= FluxCorrectionFactor_to_j * gravwork[k];}
 #ifdef METALS       /* if we have mass fluxes, we need to have metal fluxes if we're using them (or any other passive scalars) */
-                    if(Fluxes.rho < 0) {SphP[j].Dyield[k] = (P[j].Metallicity[k] - local.Metallicity[k]) * dmass_holder;}
+                    if(Fluxes.rho < 0) {SphP[j].Dyield[k] = FluxCorrectionFactor_to_j * (P[j].Metallicity[k] - local.Metallicity[k]) * dmass_holder;}
 #endif
 #endif
-                    for(k=0;k<3;k++) {SphP[j].HydroAccel[k] -= Fluxes.v[k];}
-                    SphP[j].DtInternalEnergy -= Fluxes.p;
+                    for(k=0;k<3;k++) {SphP[j].HydroAccel[k] -= FluxCorrectionFactor_to_j * Fluxes.v[k];}
+                    SphP[j].DtInternalEnergy -= FluxCorrectionFactor_to_j * Fluxes.p;
 #ifdef MAGNETIC
 #ifndef HYDRO_SPH
                     for(k=0;k<3;k++) {SphP[j].Face_Area[k] -= Face_Area_Vec[k];}
 #endif
 #ifndef FREEZE_HYDRO
-                    for(k=0;k<3;k++) {SphP[j].DtB[k]-=Fluxes.B[k];}
+                    for(k=0;k<3;k++) {SphP[j].DtB[k] -= FluxCorrectionFactor_to_j * Fluxes.B[k];}
                     SphP[j].divB -= Fluxes.B_normal_corrected;
 #if defined(DIVBCLEANING_DEDNER) && defined(HYDRO_MESHLESS_FINITE_VOLUME) // mass-based phi-flux
-                    SphP[j].DtPhi -= Fluxes.phi;
+                    SphP[j].DtPhi -= FluxCorrectionFactor_to_j * Fluxes.phi;
 #endif
 #ifdef HYDRO_SPH
-                    for(k=0;k<3;k++) {SphP[j].DtInternalEnergy-=magfluxv[k]*VelPred_j[k]/All.cf_atime;}
-                    SphP[j].DtInternalEnergy += resistivity_heatflux;
+                    for(k=0;k<3;k++) {SphP[j].DtInternalEnergy -= FluxCorrectionFactor_to_j * magfluxv[k]*VelPred_j[k]/All.cf_atime;}
+                    SphP[j].DtInternalEnergy += FluxCorrectionFactor_to_j * resistivity_heatflux;
 #else
                     double wt_face_sum = Face_Area_Norm * (-face_area_dot_vel+face_vel_j);
-                    SphP[j].DtInternalEnergy -= 0.5 * kernel.b2_j*All.cf_a2inv*All.cf_a2inv * wt_face_sum;
+                    SphP[j].DtInternalEnergy -= FluxCorrectionFactor_to_j * 0.5 * kernel.b2_j*All.cf_a2inv*All.cf_a2inv * wt_face_sum;
 #ifdef DIVBCLEANING_DEDNER
                     for(k=0; k<3; k++)
                     {
-                        SphP[j].DtB_PhiCorr[k] -= Riemann_out.phi_normal_db * Face_Area_Vec[k];
-                        SphP[j].DtB[k] -= Riemann_out.phi_normal_mean * Face_Area_Vec[k];
-                        SphP[j].DtInternalEnergy -= Riemann_out.phi_normal_mean * Face_Area_Vec[k] * BPred_j[k]*All.cf_a2inv;
+                        SphP[j].DtB_PhiCorr[k] -= FluxCorrectionFactor_to_j * Riemann_out.phi_normal_db * Face_Area_Vec[k];
+                        SphP[j].DtB[k] -= FluxCorrectionFactor_to_j * Riemann_out.phi_normal_mean * Face_Area_Vec[k];
+                        SphP[j].DtInternalEnergy -= FluxCorrectionFactor_to_j * Riemann_out.phi_normal_mean * Face_Area_Vec[k] * BPred_j[k]*All.cf_a2inv;
                     }
 #endif
 #ifdef MHD_NON_IDEAL
-                    for(k=0;k<3;k++) {SphP[j].DtInternalEnergy -= BPred_j[k]*All.cf_a2inv*bflux_from_nonideal_effects[k];}
+                    for(k=0;k<3;k++) {SphP[j].DtInternalEnergy -= FluxCorrectionFactor_to_j * BPred_j[k]*All.cf_a2inv*bflux_from_nonideal_effects[k];}
 #endif
 #endif
 #endif

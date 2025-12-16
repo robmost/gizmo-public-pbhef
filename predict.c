@@ -104,9 +104,7 @@ void drift_particle(int i, integertime time1)
     }
     if(time1 == time0) {return;}
 
-    if(All.ComovingIntegrationOn) {dt_drift = get_drift_factor(time0, time1);}
-        else {dt_drift = (time1 - time0) * All.Timebase_interval;}
-
+    dt_drift = get_drift_factor(time0, time1, i, 0);
 
 #if !defined(FREEZE_HYDRO)
 #if defined(HYDRO_MESHLESS_FINITE_VOLUME)
@@ -193,7 +191,8 @@ void drift_particle(int i, integertime time1)
             if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(time0, time1);} else {dt_gravkick = dt_hydrokick;}
 
 #ifdef PMGRID
-            for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += (P[i].GravAccel[j] + P[i].GravPM[j]) * dt_gravkick + (SphP[i].HydroAccel[j] * dt_hydrokick)*All.cf_atime;} /* make sure v is in code units */
+            dt_gravkick_pm = get_gravkick_factor(time0, time1, -1, 0);
+            for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += (P[i].GravAccel[j]*dt_gravkick + P[i].GravPM[j]*dt_gravkick_pm) + (SphP[i].HydroAccel[j] * dt_hydrokick)*All.cf_atime;} /* make sure v is in code units */
 #else
             for(j = 0; j < 3; j++) {SphP[i].VelPred[j] += (P[i].GravAccel[j]) * dt_gravkick + (SphP[i].HydroAccel[j] * dt_hydrokick)*All.cf_atime;} /* make sure v is in code units */
 #endif
@@ -511,7 +510,7 @@ double INLINE_FUNC Get_Gas_PhiField_DampingTimeInv(int i_particle_id)
 #else
     double damping_tinv;
 #ifdef SELFGRAVITY_OFF
-    damping_tinv = All.DivBcleanParabolicSigma * All.FastestWaveSpeed / Get_Particle_Size(i_particle_id); // fastest wavespeed has units of [vphys]
+    damping_tinv = All.DivBcleanParabolicSigma * All.FastestWaveSpeed / (All.cf_atime*Get_Particle_Size(i_particle_id)); // fastest wavespeed has units of [vphys]
     //double damping_tinv = All.DivBcleanParabolicSigma * All.FastestWaveDecay * All.cf_a2inv; // no improvement over fastestwavespeed; decay has units [vphys/rphys]
 #else
     // only see a small performance drop from fastestwavespeed above to maxsignalvel below, despite the fact that below is purely local (so allows more flexible adapting to high dynamic range)
@@ -651,4 +650,16 @@ double calculate_face_area_for_cartesian_mesh(double *dp, double rinv, double l_
     return fabs(Face_Area_Norm);
 }
 
+#endif
+
+
+
+
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+double weight_function_for_weighted_motion_smoothing(double r, int mode)
+{
+    double wt = 1, amax = 1.e2, rmax_pc = 100., slope_index = 1, r_pc = r * All.cf_atime * UNIT_LENGTH_IN_PC;
+    if(r_pc < rmax_pc) {wt = DMAX(pow(r_pc / rmax_pc , slope_index) , 1./amax);}
+    if(mode) {return 1 - sqrt(wt);} else {return wt;}
+}
 #endif

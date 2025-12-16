@@ -251,24 +251,29 @@ void calculate_non_standard_physics(void)
 
 #ifdef BLACK_HOLES /***** black hole accretion and feedback *****/
     CPU_Step[CPU_MISC] += measure_time();
-    blackhole_accretion();
-#ifdef BH_WIND_SPAWN
-    double Max_Unspawned_MassUnits_fromSink_global;
-    MPI_Allreduce(&Max_Unspawned_MassUnits_fromSink, &Max_Unspawned_MassUnits_fromSink_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    if(Max_Unspawned_MassUnits_fromSink_global > 1)
+#ifdef GALSF_LIMIT_FBTIMESTEPS_FROM_BELOW
+    if(All.Dt_Since_LastFBCalc_Gyr >= All.Dt_Min_Between_FBCalc_Gyr)
+#endif
     {
-        spawn_bh_wind_feedback();
-        rearrange_particle_sequence();
-        Max_Unspawned_MassUnits_fromSink=Max_Unspawned_MassUnits_fromSink_global=0.;
-    }
+        blackhole_accretion();
+#ifdef BH_WIND_SPAWN
+        double Max_Unspawned_MassUnits_fromSink_global;
+        MPI_Allreduce(&Max_Unspawned_MassUnits_fromSink, &Max_Unspawned_MassUnits_fromSink_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        if(Max_Unspawned_MassUnits_fromSink_global > 1)
+        {
+            spawn_bh_wind_feedback();
+            rearrange_particle_sequence();
+            Max_Unspawned_MassUnits_fromSink=Max_Unspawned_MassUnits_fromSink_global=0.;
+        }
 #if defined(SNE_NONSINK_SPAWN)
-    {int i; for(i=0;i<NumPart;i++) {if(P[i].Type != 4) {continue;}
-        double n_unspawned = P[i].unspawned_wind_mass / ((BH_WIND_SPAWN)*target_mass_for_wind_spawning(i)); // number of spawned gas cells that can be made from the mass in the reservoir
-        if(n_unspawned> Max_Unspawned_MassUnits_fromSink) {Max_Unspawned_MassUnits_fromSink = n_unspawned;} // track the maximum integer number of elements this sink could spawn
-    }}
+        {int i; for(i=0;i<NumPart;i++) {if(P[i].Type != 4) {continue;}
+            double n_unspawned = P[i].unspawned_wind_mass / ((BH_WIND_SPAWN)*target_mass_for_wind_spawning(i)); // number of spawned gas cells that can be made from the mass in the reservoir
+            if(n_unspawned> Max_Unspawned_MassUnits_fromSink) {Max_Unspawned_MassUnits_fromSink = n_unspawned;} // track the maximum integer number of elements this sink could spawn
+        }}
 #endif
 #endif
-    MPI_Barrier(MPI_COMM_WORLD); CPU_Step[CPU_BLACKHOLES] += measure_time();
+        MPI_Barrier(MPI_COMM_WORLD); CPU_Step[CPU_BLACKHOLES] += measure_time();
+    }
 #endif
 
 
@@ -430,8 +435,7 @@ void find_next_sync_point_and_drift(void)
   All.TimeStep = All.Time - timeold;
 
   /* mark the bins that will be active */
-  for(n = 1, TimeBinActive[0] = 1, NumForceUpdate = TimeBinCount[0], highest_active_bin = 0; n < TIMEBINS;
-      n++)
+  for(n = 1, TimeBinActive[0] = 1, NumForceUpdate = TimeBinCount[0], highest_active_bin = 0; n < TIMEBINS; n++)
     {
       dt_bin = GET_INTEGERTIME_FROM_TIMEBIN(n);
       if((ti_next_kick_global % dt_bin) == 0)

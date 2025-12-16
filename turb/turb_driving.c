@@ -293,7 +293,7 @@ void st_turbdrive_calc_phases(void)
 /* Check whether the phases of the turbulent driving force must be recomputed this timestep */
 int new_turbforce_needed_this_timestep(void)
 {
-    double delta = (All.Ti_Current - StTPrev) * UNIT_INTEGERTIME_IN_PHYSICAL, Dt_Update=st_return_dt_between_updates();
+    double delta = (All.Ti_Current - StTPrev) * UNIT_INTEGERTIME_IN_PHYSICAL(-1), Dt_Update=st_return_dt_between_updates();
     if(delta >= Dt_Update){return 1;} else {return 0;}
 }
 
@@ -302,7 +302,7 @@ void set_turb_ampl(void)
 {
     if(new_turbforce_needed_this_timestep())
     {
-        double delta = (All.Ti_Current - StTPrev) * UNIT_INTEGERTIME_IN_PHYSICAL;
+        double delta = (All.Ti_Current - StTPrev) * UNIT_INTEGERTIME_IN_PHYSICAL(-1);
         if(delta > 0)
         {
             int i; double e_diss_sum=0, e_drive_sum=0, glob_diss_sum=0, glob_drive_sum=0;
@@ -390,7 +390,7 @@ void do_turb_driving_step_first_half(void)
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
         ti_step = GET_PARTICLE_INTEGERTIME(i); tstart = P[i].Ti_begstep; tend = P[i].Ti_begstep + ti_step / 2;	/* beginning / midpoint of step */
-        if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(tstart, tend);} else {dt_gravkick = (tend - tstart) * All.Timebase_interval;}
+        dt_gravkick = get_gravkick_factor(tstart, tend, -1, 0);
         if(P[i].Type == 0)
         {
             double vtmp[3], ekin0 = 0.5 * P[i].Mass * (P[i].Vel[0] * P[i].Vel[0] + P[i].Vel[1] * P[i].Vel[1] + P[i].Vel[2] * P[i].Vel[2]);
@@ -411,7 +411,7 @@ void do_turb_driving_step_second_half(void)
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
         ti_step = GET_PARTICLE_INTEGERTIME(i); tstart = P[i].Ti_begstep + ti_step / 2; tend = P[i].Ti_begstep + ti_step;	/* midpoint/end of step */
-        if(All.ComovingIntegrationOn) {dt_gravkick = get_gravkick_factor(tstart, tend);} else {dt_gravkick = (tend - tstart) * All.Timebase_interval;}
+        dt_gravkick = get_gravkick_factor(tstart, tend, -1, 0);
         if(P[i].Type == 0)
         {
             double vtmp[3], ekin0 = 0.5 * P[i].Mass * (P[i].Vel[0] * P[i].Vel[0] + P[i].Vel[1] * P[i].Vel[1] + P[i].Vel[2] * P[i].Vel[2]);

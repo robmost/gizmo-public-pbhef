@@ -45,6 +45,9 @@ struct INPUT_STRUCT_NAME
 #ifdef BH_ACCRETE_NEARESTFIRST
     MyFloat BH_dr_to_NearestGasNeighbor;
 #endif
+#ifdef SINGLE_STAR_MERGE_AWAY_CLOSE_BINARIES
+    int BH_eligible_for_binary_merge_away;
+#endif
 }
 *DATAIN_NAME, *DATAGET_NAME; /* dont mess with these names, they get filled-in by your definitions automatically */
 
@@ -63,7 +66,7 @@ static inline void INPUTFUNCTION_NAME(struct INPUT_STRUCT_NAME *in, int i, int l
 #ifdef BH_ALPHADISK_ACCRETION
     in->BH_Mass_AlphaDisk = BPP(i).BH_Mass_AlphaDisk;
 #endif
-    in->Dt = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
+    in->Dt = GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(i);
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
     in->Dt = P[i].dt_since_last_gas_search;
 #endif
@@ -82,6 +85,9 @@ static inline void INPUTFUNCTION_NAME(struct INPUT_STRUCT_NAME *in, int i, int l
 #endif
 #if defined(BH_SWALLOWGAS) && !defined(BH_GRAVCAPTURE_GAS)
     in->BH_AccretionDeficit = P[i].BH_AccretionDeficit;
+#endif
+#ifdef SINGLE_STAR_MERGE_AWAY_CLOSE_BINARIES
+    in->BH_eligible_for_binary_merge_away = is_star_eligible_for_binary_merge_away(i);
 #endif
 }
 
@@ -211,23 +217,49 @@ int blackhole_feed_evaluate(int target, int mode, int *exportflag, int *exportno
                         /* check_for_bh_merger.  Easy.  No Edd limit, just a pos and vel criteria. */
 #if !defined(BH_DEBUG_DISABLE_MERGERS)
                         if(P[j].Type == 5)  /* we may have a black hole merger -- check below if allowed */
-                            if((local.ID != P[j].ID) && (SwallowID_j == 0) && (BPP(j).BH_Mass < local.BH_Mass)) /* we'll assume most massive BH swallows the other - simplifies analysis and ensures unique results */
-#ifdef SINGLE_STAR_SINK_DYNAMICS
-                            if((r < 1.0001*P[j].min_dist_to_bh) && (r < heff_j) && (r < sink_radius) && ((P[j].Mass < local.Mass) || ((P[j].Mass == local.Mass) && (P[j].ID < local.ID))) && (P[j].Mass < 10.*P[j].Sink_Formation_Mass)) /* only merge away stuff that is within the softening radius, and is no more massive that a few gas particles */
-#endif
+                        {
+                            if(((local.ID != P[j].ID) || (r2>0)) && (SwallowID_j == 0) && (BPP(j).BH_Mass < local.BH_Mass)) /* we'll assume most massive BH swallows the other - simplifies analysis and ensures unique results */
                             {
-                                if((vrel < vesc) && (bh_check_boundedness(j,vrel,vesc,r,sink_radius)==1))
-                                {
-                                    printf(" ..BH-BH Merger: P[j.]ID=%llu to be swallowed by id=%llu \n", (unsigned long long) P[j].ID, (unsigned long long) local.ID);
-                                    SwallowID_j = local.ID;
-                                } else {
-#if defined(BH_OUTPUT_MOREINFO)     // DAA: BH merger info will be saved in a separate output file
-                                    printf(" ..ThisTask=%d, time=%g: id=%llu would like to swallow %llu, but vrel=%g vesc=%g\n", ThisTask, All.Time, (unsigned long long)local.ID, (unsigned long long)P[j].ID, vrel, vesc);
-#elif !defined(IO_REDUCED_MODE)
-                                    fprintf(FdBlackHolesDetails, "ThisTask=%d, time=%.16g: id=%llu would like to swallow %llu, but vrel=%g vesc=%g\n", ThisTask, All.Time, (unsigned long long)local.ID, (unsigned long long)P[j].ID, vrel, vesc); fflush(FdBlackHolesDetails);
+#ifdef SINGLE_STAR_SINK_DYNAMICS
+                                int allow_bh_merger = 1; /* flag here b/c we have different options */
+                                if(r >= 1.0001*P[j].min_dist_to_bh) {allow_bh_merger = 0;} // not the closest sink!
+                                if(r >= heff_j) {allow_bh_merger = 0;} // beyond MAX[search/kernel/softening] radius: heff_j = DMAX( PPP[j].Hsml , ForceSoftening_KernelRadius(j) )
+                                if(P[j].Mass > local.Mass) {allow_bh_merger = 0;} // always merge from more massive eating lower
+                                if((P[j].Mass == local.Mass) && (P[j].ID > local.ID)) {allow_bh_merger = 0;} // randomly pick for equal masses which way the merger goes
+                                double max_rmerge = 1.0*sink_radius; // default STARFORGE behavior: only merge away stuff that is within the softening radius; sink_radius=SinkParticle_GravityKernelRadius
+                                double max_mmerge = 10.*P[j].Sink_Formation_Mass; // default STARFORGE behavior: only merge away stuff no more massive than a few gas cells
+#ifdef SINGLE_STAR_MERGE_AWAY_CLOSE_BINARIES
+                                if(local.BH_eligible_for_binary_merge_away == 0) {allow_bh_merger = 0;}
+                                if(is_star_eligible_for_binary_merge_away(j) == 0) {allow_bh_merger = 0;}
+                                max_mmerge = 10.*P[j].Mass; // makes it so there is no mass limit - even extremely massive stars can be merged
+                                max_rmerge = DMAX(max_rmerge, ForceSoftening_KernelRadius(j));
+                                max_rmerge = DMAX(max_rmerge, DMIN(local.Hsml, PPP[j].Hsml));
+                                max_rmerge = DMIN(max_rmerge, 10.*sink_radius);
+                                double dt_min_orbit_yr = 100.; // 'target' minimum orbital time of the binary in yr
+                                double rmax_dt = 0.000485/(All.cf_atime*UNIT_LENGTH_IN_PC) * pow(((P[j].Mass+local.Mass)*UNIT_MASS_IN_SOLAR/100.) * (dt_min_orbit_yr*dt_min_orbit_yr/(100.*100.)),1./3.); // ensures the binary period satisfies this
+                                max_rmerge = DMAX( max_rmerge , rmax_dt);
+#else
+                                if(bh_check_boundedness(j,vrel,vesc,r,sink_radius) != 1) {allow_bh_merger = 0;} // stricter criterion
 #endif
-                                }
-                            } // if eligible for bh-bh mergers //
+                                if(r >= max_rmerge) {allow_bh_merger = 0;} // beyond max radius (default sink)
+                                if(P[j].Mass > max_mmerge) {allow_bh_merger = 0;} // beyond max mass (default few cells)
+                                if(allow_bh_merger == 1) /* ok only if meet all the criteria above are we allowed to consider a BH-BH merger */
+#endif
+                                {
+                                    if(vrel < vesc)
+                                    {
+                                        printf(" ..BH-BH Merger: P[j.]ID=%llu to be swallowed by id=%llu \n", (unsigned long long) P[j].ID, (unsigned long long) local.ID);
+                                        SwallowID_j = local.ID;
+                                    } else {
+#if defined(BH_OUTPUT_MOREINFO)     // DAA: BH merger info will be saved in a separate output file
+                                        printf(" ..ThisTask=%d, time=%g: id=%llu would like to swallow %llu, but vrel=%g vesc=%g\n", ThisTask, All.Time, (unsigned long long)local.ID, (unsigned long long)P[j].ID, vrel, vesc);
+#elif !defined(IO_REDUCED_MODE)
+                                        fprintf(FdBlackHolesDetails, "ThisTask=%d, time=%.16g: id=%llu would like to swallow %llu, but vrel=%g vesc=%g\n", ThisTask, All.Time, (unsigned long long)local.ID, (unsigned long long)P[j].ID, vrel, vesc); fflush(FdBlackHolesDetails);
+#endif
+                                    }
+                                } // if eligible for bh-bh mergers //
+                            } // unique BH, merging from higher (swallowing lower) mass
+                        } // type == 5
 #endif // BH_DEBUG_DISABLE_MERGERS
                         
                         

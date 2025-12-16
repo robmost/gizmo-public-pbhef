@@ -84,6 +84,7 @@
 #MHD_NON_IDEAL                  # enable non-ideal MHD terms: Ohmic resistivity, Hall effect, and ambipolar diffusion (solved explicitly); Users should cite Hopkins 2017, MNRAS, 466, 3387, in addition to the MHD paper
 #MHD_CONSTRAINED_GRADIENT=1     # use CG method (in addition to cleaning, optional!) to maintain low divB: set this value to control how aggressive the div-reduction is:
                                 # 0=minimal (safest), 1=intermediate (recommended), 2=aggressive (less stable), 3+=very aggressive (less stable+more expensive). [Please cite Hopkins, MNRAS, 2016, 462, 576]
+#MHD_NON_IDEAL_CORRECTIONTERMS  # enable approximate corrections for anomalous resistivity and Epstein-like (drift/slip-dependent) cross sections in non-ideal MHD coefficients. Please cite Hopkins et al., https://arxiv.org/abs/2405.06026, where the scalings here are derived and presented
 ## ----------------------------------------------------------------------------------------------------
 # -------------------------------------- Conduction
 # ----------------------------------------- [Please cite and read the methods paper Hopkins 2017, MNRAS, 466, 3387]
@@ -607,7 +608,7 @@
 #CRFLUID_BINCENTERED_TRANSPORT      # use the older 'bin-centered' cosmic ray transport scheme for spectrally-resolved cosmic rays, instead of the more accurate scheme which prevents bin-to-bin artifacts as developed in Hopkins arXiv:2202.05283
 # --------------------
 # ----- FIRE and STARFORGE sub-module special options
-#FIRE_SNE_ENERGY_METAL_DEPENDENCE_EXPERIMENT # experiment with modified supernova energies as a function of metallicity - freely modify this module as desired. used for numerical experiments only.
+#FIRE_SNE_ENERGY_METAL_DEPENDENCE_EXPERIMENT=0 # experiment with modified supernova energies as a function of metallicity - freely modify this module as desired. used for numerical experiments only.
 #SINGLE_STAR_AND_SSP_HYBRID_MODEL=1 # cells with mass less than this (in solar) are treated with the single-stellar evolution models, larger mass with ssp models. needs user to specify a refinement criterion, and a criterion for when one module or another will be used. still in testing.
 #SINGLE_STAR_AND_SSP_HYBRID_MODEL_DEFAULTS=1 # uses default settings for SINGLE_STAR_AND_SSP_HYBRID_MODEL=SINGLE_STAR_AND_SSP_HYBRID_MODEL_DEFAULTS (plus lots of other flag settings) from zoom-in experiments around SMBHs
 #STARFORGE_GMC_TURBINIT             # special flag for custom ICs behavior in star formation simulations for turbulent clouds. adds an analytic uniform sphere harmonic potential + r^-3 halo outside to confine stirred turbulent gas, during the 'stirring' phase. cite Lane et al., 2022MNRAS.510.4767L

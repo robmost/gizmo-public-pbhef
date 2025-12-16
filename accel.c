@@ -138,6 +138,11 @@ void compute_additional_forces_for_all_particles(void)
 void compute_stellar_feedback(void)
 {
     CPU_Step[CPU_MISC] += measure_time();
+#ifdef GALSF_LIMIT_FBTIMESTEPS_FROM_BELOW
+    if(All.Dt_Since_LastFBCalc_Gyr > All.Dt_Min_Between_FBCalc_Gyr) {All.Dt_Since_LastFBCalc_Gyr = 0;}
+    All.Dt_Since_LastFBCalc_Gyr += All.TimeStep / All.cf_hubble_a * UNIT_TIME_IN_GYR; // augment by timestep
+    if(All.Dt_Since_LastFBCalc_Gyr < All.Dt_Min_Between_FBCalc_Gyr) {return;}
+#endif
 
 #ifdef GALSF_FB_MECHANICAL /* check the mechanical sources of feedback */
     mechanical_fb_calc_toplevel();  /* call the parent loop for the different mechanical fb sub-loops */

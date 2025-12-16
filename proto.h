@@ -49,6 +49,7 @@ int does_particle_need_to_be_split(int i);
 double target_mass_renormalization_factor_for_mergesplit(int i, int split_key);
 #if defined(FIRE_SUPERLAGRANGIAN_JEANS_REFINEMENT) || defined(SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM)
 int check_if_sufficient_mergesplit_time_has_passed(int i);
+int is_particle_a_special_zoom_target(int i);
 #endif
 int merge_particles_ij(int i, int j);
 int split_particle_i(int i, int n_particles_split, int i_nearest);
@@ -133,6 +134,9 @@ static inline double sigmoid_sqrt(double x) {return 0.5*(1 + x/sqrt(1+x*x));} /*
 
 static inline double ForceSoftening_KernelRadius(int p)
 {
+#ifdef GALSF_MERGER_STARCLUSTER_PARTICLES
+    if(P[p].Type == 4) {return All.ForceSoftening[4] * pow(P[p].Mass*UNIT_MASS_IN_SOLAR / (GALSF_MERGER_STARCLUSTER_PARTICLES),0.333);}
+#endif
 #ifdef BH_EXCISION_NONGAS
     if(P[p].Type==5) {if(P[p].Mass > P[p].BH_Mass+P[p].Sink_Formation_Mass) {return All.ForceSoftening[P[p].Type] * pow((P[p].Mass-P[p].BH_Mass)/P[p].Sink_Formation_Mass,1./3.);} else {return All.ForceSoftening[P[p].Type];}} // scale the force softening to the excess mass to avoid a runaway divergence in the galaxy center from artificially collapsing the potential to that of a point mass
 #endif
@@ -196,6 +200,10 @@ double return_user_desired_target_pressure(int i);
 #ifdef EOS_TILLOTSON
 double calculate_eos_tillotson(int i);
 void tillotson_eos_init(void);
+#endif
+
+#ifdef SPECIAL_POINT_WEIGHTED_MOTION
+double weight_function_for_weighted_motion_smoothing(double r, int mode);
 #endif
 
 #ifdef EOS_SUBSTELLAR_ISM
@@ -743,6 +751,7 @@ integertime find_next_time_walk(int node);
 void free_memory(void);
 void advance_and_find_timesteps(void);
 integertime get_timestep(int p, double *a, int flag);
+double return_timestep_dilation_factor(int i, int mode);
 
 void determine_PMinterior(void);
 void gravity_tree(void);
@@ -754,6 +763,20 @@ double gas_dust_heating_coeff(int i, double T, double Tdust);
 double rt_eqm_dust_temp(int i, double T, double dust_absorption_rate);
 double dust_dEdt(int i, double T, double Tdust, double dust_absorption_rate);
 double return_electron_fraction_from_heavy_ions(int target, double temperature, double density_cgs, double n_elec_HHe);
+MyFloat return_electron_fraction_from_Cplus(int target, MyFloat temp, MyFloat x_elec, MyFloat shieldfac);
+MyFloat return_electron_fraction_from_Oplus(int target, MyFloat nHp);
+MyFloat return_electron_fraction_from_molecular_ions(int target, MyFloat temp);
+MyFloat return_electron_fraction_from_alkali(int i, MyFloat temp);
+MyFloat get_FUV_G0(int i, MyFloat shieldfac, int mode);
+MyFloat f_Cplus(int i, MyFloat temp, MyFloat x_elec, MyFloat shieldfac); 
+MyFloat f_Oplus(MyFloat nHp);
+MyFloat f_CO(int i, MyFloat temp, MyFloat x_elec, MyFloat shieldfac, MyFloat nHp);
+MyFloat alpha_recomb_grain(int i, MyFloat temp, MyFloat x_slec, MyFloat shieldfac, char *ion_name);
+MyFloat grain_charge_psi(int i, MyFloat temp, MyFloat x_elec, MyFloat shieldfac);
+MyFloat total_ionization_rate_C(int i, MyFloat shieldfac);
+MyFloat cosmic_ray_ionization_rate_C(int i);
+MyFloat photoionization_rate_C(int i, MyFloat shieldfac);
+int ion_name_to_index(char *ion_name);
 void apply_pm_hires_region_clipping_selection(int i);
 double get_starformation_rate(int i, int mode);
 void update_internalenergy_for_galsf_effective_eos(int i, double tcool, double tsfr, double cloudmass_fraction, double rateOfSF);
@@ -799,13 +822,12 @@ void veldisp(void);
 void veldisp_ensure_neighbours(int mode);
 int binarySearch(const double * arr, const double x, const int l, const int r, const int total);
 
-double get_gravkick_factor(integertime time0, integertime time1);
+double get_gravkick_factor(integertime time0, integertime time1, int i, int mode);
 double drift_integ(double a, void *param);
 double gravkick_integ(double a, void *param);
 double growthfactor_integ(double a, void *param);
-double hydrokick_integ(double a, void *param);
 void init_drift_table(void);
-double get_drift_factor(integertime time0, integertime time1);
+double get_drift_factor(integertime time0, integertime time1, int i, int mode);
 double measure_time(void);
 double report_time(void);
 

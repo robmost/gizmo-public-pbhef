@@ -225,34 +225,43 @@ void GravAccel_StaticIsothermalSphere()
 void GravAccel_SpecialCustomNuclearZoomBoundaryConditions()
 {
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES
-    if(All.Mass_of_SpecialSMBHParticle <= 0) {return;}
-    int i,k; for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
+    double mspecial_tot=0; int i,j,k;
+    for(k=0;k<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;k++) {mspecial_tot += All.Mass_of_SpecialSMBHParticle[k];}
+    if(mspecial_tot <= 0) {return;}
+    for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
-        double dp[3], r2=0, r, r_cut; for(k=0;k<3;k++) {dp[k]=All.cf_atime*(P[i].Pos[k]-All.SMBH_SpecialParticle_Position_ForRefinement[k]); r2+=dp[k]*dp[k];}
-	    r = sqrt(r2);
+        for(j=0;j<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;j++)
+        {
+            double dp[3], r2=0, r, r_cut;
+            for(k=0;k<3;k++) {dp[k]=All.cf_atime*(P[i].Pos[k]-All.SMBH_SpecialParticle_Position_ForRefinement[j][k]); r2+=dp[k]*dp[k];}
+            r = sqrt(r2);
 #if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES <= 1)
-        r_cut = 0.2 * All.HubbleParam;
-        if(r > r_cut)
-        {
-            double x = r/r_cut, tau = pow(All.cf_atime / 0.18437477681344028, -3.);
-            double m0 = 0.19*(pow(x,1.15)-1.)/(1.+pow(x/300.,0.8)) + (1.4e-8*tau)*(pow(x,3.)-1.);
-            for(k=0;k<3;k++) {P[i].GravAccel[k] += -All.G * (dp[k]/r) * (m0/(r*r)) * (1./All.cf_a2inv);}
-            if(r > 2.*r_cut) {P[i].Mass = 0;} // clip it
-        }
+            r_cut = 0.2 * All.HubbleParam;
+            if(r > r_cut)
+            {
+                double x = r/r_cut, tau = pow(All.cf_atime / 0.18437477681344028, -3.);
+                double m0 = 0.19*(pow(x,1.15)-1.)/(1.+pow(x/300.,0.8)) + (1.4e-8*tau)*(pow(x,3.)-1.);
+                for(k=0;k<3;k++) {P[i].GravAccel[k] += -All.G * (dp[k]/r) * (m0/(r*r)) * (1./All.cf_a2inv);}
+                if(r > 2.*r_cut) {P[i].Mass = 0;} // clip it
+            }
 #else
-        r_cut = 0.1 / UNIT_LENGTH_IN_PC;
+            r_cut = 0.1 / UNIT_LENGTH_IN_PC;
+#if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES >= 3)
+            r_cut = 2.e16 / UNIT_LENGTH_IN_PC;
+#endif
 #if (SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM_SPECIALBOUNDARIES >= 4)
-        r_cut = 20. / UNIT_LENGTH_IN_PC;
+            r_cut = 20. / UNIT_LENGTH_IN_PC;
 #endif
-        if(r > r_cut) {P[i].Mass = 0;} // clip it
-        if(P[i].Type != 3 && P[i].Mass > 0 && r > 0) // add additional Paczynski-Wiita potential corrections, if desired //
-        {
-            double rG = 2.*All.G*All.Mass_of_SpecialSMBHParticle/(C_LIGHT_CODE*C_LIGHT_CODE); // define gravitational radius
-            double fac_0 = -All.G*All.Mass_of_SpecialSMBHParticle / (r2*r * All.cf_a2inv); // define pre-factor (in appropriate code units) for gravitational acceleration
-            double x = r/rG - 1., fac = fac_0 * (1.+2.*x)/(x*x); // this is defined as the difference between the P.W. accel and the Keplerian accel, since the latter is already included
-            if(x > 0) {for(k=0;k<3;k++) {P[i].GravAccel[k] += fac * dp[k];}}
+            if(r > r_cut) {P[i].Mass = 0;} // clip it
+            if(is_particle_a_special_zoom_target(i) == 0 && P[i].Mass > 0 && r > 0) // add additional Paczynski-Wiita potential corrections, if desired //
+            {
+                double rG = 2.*All.G*All.Mass_of_SpecialSMBHParticle[j]/(C_LIGHT_CODE*C_LIGHT_CODE); // define gravitational radius
+                double fac_0 = -All.G*All.Mass_of_SpecialSMBHParticle[j] / (r2*r * All.cf_a2inv); // define pre-factor (in appropriate code units) for gravitational acceleration
+                double x = r/rG - 1., fac = fac_0 * (1.+2.*x)/(x*x); // this is defined as the difference between the P.W. accel and the Keplerian accel, since the latter is already included
+                if(x > 0) {for(k=0;k<3;k++) {P[i].GravAccel[k] += fac * dp[k];}}
+            }
+#endif
         }
-#endif
     }
 #endif
 }
@@ -448,16 +457,19 @@ void apply_excision(void)
 {
 #ifdef SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM
     /* we will excise -any- cells or particles which fall inside the force softening kernel of the central SMBH particle */
-    if(All.SMBH_SpecialParticle_Position_ForRefinement[0] > -1.e10)
+    int i,j,k; double excision_radius = All.ForceSoftening[3]; // ??? type_j?
+    double excision_radius2 = excision_radius*excision_radius;
+    for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
-        int i,k; double excision_radius = All.ForceSoftening[3];
-        double excision_radius2 = excision_radius*excision_radius;
-        for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
+        if(is_particle_a_special_zoom_target(i)) {continue;} /* don't excise the SMBH itself! */
+        for(j=0;j<SINGLE_STAR_AND_SSP_NUCLEAR_ZOOM;j++)
         {
-            if(P[i].Type != 3) /* don't excise the SMBH itself! */
+            if(All.SMBH_SpecialParticle_Position_ForRefinement[j][0] <= -1.e10) {continue;} /* no valid position to use */
+            double r2=0; for(k=0;k<3;k++) {double dp=P[i].Pos[k]-All.SMBH_SpecialParticle_Position_ForRefinement[j][k]; r2+=dp*dp;}
+            if(r2 < excision_radius2)
             {
-                double r2=0; for(k=0;k<3;k++) {double dp=P[i].Pos[k]-All.SMBH_SpecialParticle_Position_ForRefinement[k]; r2+=dp*dp;}
-                if(r2 < excision_radius2) {All.Mass_Accreted_By_SpecialSMBHParticle+=P[i].Mass; P[i].Mass=0;}
+                All.Mass_Accreted_By_SpecialSMBHParticle[j] += P[i].Mass;
+                P[i].Mass = 0;
             }
         }
     }

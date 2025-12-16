@@ -54,7 +54,7 @@ void INPUTFUNCTION_NAME(struct INPUT_STRUCT_NAME *in, int i, int loop_iteration)
     int active_check = rt_get_source_luminosity(i,0,lum);
     double dt = 1; // make this do nothing unless flags below are set:
 #if defined(RT_INJECT_PHOTONS_DISCRETELY)
-    dt = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
+    dt = GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(i);
 #ifdef BH_INTERACT_ON_GAS_TIMESTEP
     if(P[i].Type == 5) {dt = P[i].dt_since_last_gas_search;}
 #endif

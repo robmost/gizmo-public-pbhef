@@ -343,6 +343,12 @@ void CalculateAndAssign_CosmicRay_DiffusionAndStreamingCoefficients(int i)
 #if (CRFLUID_DIFFUSION_MODEL == 0) /* set diffusivity to a universal power-law scaling (constant per-bin)  */
         DiffusionCoeff = diffusion_coefficient_constant(i,k_CRegy); //  this is the input value of the diffusivity, for constant-kappa models
 #endif
+#if (CRFLUID_DIFFUSION_MODEL == 8) /* set diffusivity to a universal power-law scaling (constant per-bin), plus constant-streaming-speed correction term as implied by some CGM observations  */
+        DiffusionCoeff = diffusion_coefficient_constant(i,k_CRegy); //  this is the input value of the diffusivity, for constant-kappa models
+        double vst_asymptotic_kms=100., vst00=vst_asymptotic_kms/100., beta=return_CRbin_beta_factor(i,k_CRegy), RGV=return_CRbin_CR_rigidity_in_GV(i,k_CRegy), l00=4./UNIT_LENGTH_IN_KPC;
+        double lstar = CRPressureGradScaleLength, l0 = l00*(0.1 + beta*sqrt(RGV))/vst00, diff_corrfac = 1. + lstar/l0;
+        DiffusionCoeff *= diff_corrfac;
+#endif
 #if (CRFLUID_DIFFUSION_MODEL < 0) /* disable CR diffusion, specifically */
         DiffusionCoeff = 0; // no diffusion (but -can- allow streaming)
 #endif
@@ -983,6 +989,7 @@ double Get_CosmicRayIonizationRate_cgs(int i)
 #endif
 #ifdef METALS
     zeta_cr += 1.e-21 * P[i].Metallicity[0]/All.SolarAbundances[0]; // include radioactive decay of K-40 and other species, which scales with metallicity
+    zeta_cr += 1.e-19 * P[i].Metallicity[10]/All.SolarAbundances[10]; // Contribution from short-lived radioisotopes, here scaling to Fe abundance - Adams et al 2014 Apj 789 86
 #endif
     return zeta_cr;
 }

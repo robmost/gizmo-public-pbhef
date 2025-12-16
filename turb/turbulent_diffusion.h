@@ -72,8 +72,8 @@
                 double dmet = (Z_j-local.Metallicity[k_species]) * fabs(mdot_estimated) * dt_hydrostep;
                 cmag = MINMOD(dmet,cmag); // limiter based on mass exchange from MFV HLLC solver //
 #endif
-                out.Dyield[k_species] += cmag;
-                if(j_is_active_for_fluxes) {SphP[j].Dyield[k_species] -= cmag;}
+                out.Dyield[k_species] += FluxCorrectionFactor_to_i * cmag;
+                if(j_is_active_for_fluxes) {SphP[j].Dyield[k_species] -= FluxCorrectionFactor_to_j * cmag;}
             }
         }
     }

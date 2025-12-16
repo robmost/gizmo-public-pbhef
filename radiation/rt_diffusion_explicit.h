@@ -302,15 +302,15 @@
 #endif
     
     // assign the actual fluxes //
-    for(k=0;k<N_RT_FREQ_BINS;k++) {out.Dt_Rad_E_gamma[k] += Fluxes_Rad_E_gamma[k];}
-    if(j_is_active_for_fluxes) {for(k=0;k<N_RT_FREQ_BINS;k++) {SphP[j].Dt_Rad_E_gamma[k] -= Fluxes_Rad_E_gamma[k];}}
+    for(k=0;k<N_RT_FREQ_BINS;k++) {out.Dt_Rad_E_gamma[k] += FluxCorrectionFactor_to_i * Fluxes_Rad_E_gamma[k];}
+    if(j_is_active_for_fluxes) {for(k=0;k<N_RT_FREQ_BINS;k++) {SphP[j].Dt_Rad_E_gamma[k] -= FluxCorrectionFactor_to_j * Fluxes_Rad_E_gamma[k];}}
 #if defined(RT_INFRARED)
-    out.Dt_Rad_E_gamma_T_weighted_IR += Fluxes_Rad_E_gamma_T_weighted_IR;
-    if(j_is_active_for_fluxes) {SphP[j].Dt_Rad_E_gamma_T_weighted_IR -= Fluxes_Rad_E_gamma_T_weighted_IR;}
+    out.Dt_Rad_E_gamma_T_weighted_IR += FluxCorrectionFactor_to_i * Fluxes_Rad_E_gamma_T_weighted_IR;
+    if(j_is_active_for_fluxes) {SphP[j].Dt_Rad_E_gamma_T_weighted_IR -= FluxCorrectionFactor_to_j * Fluxes_Rad_E_gamma_T_weighted_IR;}
 #endif
 #ifdef RT_EVOLVE_FLUX
-    for(k=0;k<N_RT_FREQ_BINS;k++) {int k_dir; for(k_dir=0;k_dir<3;k_dir++) {out.Dt_Rad_Flux[k][k_dir] += Fluxes_Rad_Flux[k][k_dir];}}
-    if(j_is_active_for_fluxes) {for(k=0;k<N_RT_FREQ_BINS;k++) {int k_dir; for(k_dir=0;k_dir<3;k_dir++) {SphP[j].Dt_Rad_Flux[k][k_dir] -= Fluxes_Rad_Flux[k][k_dir];}}}
+    for(k=0;k<N_RT_FREQ_BINS;k++) {int k_dir; for(k_dir=0;k_dir<3;k_dir++) {out.Dt_Rad_Flux[k][k_dir] += FluxCorrectionFactor_to_i * Fluxes_Rad_Flux[k][k_dir];}}
+    if(j_is_active_for_fluxes) {for(k=0;k<N_RT_FREQ_BINS;k++) {int k_dir; for(k_dir=0;k_dir<3;k_dir++) {SphP[j].Dt_Rad_Flux[k][k_dir] -= FluxCorrectionFactor_to_j * Fluxes_Rad_Flux[k][k_dir];}}}
 #endif
     
 }

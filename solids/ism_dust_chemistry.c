@@ -109,7 +109,7 @@ void ISMDustChem_get_wind_dust_yields(double *yields, int i)
         return; // end routine
     } // below follows species model, and will be default if above not set
     double dt,Z,elem_yield,wind_rate;
-    dt=GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i)*UNIT_TIME_IN_GYR;
+    dt=GET_PARTICLE_FEEDBACK_TIMESTEP_IN_PHYSICAL(i)*UNIT_TIME_IN_GYR;
     Z = Z_for_stellar_evol(i);
     
     // Take difference in cumulative dust production between start and end time to get estimate of instantaneous dust injection rate (M_solar/Gyr)
