@@ -566,6 +566,14 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
     in->DelayTime = SphP[i].DelayTime;
 #endif
 
+#if 0 //def USE_TIMESTEP_DILATION_FOR_ZOOMS
+    in->DilationFactor = return_timestep_dilation_factor(i,0);
+#endif
+
+#ifdef PBH_EVAPORATION_FEEDBACK
+    in->DensityDM = P[i].DensityDM;
+#endif
+
 }
 
 
