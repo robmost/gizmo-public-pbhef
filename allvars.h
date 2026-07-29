@@ -1350,7 +1350,7 @@ typedef unsigned long long peano1D;
 #endif
 #define MAXLEN_OUTPUTLIST 1201	/*!< maxmimum number of entries in output list */
 #define DRIFT_TABLE_LENGTH 1000	/*!< length of the lookup table used to hold the drift and kick factors */
-#define PBH_TABLE_SIZE 1000     /*!< length of the lookup table used to hold the PBH mass at a given scale factor */
+#define PBH_TABLE_SIZE 1000     /*!< length of the lookup table used to hold the elapsed cosmic time at a given scale factor, for the PBH mass loss */
 #define MAXITER 150
 
 #ifndef LINKLENGTH
@@ -1935,7 +1935,7 @@ extern FILE *FdBhWindDetails;
 #endif
 
 #if defined(PBH_EVAPORATION_FEEDBACK) && !defined(PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS)
-extern double PBH_Table_Mass[PBH_TABLE_SIZE]; /*! table for the PBH mass, on a grid uniform in scale factor between All.TimeBegin and All.TimeMax */
+extern double PBH_Table_Time[PBH_TABLE_SIZE]; /*! table for the cosmic time elapsed since All.TimeBegin, on a grid uniform in log(a), as for the drift factors above */
 #endif
 extern double DriftTable[DRIFT_TABLE_LENGTH]; /*! table for the cosmological drift factors */
 extern double GravKickTable[DRIFT_TABLE_LENGTH]; /*! table for the cosmological kick factor for gravitational forces */

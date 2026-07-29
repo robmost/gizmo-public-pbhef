@@ -1063,5 +1063,7 @@ double pbh_evaporation_heating_prefactor(void);
 void pbh_evaporation_inject(int i, double heating_prefactor);
 double calculate_alpha(double m_pbh_initial_grams);
 void init_pbh_mass_evolution(void);
+double pbh_mass3_decay_rate(void);
+double pbh_elapsed_time(double a);
 void get_current_pbh_mass(double a, double *mass_out);
 #endif

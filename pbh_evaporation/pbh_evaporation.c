@@ -4,6 +4,7 @@
 #include <string.h>
 #include <math.h>
 #include <gsl/gsl_math.h>
+#include <gsl/gsl_integration.h>
 #include "../allvars.h"
 #include "../proto.h"
 #include "../kernel.h"
@@ -466,80 +467,61 @@ double calculate_alpha(double m_pbh_initial_grams)
 }
 
 
-/*
- * Initialize the PBH mass evolution lookup table.
- * This function integrates the mass loss rate over the simulation time.
- */
+#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+/*! Integrand for the elapsed cosmic time, dt = da / (a H(a)) */
+double pbh_time_integ(double a, void *param)
+{
+    return 1 / (hubble_function(a) * a);
+}
+#endif
+
+
+/*! Rate of change of the cube of the PBH mass, which is a constant.
+ *  From dM/dt = -(hbar c^4/G^2) alpha / M^2 we get d(M^3)/dt = -3 (hbar c^4/G^2) alpha, and alpha is held fixed at its
+ *  initial-mass value (see calculate_alpha above), so M^3 is exactly linear in cosmic time:
+ *      M(t)^3 = M0^3 - 3 (hbar c^4/G^2) alpha t
+ *  All.PBH_EvaporationConstant holds hbar c^6/G^2, so divide by c^2 to get hbar c^4/G^2. */
+double pbh_mass3_decay_rate(void)
+{
+    return 3.0 * (All.PBH_EvaporationConstant / (C_LIGHT_CODE * C_LIGHT_CODE)) * All.PBH_Alpha;
+}
+
+
+/*! Tabulate the cosmic time elapsed since All.TimeBegin as a function of the scale factor. That is the only quantity that
+ *  needs tabulating: given it, the PBH mass follows in closed form (see pbh_mass3_decay_rate above), so there is no need
+ *  to integrate the mass loss itself. The grid is uniform in log(a) and the integration is done with the same GSL routine
+ *  and the same conventions as init_drift_table(), so the lookup below mirrors get_drift_factor(). */
 void init_pbh_mass_evolution(void)
 {
 #ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
-    if(ThisTask == 0) printf("Initializing PBH mass evolution table...\n");
-
-    int i;
-    double current_mass = All.PBH_InitialMass;
-    double current_mass3 = current_mass * current_mass * current_mass;
-    double current_a = All.TimeBegin;
-
-    // Determine integration limits and step
-    double a_start = All.TimeBegin;
-    double a_end = All.TimeMax;
-    double da = (a_end - a_start) / (double)(PBH_TABLE_SIZE - 1);
-
-    // Calculate Mass Loss Constant (M^3 rate)
-    // The code calculates All.PBH_EvaporationConstant = (hbar * c^6 / G^2) in code units.
-    // We need K_mass3 such that d(M^3)/dt = -3 * K_mass_loss * alpha
-    // dM/dt = - (hbar * c^4 / G^2) * alpha / M^2
-    // M^2 dM = - (hbar * c^4 / G^2) * alpha dt
-    // integrated: M^3/3 = - (hbar * c^4 / G^2) * alpha * t + C
-    // d(M^3)/dt = -3 * (hbar * c^4 / G^2) * alpha
-    // So K_mass3 = 3 * (hbar * c^4 / G^2) * alpha
-
-    // We need (hbar * c^4 / G^2) in code units.
-    // All.PBH_EvaporationConstant has c^6. So divide by c^2.
-
-    double K_BH_const_code = All.PBH_EvaporationConstant / (C_LIGHT_CODE * C_LIGHT_CODE);
-    double decay_rate_M3 = 3.0 * K_BH_const_code * All.PBH_Alpha;
-
-    for(i = 0; i < PBH_TABLE_SIZE; i++)
+    if(All.ComovingIntegrationOn)
     {
-        PBH_Table_Mass[i] = current_mass; /* the scale factor of entry i is a_start + i*da, so it does not need storing */
-
-        if (i < PBH_TABLE_SIZE - 1)
+#define PBH_WORKSIZE 100000
+        int i; double result, abserr;
+        double logTimeBegin = log(All.TimeBegin), logTimeMax = log(All.TimeMax);
+        gsl_function F; gsl_integration_workspace *workspace;
+        workspace = gsl_integration_workspace_alloc(PBH_WORKSIZE);
+        F.function = &pbh_time_integ;
+        for(i = 0; i < PBH_TABLE_SIZE; i++)
         {
-            double dt;
-            double next_a = a_start + (i + 1) * da;
-
-            if(All.ComovingIntegrationOn)
-            {
-                // Integrate dt = da / (a * H(a))
-                // Use midpoint for better accuracy if needed, or just simple step
-                double a_mid = 0.5 * (current_a + next_a);
-                double obs_hubble = hubble_function(a_mid);
-                dt = (next_a - current_a) / (a_mid * obs_hubble);
-            }
-            else
-            {
-                // Non-cosmological: All.Time is time. All.TimeBegin is start time.
-                // So da is dt.
-                dt = next_a - current_a;
-            }
-
-            // Evolve mass
-            current_mass3 -= decay_rate_M3 * dt;
-            if(current_mass3 < 0) current_mass3 = 0;
-            current_mass = pow(current_mass3, 1.0/3.0);
-
-            current_a = next_a;
+            gsl_integration_qag(&F, exp(logTimeBegin),
+                                exp(logTimeBegin + ((logTimeMax - logTimeBegin) / PBH_TABLE_SIZE) * (i + 1)), 0,
+                                1.0e-8, PBH_WORKSIZE, GSL_INTEG_GAUSS41, workspace, &result, &abserr);
+            PBH_Table_Time[i] = result;
         }
+        gsl_integration_workspace_free(workspace);
+#undef PBH_WORKSIZE
     }
 
     if(ThisTask == 0)
     {
-        printf("PBH Mass Evolution Table Initialized.\n");
-        printf("Initial Mass: %g, Final Mass (at a=%g): %g\n\n", PBH_Table_Mass[0], a_end, PBH_Table_Mass[PBH_TABLE_SIZE-1]);
+        double final_mass; get_current_pbh_mass(All.TimeMax, &final_mass);
+        printf("PBH mass loss: initial mass %g, mass at the end of the run (a=%g) %g [code units]\n", All.PBH_InitialMass, All.TimeMax, final_mass);
+        if(final_mass <= 0) {printf("PBH mass loss: the black holes evaporate completely before the end of the run, after which there is no heating.\n");}
+        printf("\n");
     }
 #else
-    if(ThisTask == 0) printf("PBH Mass Evolution not explicitly enabled. The PBH mass is fixed at the initial value.\n");
+    if(ThisTask == 0) {printf("PBH mass loss not enabled: the PBH mass is fixed at the initial value.\n\n");}
 #endif
 }
 
@@ -603,22 +585,34 @@ int pbh_evaporation_is_active(void)
 }
 
 
-/*
- * Get the current PBH mass by interpolation from the lookup table.
- */
+/*! Elapsed cosmic time since All.TimeBegin, at scale factor a. In a non-cosmological run All.Time already is the time,
+ *  so this is just the difference. In a cosmological run it comes from the table built above, using the same log(a)
+ *  indexing as get_drift_factor(). */
+double pbh_elapsed_time(double a)
+{
+#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+    if(!All.ComovingIntegrationOn) {return DMAX(a - All.TimeBegin, 0);}
+
+    double logTimeBegin = log(All.TimeBegin), logTimeMax = log(All.TimeMax);
+    if(a <= All.TimeBegin || logTimeMax <= logTimeBegin) {return 0;}
+
+    double u = (log(a) - logTimeBegin) / (logTimeMax - logTimeBegin) * PBH_TABLE_SIZE;
+    int i1 = (int) u; if(i1 >= PBH_TABLE_SIZE) {i1 = PBH_TABLE_SIZE - 1;}
+    if(i1 <= 1) {return u * PBH_Table_Time[0];}
+    return PBH_Table_Time[i1 - 1] + (PBH_Table_Time[i1] - PBH_Table_Time[i1 - 1]) * (u - i1);
+#else
+    return 0;
+#endif
+}
+
+
+/*! Current PBH mass. M^3 is exactly linear in cosmic time for a fixed alpha, so this is evaluated in closed form rather
+ *  than interpolated: only the time itself comes from a table. A black hole that has evaporated returns a mass of zero. */
 void get_current_pbh_mass(double a, double *mass_out)
 {
 #ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
-    /* the table is on a grid uniform in scale factor, so the index follows directly from a */
-    double a_start = All.TimeBegin, da = (All.TimeMax - All.TimeBegin) / (double)(PBH_TABLE_SIZE - 1);
-    if(a <= a_start) {*mass_out = PBH_Table_Mass[0]; return;}
-    if(a >= All.TimeMax) {*mass_out = PBH_Table_Mass[PBH_TABLE_SIZE-1]; return;}
-
-    int idx = (int)((a - a_start) / da);
-    if(idx > PBH_TABLE_SIZE - 2) {idx = PBH_TABLE_SIZE - 2;} /* guard against rounding at the top edge */
-
-    double f = (a - (a_start + idx * da)) / da; /* linear interpolation between the bracketing entries */
-    *mass_out = PBH_Table_Mass[idx] + f * (PBH_Table_Mass[idx+1] - PBH_Table_Mass[idx]);
+    double mass3 = All.PBH_InitialMass * All.PBH_InitialMass * All.PBH_InitialMass - pbh_mass3_decay_rate() * pbh_elapsed_time(a);
+    if(mass3 <= 0) {*mass_out = 0;} else {*mass_out = cbrt(mass3);}
 #else
     *mass_out = All.PBH_InitialMass;
 #endif
