@@ -534,6 +534,21 @@ void init_pbh_mass_evolution(void)
 #endif
 }
 
+/*! Returns 0 if the PBH evaporation heating rate is identically zero for this step, so that callers can
+ *  skip the DM neighbour search and the energy injection altogether. This happens if the module is enabled
+ *  but given a zero PBH mass fraction, or once the black holes have fully evaporated. Note that the DM
+ *  density is then left at its last computed value rather than being updated.
+ */
+int pbh_evaporation_is_active(void)
+{
+    if(All.PBH_MassFraction <= 0) {return 0;}
+    if(All.PBH_Alpha <= 0) {return 0;}
+    double current_pbh_mass; get_current_pbh_mass(All.Time, &current_pbh_mass);
+    if(current_pbh_mass <= 0) {return 0;}
+    return 1;
+}
+
+
 /*
  * Get the current PBH mass by interpolation from the lookup table.
  */
