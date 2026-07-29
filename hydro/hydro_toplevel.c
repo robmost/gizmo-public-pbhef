@@ -319,10 +319,6 @@ struct INPUT_STRUCT_NAME
     double DilationFactor;
 #endif
 
-
-#if (PBH_EVAPORATION_FEEDBACK == 1)
-    MyFloat DensityDM;
-#endif
 }
 *DATAIN_NAME, *DATAGET_NAME;
 
@@ -568,10 +564,6 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
 
 #if 0 //def USE_TIMESTEP_DILATION_FOR_ZOOMS
     in->DilationFactor = return_timestep_dilation_factor(i,0);
-#endif
-
-#if (PBH_EVAPORATION_FEEDBACK == 1)
-    in->DensityDM = P[i].DensityDM;
 #endif
 
 }
@@ -1088,11 +1080,6 @@ void hydro_force_initial_operations_preloop(void)
                 int kAlf; for(kAlf=0;kAlf<2;kAlf++) {SphP[i].DtCosmicRayAlfvenEnergy[k][kAlf] = 0;}
 #endif
             }
-#endif
-
-// PBH EVAPORATION FEEDBACK (receiver-based approach): zero out SphP[i].PBHEF_Dtu
-#if (PBH_EVAPORATION_FEEDBACK == 1)
-			SphP[i].PBHEF_Dtu = 0;
 #endif
 
 #ifdef WAKEUP

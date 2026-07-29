@@ -3303,18 +3303,19 @@ int blockpresent(enum iofields blocknr)
 
         case IO_DENSDM:
 #ifdef PBH_EVAPORATION_FEEDBACK
-			return 1;
+            return 1;
 #else
-			return 0;
+            return 0;
 #endif
-			break;
+            break;
 
-		case IO_PBHEF_Dtu:
+        case IO_PBHEF_Dtu:
 #ifdef PBH_EVAPORATION_FEEDBACK
-			return 1;
+            return 1;
 #else
-			return 0;
+            return 0;
 #endif
+            break;
 
         case IO_LASTENTRY: /* will not occur */
             break;

@@ -3594,12 +3594,7 @@ extern struct io_header
                                      All other values, including 0 are interpreted as "don't know" for backwards compatability.
                                  */
   float lpt_scalingfactor;      /*!< scaling factor for 2lpt initial conditions */
-#ifdef PBH_EVAPORATION_FEEDBACK
-  double PBH_CurrentMass;       /*!< Current PBH mass at the time of snapshot */
-  char fill[10];		        /*!< fills to 256 Bytes */
-#else
   char fill[18];		        /*!< fills to 256 Bytes */
-#endif
   char names[15][2];
 }
 header;				/*!< holds header for snapshot files */

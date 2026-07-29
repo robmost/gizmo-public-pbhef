@@ -421,25 +421,6 @@ void dm_density(void)
     }
 
 
-    /* now that we are DONE iterating to find hsml, we can do the REAL final operations on the results
-     ( any quantities that only need to be evaluated once, on the final iteration --
-     won't save much b/c the real cost is in the neighbor loop for each particle, but it's something )
-     -- also, some results (for example, viscosity suppression below) should not be calculated unless
-     the quantities are 'stabilized' at their final values -- */
-    for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
-    {
-        if(dm_density_isactive(i))
-        {
-         /* finally, convert NGB to the more useful format, NumNgb^(1/NDIMS),
-            which we can use to obtain the corrected particle sizes. Because of how this number is used above, we --must-- make
-            sure that this operation is the last in the loop here */
-            if(P[i].NumNgbDM > 0) {P[i].NumNgbDM=pow(P[i].NumNgbDM,1./NUMDIMS);} else {P[i].NumNgbDM=0;}
-
-        } // dm_density_isactive(i)
-
-
-    } // for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
-
     /* collect some timing information */
     double t1; t1 = WallclockTime = my_second(); timeall = timediff(t00_truestart, t1);
     CPU_Step[CPU_PBHEFDMDENSCOMPUTE] += timecomp; CPU_Step[CPU_PBHEFDMDENSWAIT] += timewait;
