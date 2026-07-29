@@ -450,6 +450,7 @@ void begrun(void)
 #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
       All.PBH_EnergyID = all.PBH_EnergyID;
 #endif
+      init_pbh_mass_evolution(); /* the mass table is not carried in the restart file, so rebuild it here */
 #endif
 
       if(All.TimeMax != all.TimeMax) {readjust_timebase(All.TimeMax, all.TimeMax);}

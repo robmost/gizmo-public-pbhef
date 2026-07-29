@@ -1350,6 +1350,7 @@ typedef unsigned long long peano1D;
 #endif
 #define MAXLEN_OUTPUTLIST 1201	/*!< maxmimum number of entries in output list */
 #define DRIFT_TABLE_LENGTH 1000	/*!< length of the lookup table used to hold the drift and kick factors */
+#define PBH_TABLE_SIZE 1000     /*!< length of the lookup table used to hold the PBH mass at a given scale factor */
 #define MAXITER 150
 
 #ifndef LINKLENGTH
@@ -1487,12 +1488,12 @@ typedef MyDouble MyBigFloat;
 #define CPU_DUMMY08       55
 #define CPU_DUMMY09       56
 #define CPU_DUMMY10       57
-#define CPU_PBHEFDMDENSCOMPUTE  58
-#define CPU_PBHEFDMDENSWAIT     59
-#define CPU_PBHEFDMDENSCOMM     60
-#define CPU_PBHEFDMDENSMISC     61
+#define CPU_PBHEFDMDENSCOMPUTE  48  /* these re-use the spare slots above, to keep CPU_PARTS unchanged */
+#define CPU_PBHEFDMDENSWAIT     49
+#define CPU_PBHEFDMDENSCOMM     50
+#define CPU_PBHEFDMDENSMISC     51
 
-#define CPU_PARTS          62  /* this gives the number of parts above (must be last) */
+#define CPU_PARTS          58  /* this gives the number of parts above (must be last) */
 
 #define CPU_STRING_LEN 120
 
@@ -1933,6 +1934,9 @@ extern FILE *FdBhWindDetails;
 #endif
 #endif
 
+#if defined(PBH_EVAPORATION_FEEDBACK) && !defined(PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS)
+extern double PBH_Table_Mass[PBH_TABLE_SIZE]; /*! table for the PBH mass, on a grid uniform in scale factor between All.TimeBegin and All.TimeMax */
+#endif
 extern double DriftTable[DRIFT_TABLE_LENGTH]; /*! table for the cosmological drift factors */
 extern double GravKickTable[DRIFT_TABLE_LENGTH]; /*! table for the cosmological kick factor for gravitational forces */
 extern void *CommBuffer;	/*!< points to communication buffer, which is used at a few places */
@@ -2519,11 +2523,6 @@ extern struct global_data_all_processes
   double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
   double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */
   double PBH_Alpha;                  /*!< PBH evaporation rate parameter, alpha, following the analytical fit from Mosbech et al. (2022) */
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
-#define PBH_TABLE_SIZE 1000
-  double PBH_Table_ScaleFactor[PBH_TABLE_SIZE];  /*!< PBH mass loss lookup table, scale factors */
-  double PBH_Table_Mass[PBH_TABLE_SIZE];         /*!< PBH mass loss lookup table, PBH mass at given scale factor */
-#endif
 #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
   int PBH_EnergyID;                  /*!< ID of the particle to track for energy debugging */
 #endif

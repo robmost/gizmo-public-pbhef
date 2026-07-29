@@ -492,8 +492,7 @@ void init_pbh_mass_evolution(void)
 
     for(i = 0; i < PBH_TABLE_SIZE; i++)
     {
-        All.PBH_Table_ScaleFactor[i] = current_a;
-        All.PBH_Table_Mass[i] = current_mass;
+        PBH_Table_Mass[i] = current_mass; /* the scale factor of entry i is a_start + i*da, so it does not need storing */
 
         if (i < PBH_TABLE_SIZE - 1)
         {
@@ -527,7 +526,7 @@ void init_pbh_mass_evolution(void)
     if(ThisTask == 0)
     {
         printf("PBH Mass Evolution Table Initialized.\n");
-        printf("Initial Mass: %g, Final Mass (at a=%g): %g\n\n", All.PBH_Table_Mass[0], All.PBH_Table_ScaleFactor[PBH_TABLE_SIZE-1], All.PBH_Table_Mass[PBH_TABLE_SIZE-1]);
+        printf("Initial Mass: %g, Final Mass (at a=%g): %g\n\n", PBH_Table_Mass[0], a_end, PBH_Table_Mass[PBH_TABLE_SIZE-1]);
     }
 #else
     if(ThisTask == 0) printf("PBH Mass Evolution not explicitly enabled. The PBH mass is fixed at the initial value.\n");
@@ -555,38 +554,16 @@ int pbh_evaporation_is_active(void)
 void get_current_pbh_mass(double a, double *mass_out)
 {
 #ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
-    // Handle out of bounds
-    if (a <= All.PBH_Table_ScaleFactor[0])
-    {
-        *mass_out = All.PBH_Table_Mass[0];
-        return;
-    }
-    if (a >= All.PBH_Table_ScaleFactor[PBH_TABLE_SIZE-1])
-    {
-        *mass_out = All.PBH_Table_Mass[PBH_TABLE_SIZE-1];
-        return;
-    }
+    /* the table is on a grid uniform in scale factor, so the index follows directly from a */
+    double a_start = All.TimeBegin, da = (All.TimeMax - All.TimeBegin) / (double)(PBH_TABLE_SIZE - 1);
+    if(a <= a_start) {*mass_out = PBH_Table_Mass[0]; return;}
+    if(a >= All.TimeMax) {*mass_out = PBH_Table_Mass[PBH_TABLE_SIZE-1]; return;}
 
-    // Binary search or direct index (since uniform spacing in 'a')
-    // Optimisation: uniform spacing allows O(1) lookup
-    double da = (All.TimeMax - All.TimeBegin) / (double)(PBH_TABLE_SIZE - 1);
-    int idx = (int)((a - All.PBH_Table_ScaleFactor[0]) / da);
+    int idx = (int)((a - a_start) / da);
+    if(idx > PBH_TABLE_SIZE - 2) {idx = PBH_TABLE_SIZE - 2;} /* guard against rounding at the top edge */
 
-    if (idx < 0) idx = 0;
-    if (idx >= PBH_TABLE_SIZE - 1) idx = PBH_TABLE_SIZE - 2;
-
-    // Check if idx is correct (safe check due to floating point)
-    while (idx < PBH_TABLE_SIZE - 1 && a > All.PBH_Table_ScaleFactor[idx+1]) idx++;
-    while (idx > 0 && a < All.PBH_Table_ScaleFactor[idx]) idx--;
-
-    // Linear interpolation
-    double a0 = All.PBH_Table_ScaleFactor[idx];
-    double a1 = All.PBH_Table_ScaleFactor[idx+1];
-    double m0 = All.PBH_Table_Mass[idx];
-    double m1 = All.PBH_Table_Mass[idx+1];
-
-    double f = (a - a0) / (a1 - a0);
-    *mass_out = m0 + f * (m1 - m0);
+    double f = (a - (a_start + idx * da)) / da; /* linear interpolation between the bracketing entries */
+    *mass_out = PBH_Table_Mass[idx] + f * (PBH_Table_Mass[idx+1] - PBH_Table_Mass[idx]);
 #else
     *mass_out = All.PBH_InitialMass;
 #endif
