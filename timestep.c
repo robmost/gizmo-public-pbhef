@@ -1034,26 +1034,20 @@ integertime get_timestep(int p,		/*!< particle index */
 #endif
 #endif // BLACK_HOLES
 
-// Additional time step limiter based on the PBHEF injection energy rate
+// Additional time step limiter based on the PBHEF injection energy rate, from the propagation of a
+//   Sedov-Taylor blast wave: dt <= (CourantFac*L)^(5/3) * (rho/P_inj)^(1/3)  [List et al. 2019, eq. 9]
 #ifdef PBH_EVAPORATION_FEEDBACK
     if(P[p].Type == 0)
     {
-       double beta    = 1.0;
-       double PBHEF_energy_rate = SphP[p].PBHEF_Dtu * P[p].Mass; // need to multiply by mass to get energy
-       double dt_PBHEF;
-       if(PBHEF_energy_rate)
-       {
-           dt_PBHEF = pow((All.CourantFac * Get_Particle_Size(p) * 1.0 / beta * pow(SphP[p].Density / PBHEF_energy_rate, 1.0/5.0)), 5.0/3.0);
-       }
-       else
-       {
-           dt_PBHEF = 0;
-       }
-
-       if(dt_PBHEF > 0 && dt_PBHEF < dt)
-       {
-           dt = dt_PBHEF;
-       }
+        double PBHEF_energy_rate = SphP[p].PBHEF_Dtu * P[p].Mass; // need to multiply by mass to get energy
+        if(PBHEF_energy_rate > 0)
+        {
+            double L_particle = Get_Particle_Size(p) * All.cf_atime; // physical unit
+            double rho_particle = SphP[p].Density * All.cf_a3inv; // physical unit
+            double L_courant = All.CourantFac * L_particle;
+            double dt_PBHEF = L_courant * cbrt(L_courant * L_courant * rho_particle / PBHEF_energy_rate); // equivalent to the expression above, but with one root instead of two
+            if(dt_PBHEF < dt) {dt = dt_PBHEF;}
+        }
     }
 #endif
 
