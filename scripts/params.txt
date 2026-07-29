@@ -279,6 +279,17 @@ DM_KickPerCollision           0     % velocity 'kick' [code units] per collision
 %-------------- Parameters for scalar-field dark matter (DM_FUZZY on)
 FuzzyDM_Mass_in_eV        1e-22     % boson mass in eV for SFDM/Fuzzy DM module
 
+%-------------- Parameters for primordial black hole evaporation feedback (PBH_EVAPORATION_FEEDBACK on)
+%--- All black holes share one mass (monochromatic spectrum): the evaporation coefficient alpha_eff of
+%---   Mosbech+Picker 2022 is evaluated once, and every dark matter particle carries the same population.
+%--- Both parameters below are defined at the START of the run, not at black hole formation. alpha_eff is
+%---   fitted against formation mass and full lifetime, so using it here assumes the mass lost before
+%---   TimeBegin is negligible. That holds for masses above ~1e15 g started at z~99, where the loss is well
+%---   under a percent. For lighter black holes, evolve the mass to TimeBegin yourself and enter that value.
+PBH_MassFraction              0.1       % fraction of the dark matter mass in primordial black holes [dimensionless]
+PBH_InitialMass               1e15      % mass of a single primordial black hole, in [grams]
+PBH_EnergyID                  0         % ID of a gas cell to trace (only used with DEBUG_PBH_EVAPORATION_FEEDBACK)
+
 
 %-------------------------------------------------------------
 %------------------ Solid bodies and Impacts -----------------
