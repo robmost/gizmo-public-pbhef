@@ -55,6 +55,17 @@ int dm_density_isactive(int n)
 }
 
 
+/*! largest kernel length allowed for the DM neighbor search. All.MaxHsml defaults to an effectively
+    infinite value, which lets a particle in a DM-poor region walk an enormous part of the tree, so we
+    also keep the search within a small multiple of the particle's own kernel, as disp_density() does */
+double dm_return_maxhsml(int i)
+{
+    double maxsoft = All.MaxHsml;
+    if(PPP[i].Hsml > 0) {maxsoft = DMIN(maxsoft, 10.*PPP[i].Hsml);}
+    return maxsoft;
+}
+
+
 #define CORE_FUNCTION_NAME dm_density_evaluate /* name of the 'core' function doing the actual inter-neighbor operations. this MUST be defined somewhere as "int CORE_FUNCTION_NAME(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)" */
 #define INPUTFUNCTION_NAME dmkerneldensity_particle2in    /* name of the function which loads the element data needed (for e.g. broadcast to other processors, neighbor search) */
 #define OUTPUTFUNCTION_NAME dmkerneldensity_out2particle  /* name of the function which takes the data returned from other processors and combines it back to the original elements */
@@ -176,7 +187,7 @@ void dm_density(void)
             P[i].NumNgbDM = 0;
             LeftDM[i] = RightDM[i] = 0;
 
-            double maxsoft = All.MaxHsml; /* before the first pass, need to ensure the particles do not exceed the maximum Hsml allowed */
+            double maxsoft = dm_return_maxhsml(i); /* before the first pass, need to ensure the particles do not exceed the maximum Hsml allowed */
             if((P[i].HsmlDM <= 0) || !isfinite(P[i].HsmlDM) || (P[i].HsmlDM > 0.99*maxsoft)) {P[i].HsmlDM = 0.99*maxsoft;} /* don't set to exactly maxsoft because our looping below won't treat this correctly */
 
         }} /* done with intial zero-out loop */
@@ -211,9 +222,12 @@ void dm_density(void)
                 P[i].Particle_DivVelDM *= P[i].DhsmlNgbFactorDM;
 
                 double minsoft = All.MinHsml;
-                double maxsoft = All.MaxHsml;
+                double maxsoft = dm_return_maxhsml(i);
                 desnumngb = All.DesNumNgb; // Leave it constant
-				desnumngbdev = All.MaxNumNgbDeviation;
+                /* the DM density only sets a heating rate that is linear in it, and a kernel of DesNumNgb neighbours
+                   already carries ~1/sqrt(DesNumNgb) shot noise, so converging to All.MaxNumNgbDeviation (tuned for the
+                   hydro volume partition, and ~0.16% for the usual settings) buys no accuracy and costs many iterations */
+                desnumngbdev = DMAX(All.MaxNumNgbDeviation, 0.1*desnumngb);
 
                 /* allow the neighbor tolerance to gradually grow as we iterate, so that we don't spend forever trapped in a narrow iteration */
                 if(iter > 1) {desnumngbdev = DMIN( 0.25*desnumngb , desnumngbdev * exp(0.1*log(desnumngb/(16.*desnumngbdev))*(double)iter) );}
