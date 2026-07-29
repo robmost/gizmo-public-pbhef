@@ -177,7 +177,7 @@ void dm_density(void)
             LeftDM[i] = RightDM[i] = 0;
 
             double maxsoft = All.MaxHsml; /* before the first pass, need to ensure the particles do not exceed the maximum Hsml allowed */
-            if((P[i].HsmlDM < 0) || !isfinite(P[i].HsmlDM) || (P[i].HsmlDM > 0.99*maxsoft)) {P[i].HsmlDM = 0.99*maxsoft;} /* don't set to exactly maxsoft because our looping below won't treat this correctly */
+            if((P[i].HsmlDM <= 0) || !isfinite(P[i].HsmlDM) || (P[i].HsmlDM > 0.99*maxsoft)) {P[i].HsmlDM = 0.99*maxsoft;} /* don't set to exactly maxsoft because our looping below won't treat this correctly */
 
         }} /* done with intial zero-out loop */
 
