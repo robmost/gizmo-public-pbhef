@@ -629,15 +629,11 @@ void set_units(void)
     double constant_cgs = PLANCK_HBAR_CGS * pow(C_LIGHT_CGS, 6.0) / pow(GRAVITY_G_CGS, 2.0);
     All.PBH_EvaporationConstant = constant_cgs / (pow(UNIT_MASS_IN_CGS, 3.0) * pow(UNIT_LENGTH_IN_CGS, 2.0) * pow(UNIT_TIME_IN_CGS, -3.0));
 
-    // Alpha must be strictly positive: the Mosbech et al. (2022) fit turns negative above about 2.4e17 grams,
-    //   which would make the module cool the gas and make the black holes gain mass instead of evaporate.
+    // calculate_alpha() clamps to the large-mass limit of the fit, so this should never trigger. Keep it as a check
+    //   because a negative alpha would silently cool the gas and make the black holes gain mass instead of evaporate.
     if(All.PBH_Alpha <= 0.0)
     {
-      if(ThisTask == 0)
-      {
-        printf("Alpha coefficient calculated as %g (<=0) using PBH_InitialMass = %g grams.\n", All.PBH_Alpha, initial_mass_grams);
-        printf("The fit used here is only valid where it returns a positive alpha: choose a PBH_InitialMass below about 2.4e17 grams.\n");
-      }
+      if(ThisTask == 0) {printf("Alpha coefficient calculated as %g (<=0) using PBH_InitialMass = %g grams.\n", All.PBH_Alpha, initial_mass_grams);}
       endrun(1);
     }
 

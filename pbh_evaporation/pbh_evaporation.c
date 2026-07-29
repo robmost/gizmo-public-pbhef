@@ -442,17 +442,27 @@ void dm_density(void)
 }
 #include "../system/code_block_xchange_finalize.h" /* de-define the relevant variables and macros to avoid compilation errors and memory leaks */
 
-/*! This function computes the alpha coefficient for PBH evaporation, according to the Mosbech et al. (2022) analytical fit */
+/*! This function computes the alpha coefficient for PBH evaporation, according to the Mosbech et al. (2022) analytical fit.
+    alpha_eff is defined there (eq. 9) as (G^2/hbar c^4) * M0^3 / (3 tau), with tau the numerically computed lifetime, so it
+    is an effective coefficient averaged over the life of the black hole and is a function of the -initial- mass alone. That
+    is what makes the constant-alpha solution M(t) = (M0^3 - 3 alpha hbar c^4 t / G^2)^(1/3) give the correct lifetime, and
+    it is why this must not be re-evaluated on the current mass as the black hole evaporates. */
 double calculate_alpha(double m_pbh_initial_grams)
 {
+    const double alpha_highmass = 2.011e-4; /* the large-mass limit of the fit */
+    double alpha = alpha_highmass;
     if (m_pbh_initial_grams < 1.0e18)
     {
         const double c1 = -0.3015;
         const double c2 = 0.3113;
         const double p_exponent = -0.0008;
-        return c1 + c2 * pow(m_pbh_initial_grams, p_exponent);
+        alpha = c1 + c2 * pow(m_pbh_initial_grams, p_exponent);
     }
-    else {return 2.011e-4;}
+    /* the low-mass branch is a small difference of two numbers near 0.3: it already falls below the large-mass limit at
+       about 1.0e17 g and turns negative above about 2.3e17 g, well before the 1e18 g switch quoted in the paper. Since
+       alpha_eff = M0^3/(3 tau) is positive by construction, take the larger of the two branches, which puts the switch at
+       the point where they cross and leaves the fit continuous and always positive. */
+    return DMAX(alpha, alpha_highmass);
 }
 
 
