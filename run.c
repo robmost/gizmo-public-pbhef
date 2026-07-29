@@ -877,7 +877,7 @@ void write_cpu_log(void)
 #if defined(RADTRANSFER)
           "rt_nonfluxops %10.2f  %5.1f%%\n"
 #endif
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 	      "pbh_dmdensity     %10.2f  %5.1f%%\n"
 	      "pbh_dmcomm        %10.2f  %5.1f%%\n"
 	      "pbh_dmimbal       %10.2f  %5.1f%%\n"
@@ -966,7 +966,7 @@ void write_cpu_log(void)
 #if defined(RADTRANSFER)
     All.CPU_Sum[CPU_RTNONFLUXOPS], (All.CPU_Sum[CPU_RTNONFLUXOPS]) / All.CPU_Sum[CPU_ALL] * 100,
 #endif
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 	  All.CPU_Sum[CPU_PBHEFDMDENSCOMPUTE], (All.CPU_Sum[CPU_PBHEFDMDENSCOMPUTE]) / All.CPU_Sum[CPU_ALL] * 100,
     All.CPU_Sum[CPU_PBHEFDMDENSCOMM], (All.CPU_Sum[CPU_PBHEFDMDENSCOMM]) / All.CPU_Sum[CPU_ALL] * 100,
     All.CPU_Sum[CPU_PBHEFDMDENSWAIT], (All.CPU_Sum[CPU_PBHEFDMDENSWAIT]) / All.CPU_Sum[CPU_ALL] * 100,

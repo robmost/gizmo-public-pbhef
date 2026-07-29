@@ -1035,13 +1035,11 @@ integertime get_timestep(int p,		/*!< particle index */
 #endif // BLACK_HOLES
 
 // Additional time step limiter based on the PBHEF injection energy rate
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
     if(P[p].Type == 0)
     {
        double beta    = 1.0;
-#ifdef PBH_EVAPORATION_FEEDBACK
        double PBHEF_energy_rate = SphP[p].PBHEF_Dtu * P[p].Mass; // need to multiply by mass to get energy
-#endif
        double dt_PBHEF;
        if(PBHEF_energy_rate)
        {

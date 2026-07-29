@@ -61,7 +61,7 @@ void compute_hydro_densities_and_forces(void)
         PRINT_STATUS("Start hydrodynamics computation...");
         density();		/* computes density, and pressure */
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
         PRINT_STATUS(" ..PBHEF Receiver-based approach:  estimating DM densities (at gas particles)...");
         dm_density();          /* computes dark matter density around gas particles */
 #endif

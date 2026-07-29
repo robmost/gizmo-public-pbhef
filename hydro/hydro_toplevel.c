@@ -320,7 +320,7 @@ struct INPUT_STRUCT_NAME
 #endif
 
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
     MyFloat DensityDM;
 #endif
 }
@@ -570,7 +570,7 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
     in->DilationFactor = return_timestep_dilation_factor(i,0);
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
     in->DensityDM = P[i].DensityDM;
 #endif
 
@@ -670,7 +670,7 @@ void hydro_final_operations_and_cleanup(void)
 {
     int i,k;
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
     MyDouble dm_dens_over_gas_dens;
     MyDouble heat_source;
 #endif
@@ -792,7 +792,7 @@ void hydro_final_operations_and_cleanup(void)
             // = du/dlna -3*(gamma-1)*u ; then dlna/dt = H(z) =  All.cf_hubble_a //
 
 
-#ifdef PBH_EVAPORATION_FEEDBACK /* Done after the hydro loop */
+#if (PBH_EVAPORATION_FEEDBACK == 1) /* Done after the hydro loop */
             double current_pbh_mass;
             get_current_pbh_mass(All.Time, &current_pbh_mass);
 
@@ -1037,7 +1037,7 @@ void hydro_force_initial_operations_preloop(void)
             SphP[i].MaxKineticEnergyNgb = MIN_REAL_NUMBER;
 #endif
             SphP[i].DtInternalEnergy = 0; //SphP[i].dInternalEnergy = 0;//manifest-indiv-timestep-debug//
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
             SphP[i].PBHEF_Dtu = 0; // Reset PBHEF specific energy change rate
 #endif
             for(k=0;k<3;k++) {SphP[i].HydroAccel[k] = 0;} //SphP[i].dMomentum[k] = 0;//manifest-indiv-timestep-debug//
@@ -1091,7 +1091,7 @@ void hydro_force_initial_operations_preloop(void)
 #endif
 
 // PBH EVAPORATION FEEDBACK (receiver-based approach): zero out SphP[i].PBHEF_Dtu
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
 			SphP[i].PBHEF_Dtu = 0;
 #endif
 

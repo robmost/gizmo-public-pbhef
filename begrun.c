@@ -62,12 +62,11 @@ void begrun(void)
 
 #ifdef PBH_EVAPORATION_FEEDBACK
       printf("-----\n");
+#if (PBH_EVAPORATION_FEEDBACK == 1)
       printf("PBHEF activated\nReceiver-based approach, feedback calculated at gas positions\n");
-      printf("-----\n");
+#else
+      printf("PBHEF activated\nDonor-based approach, feedback calculated at DM positions\n");
 #endif
-#ifdef PBH_EVAPORATION_FEEDBACK_DM
-      printf("-----\n");
-      printf("PBHEF activated\nDonor-based approach, feedback calculated at DM positions (NOT IMPLEMENTED)\n");
       printf("-----\n");
 #endif
     }
@@ -443,7 +442,7 @@ void begrun(void)
       All.NetworkTempThreshold = all.NetworkTempThreshold;
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
       All.PBH_MassFraction = all.PBH_MassFraction;
       All.PBH_InitialMass = all.PBH_InitialMass;
       All.PBH_EvaporationConstant = all.PBH_EvaporationConstant;
@@ -607,7 +606,7 @@ void set_units(void)
 #endif
 
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
     if(ThisTask == 0)
     {
       printf("PBHEF parameters: PBH_MassFraction = %g, PBH_InitialMass = %g\n", All.PBH_MassFraction, All.PBH_InitialMass);
@@ -2100,7 +2099,7 @@ void read_parameter_file(char *fname)
 #endif
 #endif  // CHIMES
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
       strcpy(tag[nt], "PBH_MassFraction");
       addr[nt] = &All.PBH_MassFraction;
       id[nt++] = REAL;
@@ -2351,7 +2350,7 @@ void read_parameter_file(char *fname)
                 if(strcmp("AgeTracerBinEnd",tag[i])==0) {*((double *)addr[i])=14000.; printf("Tag %s (%s) not set in parameter file: right-edge of last age-tracer bin is at ~t_Hubble (=%g Myr) \n",tag[i],alternate_tag[i],All.AgeTracerBinEnd); continue;}
 #endif
 #endif
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
                 if(strcmp("PBH_MassFraction",tag[i])==0) {*((double *)addr[i])=0.1; printf("Tag %s (%s) not set in parameter file: defaulting to a fraction of PBHs in DM particles of (=%g) \n",tag[i],alternate_tag[i],All.PBH_MassFraction); continue;}
                 if(strcmp("PBH_InitialMass",tag[i])==0) {*((double *)addr[i])=1.0e15; printf("Tag %s (%s) not set in parameter file: defaulting to an initial PBH mass relevant at z~99 of (=%g grams) \n",tag[i],alternate_tag[i],All.PBH_InitialMass); continue;}
 #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
@@ -2649,7 +2648,7 @@ void read_parameter_file(char *fname)
 #endif
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
     if(All.PBH_MassFraction < 0.0 || All.PBH_MassFraction > 1.0)
     {
         if(ThisTask == 0) {printf("PBH_MassFraction must be between 0 and 1 (inclusive)\n"); endrun(1);}
@@ -2658,6 +2657,9 @@ void read_parameter_file(char *fname)
     {
         if(ThisTask == 0) {printf("PBH_InitialMass must be > 0\n"); endrun(1);}
     }
+#if (PBH_EVAPORATION_FEEDBACK == 2)
+    if(ThisTask == 0) {printf("PBH_EVAPORATION_FEEDBACK=2 (donor-based) is not implemented yet: use PBH_EVAPORATION_FEEDBACK=1\n"); endrun(1);}
+#endif
 #endif
 
 

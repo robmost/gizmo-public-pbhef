@@ -32,7 +32,7 @@
  */
 
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 
 struct kernel_density /*! defines a number of useful variables we will use below */
 {
@@ -46,9 +46,9 @@ int dm_density_isactive(int n)
 
     if(P[n].TimeBin < 0) {return 0;}
     if(P[n].Mass <= 0) {return 0;}
-#if defined(PBH_EVAPORATION_FEEDBACK)
+#if (PBH_EVAPORATION_FEEDBACK == 1)
     if(P[n].Type != 0){return 0;}  /* only gas particles */
-#elif defined(PBH_EVAPORATION_FEEDBACK_DM)
+#elif (PBH_EVAPORATION_FEEDBACK == 2)
 	if(P[n].Type != 1){return 0;}  /* only DM particles */
 #endif
     return 1;
@@ -582,4 +582,4 @@ void get_current_pbh_mass(double a, double *mass_out)
 #endif
 }
 
-#endif /* #if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM) */
+#endif /* PBH_EVAPORATION_FEEDBACK */

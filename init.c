@@ -758,7 +758,7 @@ void init(void)
 
     if(RestartFlag != 3 && RestartFlag != 5) {setup_smoothinglengths();}
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 	if(RestartFlag != 3 && RestartFlag != 5) {dm_setup_smoothinglengths();}
 #endif
 
@@ -1244,7 +1244,7 @@ void disp_setup_smoothinglengths(void)
 #endif
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 void dm_setup_smoothinglengths(void)
 {
     int i;

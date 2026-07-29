@@ -215,6 +215,16 @@
 
 #include "eos/eos.h"
 
+#ifdef PBH_EVAPORATION_FEEDBACK /* PBH evaporation feedback: =1 is the receiver-based method, =2 the donor-based method. a valueless definition is read as =1, so older config files keep working */
+#if !CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(PBH_EVAPORATION_FEEDBACK)
+#undef PBH_EVAPORATION_FEEDBACK
+#define PBH_EVAPORATION_FEEDBACK 1
+#endif
+#if (PBH_EVAPORATION_FEEDBACK < 1) || (PBH_EVAPORATION_FEEDBACK > 2)
+#error "PBH_EVAPORATION_FEEDBACK must be set to 1 (receiver-based) or 2 (donor-based)"
+#endif
+#endif
+
 
 #if defined(FLAG_NOT_IN_PUBLIC_CODE) || defined(DM_FUZZY)
 #define AGS_FACE_CALCULATION_IS_ACTIVE
@@ -2504,7 +2514,7 @@ extern struct global_data_all_processes
   double BH_fb_period;
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
   double PBH_MassFraction;           /*!< Mass fraction of dark matter in primordial black holes */
   double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
   double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */
@@ -2870,7 +2880,7 @@ extern ALIGN(32) struct particle_data
     MyLongDouble NV_T[3][3];                                           /*!< holds the tensor used for gradient estimation */
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 	MyDouble DensityDM;		           /*!< current DM mass density of particle */
     MyFloat HsmlDM;			           /*!< PBH (DM) search radius around particle for neighbors/interactions */
     MyFloat NumNgbDM;                  /*!< PBH (DM) neighbor number around particle */
@@ -3584,7 +3594,7 @@ extern struct io_header
                                      All other values, including 0 are interpreted as "don't know" for backwards compatability.
                                  */
   float lpt_scalingfactor;      /*!< scaling factor for 2lpt initial conditions */
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
   double PBH_CurrentMass;       /*!< Current PBH mass at the time of snapshot */
   char fill[10];		        /*!< fills to 256 Bytes */
 #else

@@ -149,7 +149,7 @@ void drift_particle(int i, integertime time1)
     if(divv_fac > +divv_fac_max) divv_fac = +divv_fac_max;
     if(divv_fac < -divv_fac_max) divv_fac = -divv_fac_max;
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
     double divv_facDM = P[i].Particle_DivVelDM * dt_drift;
     double divv_fac_maxDM = 0.3; //1.5; // don't allow Hsml to change too much in predict-step //
     if(divv_facDM > +divv_fac_maxDM) divv_facDM = +divv_fac_maxDM;
@@ -213,7 +213,7 @@ void drift_particle(int i, integertime time1)
 
             SphP[i].Density *= exp(-divv_fac);
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
 	    	P[i].DensityDM *= exp(-divv_facDM);
 #endif
             double etmp = SphP[i].InternalEnergyPred + SphP[i].DtInternalEnergy * dt_entr;

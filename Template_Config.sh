@@ -442,8 +442,7 @@
 
 ####################################################################################################
 #--------------------------------------- PBH Evaporation Feedback Module
-#PBH_EVAPORATION_FEEDBACK               # Enable primordial black hole evaporation feedback [receiver-based: energy injection calculated at gas particle location]
-#PBH_EVAPORATION_FEEDBACK_DM            # Enable primordial black hole evaporation feedback [donor-based: energy injection calculated at dm particle location] (Future extension)
+#PBH_EVAPORATION_FEEDBACK=1             # Enable primordial black hole evaporation feedback. =1: receiver-based, energy injection calculated at the gas particle locations. =2: donor-based, energy injection calculated at the dm particle locations (future extension). Setting this without a value is read as =1
 #DEBUG_PBH_EVAPORATION_FEEDBACK         # Enable debug outputs for primordial black hole evaporation feedback module. This will output additional information to help verify the heating rates and energy injection from PBHEF.
 #PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS  # Enable primordial black hole evaporation feedback without explicitly calculating the mass loss from PBHs (in the specific internal energy only).
 ####################################################################################################
