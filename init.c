@@ -210,7 +210,7 @@ void init(void)
         for(j = 0; j < 3; j++) {P[i].GravAccel[j] = 0;}
 
 #ifdef PBH_EVAPORATION_FEEDBACK /* these live on every particle type, so they must be zeroed here and not in the gas loop below */
-        P[i].DensityDM = 0; P[i].HsmlDM = 0; P[i].NumNgbDM = 0; P[i].DhsmlNgbFactorDM = 0; P[i].Particle_DivVelDM = 0;
+        P[i].DensityPBH = 0; P[i].HsmlPBH = 0; P[i].NumNgbPBH = 0; P[i].DhsmlNgbFactorPBH = 0; P[i].Particle_DivVelPBH = 0;
 #endif
 
 #ifdef COMPUTE_TIDAL_TENSOR_IN_GRAVTREE /* init tidal tensor for first output (not used for calculation) */
@@ -1255,7 +1255,7 @@ void dm_setup_smoothinglengths(void)
     {
         for(i = 0; i < NumPart; i++)
         {
-            P[i].HsmlDM = PPP[i].Hsml; /* guess that the dm smoothing lengths are initially the same as gas smoothing length */
+            P[i].HsmlPBH = PPP[i].Hsml; /* guess that the dm smoothing lengths are initially the same as gas smoothing length */
         }
     }
 

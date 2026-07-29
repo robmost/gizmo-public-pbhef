@@ -2880,11 +2880,11 @@ extern ALIGN(32) struct particle_data
 #endif
 
 #ifdef PBH_EVAPORATION_FEEDBACK
-	MyDouble DensityDM;		           /*!< current DM mass density of particle */
-    MyFloat HsmlDM;			           /*!< PBH (DM) search radius around particle for neighbors/interactions */
-    MyFloat NumNgbDM;                  /*!< PBH (DM) neighbor number around particle */
-	MyFloat DhsmlNgbFactorDM;		   /*!< PBH (DM) correction factor needed for varying kernel lengths */
-    MyFloat Particle_DivVelDM; 		   /*!< PBH (DM) divergence of velocity */
+	MyDouble DensityPBH;		           /*!< current DM mass density of particle */
+    MyFloat HsmlPBH;			           /*!< PBH (DM) search radius around particle for neighbors/interactions */
+    MyFloat NumNgbPBH;                  /*!< PBH (DM) neighbor number around particle */
+	MyFloat DhsmlNgbFactorPBH;		   /*!< PBH (DM) correction factor needed for varying kernel lengths */
+    MyFloat Particle_DivVelPBH; 		   /*!< PBH (DM) divergence of velocity */
 #endif
 
 }

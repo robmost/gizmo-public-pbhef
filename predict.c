@@ -207,10 +207,10 @@ void drift_particle(int i, integertime time1)
             SphP[i].Density *= exp(-divv_fac);
 
 #if (PBH_EVAPORATION_FEEDBACK == 1)
-            double divv_facDM = P[i].Particle_DivVelDM * dt_drift; // only gas cells carry a DM density in this mode, so this is computed here rather than for every particle type
+            double divv_facDM = P[i].Particle_DivVelPBH * dt_drift; // only gas cells carry a DM density in this mode, so this is computed here rather than for every particle type
             if(divv_facDM > +divv_fac_max) {divv_facDM = +divv_fac_max;}
             if(divv_facDM < -divv_fac_max) {divv_facDM = -divv_fac_max;}
-            P[i].DensityDM *= exp(-divv_facDM);
+            P[i].DensityPBH *= exp(-divv_facDM);
 #endif
             double etmp = SphP[i].InternalEnergyPred + SphP[i].DtInternalEnergy * dt_entr;
 #if defined(RADTRANSFER) && defined(RT_EVOLVE_ENERGY) /* block here to deal with tricky cases where radiation energy density is -much- larger than thermal */

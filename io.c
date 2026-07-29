@@ -1802,7 +1802,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
         for(n = 0; n < pc; pindex++) {
             if(P[pindex].Type == type)
             {
-                *fp++ = P[pindex].DensityDM;
+                *fp++ = P[pindex].DensityPBH;
                 n++;
             }
         }
@@ -4170,7 +4170,7 @@ void get_dataset_name(enum iofields blocknr, char *buf)
             strcpy(buf, "DynamicErrorDefault");
             break;
         case IO_DENSDM:
-            strcpy(buf, "DensityDM");
+            strcpy(buf, "DensityPBH");
             break;
 		case IO_PBHEF_Dtu:
             strcpy(buf, "PBHEF_Dtu");

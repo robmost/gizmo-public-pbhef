@@ -790,7 +790,7 @@ void hydro_final_operations_and_cleanup(void)
 
 
 #if (PBH_EVAPORATION_FEEDBACK == 1) /* Done after the hydro loop */
-            double dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // dimensionless ratio of DM density to gas density
+            double dm_dens_over_gas_dens = P[i].DensityPBH / SphP[i].Density; // dimensionless ratio of DM density to gas density
             double heat_source = pbhef_heating_prefactor * dm_dens_over_gas_dens;
 
             // Add internal energy created by PBH evaporation
@@ -802,7 +802,7 @@ void hydro_final_operations_and_cleanup(void)
                 printf(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, atime=%g, InternalEnergy=%g, rhoDM=%g, rho=%g,\n"
                        "                            dm_dens_over_gas_dens=%g, f=%g, C=%g, alpha=%g,\n"
                        "                            PBHm0=%g, PBHm(t)=%g, heat_source=%g, PBHEF_Dtu=%g, DtInternalEnergy=%g\n",
-                  i, P[i].Type, (unsigned long long) P[i].ID, All.cf_atime, SphP[i].InternalEnergy, P[i].DensityDM*All.cf_a3inv, SphP[i].Density*All.cf_a3inv,
+                  i, P[i].Type, (unsigned long long) P[i].ID, All.cf_atime, SphP[i].InternalEnergy, P[i].DensityPBH*All.cf_a3inv, SphP[i].Density*All.cf_a3inv,
                   dm_dens_over_gas_dens, All.PBH_MassFraction, All.PBH_EvaporationConstant, All.PBH_Alpha,
                   All.PBH_InitialMass, current_pbh_mass, heat_source, SphP[i].PBHEF_Dtu, SphP[i].DtInternalEnergy);
                 fflush(stdout);
