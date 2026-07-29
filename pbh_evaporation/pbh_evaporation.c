@@ -533,6 +533,51 @@ void init_pbh_mass_evolution(void)
 #endif
 }
 
+#if (PBH_EVAPORATION_FEEDBACK == 1)
+/*! Constant part of the receiver-based heating rate. The rate per unit gas mass is
+ *  f0 * (rho_dm/rho_gas) * C * alpha / (m0 * m(t)^2), and everything except the local density ratio is the
+ *  same for every cell on a given step, so this is evaluated once per step rather than once per cell.
+ *  The power of m(t) is -2 rather than -3 because the number of black holes is conserved as they lose
+ *  mass, so the mass fraction in black holes, f(t), itself scales as m(t)/m0.
+ */
+double pbh_evaporation_heating_prefactor(void)
+{
+    if(!pbh_evaporation_is_active()) {return 0;}
+    double current_pbh_mass; get_current_pbh_mass(All.Time, &current_pbh_mass);
+    return All.PBH_MassFraction * All.PBH_EvaporationConstant * All.PBH_Alpha / (All.PBH_InitialMass * current_pbh_mass * current_pbh_mass);
+}
+
+
+/*! Receiver-based energy injection for a single gas cell: adds the PBH evaporation heating to its internal
+ *  energy rate. Called from hydro_final_operations_and_cleanup(), which must have converted
+ *  DtInternalEnergy to specific energy units first, and which zeroes it again for cells that are frozen or
+ *  decoupled further down the same loop.
+ */
+void pbh_evaporation_inject(int i, double heating_prefactor)
+{
+    if(SphP[i].Density <= 0) {return;}
+    double dm_dens_over_gas_dens = P[i].DensityPBH / SphP[i].Density; // dimensionless ratio of DM density to gas density
+    double heat_source = heating_prefactor * dm_dens_over_gas_dens;
+
+    SphP[i].DtInternalEnergy += heat_source; // add internal energy created by PBH evaporation
+    SphP[i].PBHEF_Dtu += heat_source;
+
+#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+    if(P[i].ID == All.PBH_EnergyID) {
+        double current_pbh_mass; get_current_pbh_mass(All.Time, &current_pbh_mass);
+        printf(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, atime=%g, InternalEnergy=%g, rhoDM=%g, rho=%g,\n"
+               "                            dm_dens_over_gas_dens=%g, f=%g, C=%g, alpha=%g,\n"
+               "                            PBHm0=%g, PBHm(t)=%g, heat_source=%g, PBHEF_Dtu=%g, DtInternalEnergy=%g\n",
+          i, P[i].Type, (unsigned long long) P[i].ID, All.cf_atime, SphP[i].InternalEnergy, P[i].DensityPBH*All.cf_a3inv, SphP[i].Density*All.cf_a3inv,
+          dm_dens_over_gas_dens, All.PBH_MassFraction, All.PBH_EvaporationConstant, All.PBH_Alpha,
+          All.PBH_InitialMass, current_pbh_mass, heat_source, SphP[i].PBHEF_Dtu, SphP[i].DtInternalEnergy);
+        fflush(stdout);
+    }
+#endif
+}
+#endif
+
+
 /*! Returns 0 if the PBH evaporation heating rate is identically zero for this step, so that callers can
  *  skip the DM neighbour search and the energy injection altogether. This happens if the module is enabled
  *  but given a zero PBH mass fraction, or once the black holes have fully evaporated. Note that the DM

@@ -663,13 +663,7 @@ void hydro_final_operations_and_cleanup(void)
     int i,k;
 
 #if (PBH_EVAPORATION_FEEDBACK == 1)
-    /* everything in the PBH heating rate except the local density ratio is the same for every cell on this
-       step, so evaluate it once here. the rate per unit gas mass is
-       f0 * (rho_dm/rho_gas) * C * alpha / (m0 * m(t)^2), where the m(t)^-2 (rather than m(t)^-3) comes from
-       the number of black holes being conserved as they lose mass, i.e. f(t) scaling as m(t)/m0 */
-    double current_pbh_mass, pbhef_heating_prefactor = 0;
-    get_current_pbh_mass(All.Time, &current_pbh_mass);
-    if(current_pbh_mass > 0) {pbhef_heating_prefactor = All.PBH_MassFraction * All.PBH_EvaporationConstant * All.PBH_Alpha / (All.PBH_InitialMass * current_pbh_mass * current_pbh_mass);}
+    double pbhef_heating_prefactor = pbh_evaporation_heating_prefactor(); /* the same for every cell on this step */
 #endif
 
 
@@ -790,24 +784,7 @@ void hydro_final_operations_and_cleanup(void)
 
 
 #if (PBH_EVAPORATION_FEEDBACK == 1) /* Done after the hydro loop */
-            double dm_dens_over_gas_dens = P[i].DensityPBH / SphP[i].Density; // dimensionless ratio of DM density to gas density
-            double heat_source = pbhef_heating_prefactor * dm_dens_over_gas_dens;
-
-            // Add internal energy created by PBH evaporation
-            SphP[i].DtInternalEnergy += heat_source;
-			SphP[i].PBHEF_Dtu += heat_source;
-
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
-            if (P[i].ID == All.PBH_EnergyID) {
-                printf(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, atime=%g, InternalEnergy=%g, rhoDM=%g, rho=%g,\n"
-                       "                            dm_dens_over_gas_dens=%g, f=%g, C=%g, alpha=%g,\n"
-                       "                            PBHm0=%g, PBHm(t)=%g, heat_source=%g, PBHEF_Dtu=%g, DtInternalEnergy=%g\n",
-                  i, P[i].Type, (unsigned long long) P[i].ID, All.cf_atime, SphP[i].InternalEnergy, P[i].DensityPBH*All.cf_a3inv, SphP[i].Density*All.cf_a3inv,
-                  dm_dens_over_gas_dens, All.PBH_MassFraction, All.PBH_EvaporationConstant, All.PBH_Alpha,
-                  All.PBH_InitialMass, current_pbh_mass, heat_source, SphP[i].PBHEF_Dtu, SphP[i].DtInternalEnergy);
-                fflush(stdout);
-             }
-#endif
+            pbh_evaporation_inject(i, pbhef_heating_prefactor); /* add internal energy created by PBH evaporation */
 #endif
 
 

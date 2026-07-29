@@ -1059,6 +1059,8 @@ int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodeco
 int dm_density_isactive(int n);
 double dm_return_maxhsml(int i);
 int pbh_evaporation_is_active(void);
+double pbh_evaporation_heating_prefactor(void);
+void pbh_evaporation_inject(int i, double heating_prefactor);
 double calculate_alpha(double m_pbh_initial_grams);
 void init_pbh_mass_evolution(void);
 void get_current_pbh_mass(double a, double *mass_out);
