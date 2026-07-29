@@ -617,6 +617,7 @@ void set_units(void)
 
     // Calculate the PBH evaporation rate alpha. Alpha is considered dimensionless in the Mosbech et al. (2022) paper.
     // Calculate the PBH evaraporation rate alpha BEFORE converting the initial mass to code units.
+    double initial_mass_grams = All.PBH_InitialMass; // keep the mass in grams for the messages below
     All.PBH_Alpha = calculate_alpha(All.PBH_InitialMass);
 
     // Convert initial mass in code units
@@ -627,15 +628,21 @@ void set_units(void)
     double constant_cgs = PLANCK_HBAR_CGS * pow(C_LIGHT_CGS, 6.0) / pow(GRAVITY_G_CGS, 2.0);
     All.PBH_EvaporationConstant = constant_cgs / (pow(UNIT_MASS_IN_CGS, 3.0) * pow(UNIT_LENGTH_IN_CGS, 2.0) * pow(UNIT_TIME_IN_CGS, -3.0));
 
-    // If alpha is not strictly positive, then there's no heating from this mechanism.
-    if(All.PBH_Alpha <= 0.0 && ThisTask == 0)
+    // Alpha must be strictly positive: the Mosbech et al. (2022) fit turns negative above about 2.4e17 grams,
+    //   which would make the module cool the gas and make the black holes gain mass instead of evaporate.
+    if(All.PBH_Alpha <= 0.0)
     {
-      printf("Alpha coefficient calculated as %g (<=0) using PBH_InitialMass = %g grams.\n", All.PBH_Alpha, All.PBH_InitialMass);
-      printf("PBHEF heating will be zero for this configuration of PBH initial mass.\n");
+      if(ThisTask == 0)
+      {
+        printf("Alpha coefficient calculated as %g (<=0) using PBH_InitialMass = %g grams.\n", All.PBH_Alpha, initial_mass_grams);
+        printf("The fit used here is only valid where it returns a positive alpha: choose a PBH_InitialMass below about 2.4e17 grams.\n");
+      }
+      endrun(1);
     }
 
     if(ThisTask == 0)
     {
+      printf("PBH_InitialMass (grams): %g\n", initial_mass_grams);
       printf("PBH_InitialMass (code units): %g\n", All.PBH_InitialMass);
       printf("PBH_EvaporationConstant (cgs): %g\n", constant_cgs);
       printf("PBH_EvaporationConstant (code units): %g\n", All.PBH_EvaporationConstant);
