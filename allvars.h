@@ -215,6 +215,16 @@
 
 #include "eos/eos.h"
 
+#ifdef PBH_EVAPORATION_FEEDBACK /* PBH evaporation feedback: =1 is the receiver-based method, =2 the donor-based method. a valueless definition is read as =1, so older config files keep working */
+#if !CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(PBH_EVAPORATION_FEEDBACK)
+#undef PBH_EVAPORATION_FEEDBACK
+#define PBH_EVAPORATION_FEEDBACK 1
+#endif
+#if (PBH_EVAPORATION_FEEDBACK < 1) || (PBH_EVAPORATION_FEEDBACK > 2)
+#error "PBH_EVAPORATION_FEEDBACK must be set to 1 (receiver-based) or 2 (donor-based)"
+#endif
+#endif
+
 
 #if defined(FLAG_NOT_IN_PUBLIC_CODE) || defined(DM_FUZZY)
 #define AGS_FACE_CALCULATION_IS_ACTIVE
@@ -1340,6 +1350,7 @@ typedef unsigned long long peano1D;
 #endif
 #define MAXLEN_OUTPUTLIST 1201	/*!< maxmimum number of entries in output list */
 #define DRIFT_TABLE_LENGTH 1000	/*!< length of the lookup table used to hold the drift and kick factors */
+#define PBH_TABLE_SIZE 1000     /*!< length of the lookup table used to hold the elapsed cosmic time at a given scale factor, for the PBH mass loss */
 #define MAXITER 150
 
 #ifndef LINKLENGTH
@@ -1477,12 +1488,12 @@ typedef MyDouble MyBigFloat;
 #define CPU_DUMMY08       55
 #define CPU_DUMMY09       56
 #define CPU_DUMMY10       57
-#define CPU_PBHEFDMDENSCOMPUTE  58
-#define CPU_PBHEFDMDENSWAIT     59
-#define CPU_PBHEFDMDENSCOMM     60
-#define CPU_PBHEFDMDENSMISC     61
+#define CPU_PBHEFDMDENSCOMPUTE  48  /* these re-use the spare slots above, to keep CPU_PARTS unchanged */
+#define CPU_PBHEFDMDENSWAIT     49
+#define CPU_PBHEFDMDENSCOMM     50
+#define CPU_PBHEFDMDENSMISC     51
 
-#define CPU_PARTS          62  /* this gives the number of parts above (must be last) */
+#define CPU_PARTS          58  /* this gives the number of parts above (must be last) */
 
 #define CPU_STRING_LEN 120
 
@@ -1923,6 +1934,9 @@ extern FILE *FdBhWindDetails;
 #endif
 #endif
 
+#if defined(PBH_EVAPORATION_FEEDBACK) && !defined(PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS)
+extern double PBH_Table_Time[PBH_TABLE_SIZE]; /*! table for the cosmic time elapsed since All.TimeBegin, on a grid uniform in log(a), as for the drift factors above */
+#endif
 extern double DriftTable[DRIFT_TABLE_LENGTH]; /*! table for the cosmological drift factors */
 extern double GravKickTable[DRIFT_TABLE_LENGTH]; /*! table for the cosmological kick factor for gravitational forces */
 extern void *CommBuffer;	/*!< points to communication buffer, which is used at a few places */
@@ -2504,16 +2518,11 @@ extern struct global_data_all_processes
   double BH_fb_period;
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
   double PBH_MassFraction;           /*!< Mass fraction of dark matter in primordial black holes */
   double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
   double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */
   double PBH_Alpha;                  /*!< PBH evaporation rate parameter, alpha, following the analytical fit from Mosbech et al. (2022) */
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
-#define PBH_TABLE_SIZE 1000
-  double PBH_Table_ScaleFactor[PBH_TABLE_SIZE];  /*!< PBH mass loss lookup table, scale factors */
-  double PBH_Table_Mass[PBH_TABLE_SIZE];         /*!< PBH mass loss lookup table, PBH mass at given scale factor */
-#endif
 #ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
   int PBH_EnergyID;                  /*!< ID of the particle to track for energy debugging */
 #endif
@@ -2870,12 +2879,12 @@ extern ALIGN(32) struct particle_data
     MyLongDouble NV_T[3][3];                                           /*!< holds the tensor used for gradient estimation */
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-	MyDouble DensityDM;		           /*!< current DM mass density of particle */
-    MyFloat HsmlDM;			           /*!< PBH (DM) search radius around particle for neighbors/interactions */
-    MyFloat NumNgbDM;                  /*!< PBH (DM) neighbor number around particle */
-	MyFloat DhsmlNgbFactorDM;		   /*!< PBH (DM) correction factor needed for varying kernel lengths */
-    MyFloat Particle_DivVelDM; 		   /*!< PBH (DM) divergence of velocity */
+#ifdef PBH_EVAPORATION_FEEDBACK
+	MyDouble DensityPBH;		           /*!< current DM mass density of particle */
+    MyFloat HsmlPBH;			           /*!< PBH (DM) search radius around particle for neighbors/interactions */
+    MyFloat NumNgbPBH;                  /*!< PBH (DM) neighbor number around particle */
+	MyFloat DhsmlNgbFactorPBH;		   /*!< PBH (DM) correction factor needed for varying kernel lengths */
+    MyFloat Particle_DivVelPBH; 		   /*!< PBH (DM) divergence of velocity */
 #endif
 
 }
@@ -3584,12 +3593,7 @@ extern struct io_header
                                      All other values, including 0 are interpreted as "don't know" for backwards compatability.
                                  */
   float lpt_scalingfactor;      /*!< scaling factor for 2lpt initial conditions */
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-  double PBH_CurrentMass;       /*!< Current PBH mass at the time of snapshot */
-  char fill[10];		        /*!< fills to 256 Bytes */
-#else
   char fill[18];		        /*!< fills to 256 Bytes */
-#endif
   char names[15][2];
 }
 header;				/*!< holds header for snapshot files */

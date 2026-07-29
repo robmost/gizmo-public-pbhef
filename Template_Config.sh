@@ -442,8 +442,12 @@
 
 ####################################################################################################
 #--------------------------------------- PBH Evaporation Feedback Module
-#PBH_EVAPORATION_FEEDBACK               # Enable primordial black hole evaporation feedback [receiver-based: energy injection calculated at gas particle location]
-#PBH_EVAPORATION_FEEDBACK_DM            # Enable primordial black hole evaporation feedback [donor-based: energy injection calculated at dm particle location] (Future extension)
+## Heating of the gas by Hawking radiation from a population of primordial black holes traced by the dark
+##   matter particles, following the dark matter annihilation feedback scheme of List et al. 2019 (MNRAS 489,
+##   4217) with evaporation rates from Mosbech & Picker 2022 (SciPost Phys. 13, 100). The black holes are
+##   monochromatic, and the PBH_MassFraction and PBH_InitialMass parameters are defined at the start of the
+##   run rather than at formation: see the notes in scripts/params.txt before choosing them.
+#PBH_EVAPORATION_FEEDBACK=1             # Enable primordial black hole evaporation feedback. =1: receiver-based, energy injection calculated at the gas particle locations. =2: donor-based, energy injection calculated at the dm particle locations (future extension). Setting this without a value is read as =1
 #DEBUG_PBH_EVAPORATION_FEEDBACK         # Enable debug outputs for primordial black hole evaporation feedback module. This will output additional information to help verify the heating rates and energy injection from PBHEF.
 #PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS  # Enable primordial black hole evaporation feedback without explicitly calculating the mass loss from PBHs (in the specific internal energy only).
 ####################################################################################################

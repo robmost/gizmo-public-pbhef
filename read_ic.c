@@ -682,9 +682,9 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
         case IO_DELAY_TIME_HII:
         case IO_CHIMES_FLUX_G0:
         case IO_CHIMES_FLUX_ION:
-            break;
         case IO_DENSDM:
         case IO_PBHEF_Dtu:
+            break;
         case IO_LASTENTRY:
             endrun(220);
             break;
@@ -966,6 +966,11 @@ void read_file(char *fname, int readTask, int lastTask)
 
 #ifdef SUBFIND
             if(RestartFlag == 2 && blocknr == IO_HSMS) {continue;}
+#endif
+
+#ifdef PBH_EVAPORATION_FEEDBACK /* both are recomputed at the start of every step, so there is nothing to read back */
+            if(RestartFlag == 2 && blocknr == IO_DENSDM) {continue;}
+            if(RestartFlag == 2 && blocknr == IO_PBHEF_Dtu) {continue;}
 #endif
 
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE

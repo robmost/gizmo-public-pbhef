@@ -319,10 +319,6 @@ struct INPUT_STRUCT_NAME
     double DilationFactor;
 #endif
 
-
-#ifdef PBH_EVAPORATION_FEEDBACK
-    MyFloat DensityDM;
-#endif
 }
 *DATAIN_NAME, *DATAGET_NAME;
 
@@ -570,10 +566,6 @@ static inline void particle2in_hydra(struct INPUT_STRUCT_NAME *in, int i, int lo
     in->DilationFactor = return_timestep_dilation_factor(i,0);
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
-    in->DensityDM = P[i].DensityDM;
-#endif
-
 }
 
 
@@ -670,9 +662,8 @@ void hydro_final_operations_and_cleanup(void)
 {
     int i,k;
 
-#ifdef PBH_EVAPORATION_FEEDBACK
-    MyDouble dm_dens_over_gas_dens;
-    MyDouble heat_source;
+#if (PBH_EVAPORATION_FEEDBACK == 1)
+    double pbhef_heating_prefactor = pbh_evaporation_heating_prefactor(); /* the same for every cell on this step */
 #endif
 
 
@@ -792,37 +783,8 @@ void hydro_final_operations_and_cleanup(void)
             // = du/dlna -3*(gamma-1)*u ; then dlna/dt = H(z) =  All.cf_hubble_a //
 
 
-#ifdef PBH_EVAPORATION_FEEDBACK /* Done after the hydro loop */
-            double current_pbh_mass;
-            get_current_pbh_mass(All.Time, &current_pbh_mass);
-
-            dm_dens_over_gas_dens = P[i].DensityDM / SphP[i].Density; // dimensionless ratio of DM density to gas density
-            // Rate scales as m^-2 because f(t) scales as m(t)/m0.
-            // Eq 35: Rate ~ (f0 * rho_dm / rho_gas) * (1/m0) * C * alpha * m(t)^-2
-            if(current_pbh_mass > 0)
-            {
-                heat_source = All.PBH_MassFraction * dm_dens_over_gas_dens * All.PBH_EvaporationConstant * All.PBH_Alpha / (All.PBH_InitialMass * current_pbh_mass * current_pbh_mass);
-            }
-            else
-            {
-                heat_source = 0;
-            }
-
-            // Add internal energy created by PBH evaporation
-            SphP[i].DtInternalEnergy += heat_source;
-			SphP[i].PBHEF_Dtu += heat_source;
-
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
-            if (P[i].ID == All.PBH_EnergyID) {
-                printf(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, atime=%g, InternalEnergy=%g, rhoDM=%g, rho=%g,\n\
-                                       dm_dens_over_gas_dens=%g, f=%g, C=%g, alpha=%g,\n\
-                                       PBHm0=%g, PBHm(t)=%g, heat_source=%g, PBHEF_Dtu=%g, DtInternalEnergy=%g\n",
-                  i, P[i].Type, (unsigned long long) P[i].ID, All.cf_atime, SphP[i].InternalEnergy, P[i].DensityDM*All.cf_a3inv, SphP[i].Density*All.cf_a3inv,
-                  dm_dens_over_gas_dens, All.PBH_MassFraction, All.PBH_EvaporationConstant, All.PBH_Alpha,
-                  All.PBH_InitialMass, current_pbh_mass, heat_source, SphP[i].PBHEF_Dtu, SphP[i].DtInternalEnergy);
-                fflush(stdout);
-             }
-#endif
+#if (PBH_EVAPORATION_FEEDBACK == 1) /* Done after the hydro loop */
+            pbh_evaporation_inject(i, pbhef_heating_prefactor); /* add internal energy created by PBH evaporation */
 #endif
 
 
@@ -1037,7 +999,7 @@ void hydro_force_initial_operations_preloop(void)
             SphP[i].MaxKineticEnergyNgb = MIN_REAL_NUMBER;
 #endif
             SphP[i].DtInternalEnergy = 0; //SphP[i].dInternalEnergy = 0;//manifest-indiv-timestep-debug//
-#ifdef PBH_EVAPORATION_FEEDBACK
+#if (PBH_EVAPORATION_FEEDBACK == 1)
             SphP[i].PBHEF_Dtu = 0; // Reset PBHEF specific energy change rate
 #endif
             for(k=0;k<3;k++) {SphP[i].HydroAccel[k] = 0;} //SphP[i].dMomentum[k] = 0;//manifest-indiv-timestep-debug//
@@ -1088,11 +1050,6 @@ void hydro_force_initial_operations_preloop(void)
                 int kAlf; for(kAlf=0;kAlf<2;kAlf++) {SphP[i].DtCosmicRayAlfvenEnergy[k][kAlf] = 0;}
 #endif
             }
-#endif
-
-// PBH EVAPORATION FEEDBACK (receiver-based approach): zero out SphP[i].PBHEF_Dtu
-#ifdef PBH_EVAPORATION_FEEDBACK
-			SphP[i].PBHEF_Dtu = 0;
 #endif
 
 #ifdef WAKEUP

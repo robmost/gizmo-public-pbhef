@@ -209,6 +209,10 @@ void init(void)
     {
         for(j = 0; j < 3; j++) {P[i].GravAccel[j] = 0;}
 
+#ifdef PBH_EVAPORATION_FEEDBACK /* these live on every particle type, so they must be zeroed here and not in the gas loop below */
+        P[i].DensityPBH = 0; P[i].HsmlPBH = 0; P[i].NumNgbPBH = 0; P[i].DhsmlNgbFactorPBH = 0; P[i].Particle_DivVelPBH = 0;
+#endif
+
 #ifdef COMPUTE_TIDAL_TENSOR_IN_GRAVTREE /* init tidal tensor for first output (not used for calculation) */
         for(j=0;j<3;j++) {int kt; for(kt=0;kt<3;kt++) {P[i].tidal_tensorps[j][kt]=0;}}
 #ifdef ADAPTIVE_GRAVSOFT_FROM_TIDAL_CRITERION
@@ -513,6 +517,10 @@ void init(void)
     {
         SphP[i].InternalEnergyPred = SphP[i].InternalEnergy;
 
+#ifdef PBH_EVAPORATION_FEEDBACK /* zero for every restart mode: get_timestep() can read this before the first hydro loop refills it */
+        SphP[i].PBHEF_Dtu = 0;
+#endif
+
         for(j = 0; j < 3; j++)
         {
             SphP[i].VelPred[j] = P[i].Vel[j];
@@ -591,11 +599,6 @@ void init(void)
 #endif
             SphP[i].Density = -1;
 
-#ifdef PBH_EVAPORATION_FEEDBACK
-            P[i].DensityDM = -1;
-	        P[i].HsmlDM = 0;
-			SphP[i].PBHEF_Dtu = 0;
-#endif
 
 #ifdef COOLING
 #ifndef CHIMES
@@ -758,7 +761,7 @@ void init(void)
 
     if(RestartFlag != 3 && RestartFlag != 5) {setup_smoothinglengths();}
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 	if(RestartFlag != 3 && RestartFlag != 5) {dm_setup_smoothinglengths();}
 #endif
 
@@ -1244,7 +1247,7 @@ void disp_setup_smoothinglengths(void)
 #endif
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 void dm_setup_smoothinglengths(void)
 {
     int i;
@@ -1252,7 +1255,7 @@ void dm_setup_smoothinglengths(void)
     {
         for(i = 0; i < NumPart; i++)
         {
-            P[i].HsmlDM = PPP[i].Hsml; /* guess that the dm smoothing lengths are initially the same as gas smoothing length */
+            P[i].HsmlPBH = PPP[i].Hsml; /* guess that the dm smoothing lengths are initially the same as gas smoothing length */
         }
     }
 

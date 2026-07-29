@@ -1052,12 +1052,18 @@ void grav_accel_jerk(double mass, double dx[3], double dv[3], double accel[3], d
 double eccentric_anomaly(double mean_anomaly, double ecc);
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
 void dm_setup_smoothinglengths(void);
 void dm_density(void);
 int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration);
 int dm_density_isactive(int n);
+double dm_return_maxhsml(int i);
+int pbh_evaporation_is_active(void);
+double pbh_evaporation_heating_prefactor(void);
+void pbh_evaporation_inject(int i, double heating_prefactor);
 double calculate_alpha(double m_pbh_initial_grams);
 void init_pbh_mass_evolution(void);
+double pbh_mass3_decay_rate(void);
+double pbh_elapsed_time(double a);
 void get_current_pbh_mass(double a, double *mass_out);
 #endif

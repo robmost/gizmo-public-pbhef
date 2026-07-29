@@ -1798,11 +1798,11 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
         break;
 
 	case IO_DENSDM:             /* DM mass density of particle */
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
         for(n = 0; n < pc; pindex++) {
             if(P[pindex].Type == type)
             {
-                *fp++ = P[pindex].DensityDM;
+                *fp++ = P[pindex].DensityPBH;
                 n++;
             }
         }
@@ -1810,7 +1810,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
         break;
 
 	case IO_PBHEF_Dtu:         /* energy injection rate due to PBH evaporation */
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
         for(n = 0; n < pc; pindex++) {
             if(P[pindex].Type == type)
             {
@@ -2655,17 +2655,19 @@ long get_particles_in_block(enum iofields blocknr, int *typelist)
             return nsel;
             break;
         case IO_DENSDM:
-			for(i = 0; i < 6; i++) {typelist[i] = 0;}
-#ifdef PBH_EVAPORATION_FEEDBACK
-			typelist[0] = 1;
-			return ngas;
+            for(i = 1; i < 6; i++) {typelist[i] = 0;}
+#if (PBH_EVAPORATION_FEEDBACK == 2)
+            typelist[0] = 0; typelist[1] = 1; /* donor-based: the DM density is evaluated at the DM particles */
+            return header.npart[1];
+#else
+            return ngas; /* receiver-based: the DM density is evaluated at the gas particles */
 #endif
-			break;
+            break;
 
-		case IO_PBHEF_Dtu:
-			for(i = 1; i < 6; i++) {typelist[i] = 0;}
-			return ngas;
-			break;
+        case IO_PBHEF_Dtu:
+            for(i = 1; i < 6; i++) {typelist[i] = 0;}
+            return ngas;
+            break;
 
         case IO_LASTENTRY:
             endrun(216);
@@ -3300,19 +3302,20 @@ int blockpresent(enum iofields blocknr)
             break;
 
         case IO_DENSDM:
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-			return 1;
+#ifdef PBH_EVAPORATION_FEEDBACK
+            return 1;
 #else
-			return 0;
+            return 0;
 #endif
-			break;
+            break;
 
-		case IO_PBHEF_Dtu:
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
-			return 1;
+        case IO_PBHEF_Dtu:
+#ifdef PBH_EVAPORATION_FEEDBACK
+            return 1;
 #else
-			return 0;
+            return 0;
 #endif
+            break;
 
         case IO_LASTENTRY: /* will not occur */
             break;
@@ -4167,7 +4170,7 @@ void get_dataset_name(enum iofields blocknr, char *buf)
             strcpy(buf, "DynamicErrorDefault");
             break;
         case IO_DENSDM:
-            strcpy(buf, "DensityDM");
+            strcpy(buf, "DensityPBH");
             break;
 		case IO_PBHEF_Dtu:
             strcpy(buf, "PBHEF_Dtu");
@@ -5076,17 +5079,20 @@ void write_header_attributes_in_hdf5(hid_t handle)
 #endif
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) || defined(PBH_EVAPORATION_FEEDBACK_DM)
+#ifdef PBH_EVAPORATION_FEEDBACK
     hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "PBH_MassFraction", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
     H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.PBH_MassFraction); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
+    /* write both masses in grams, so they can be compared directly with the PBH_InitialMass parameter */
+    double initial_pbh_mass_grams = All.PBH_InitialMass * UNIT_MASS_IN_CGS;
     hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "PBH_InitialMass", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
-    H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &All.PBH_InitialMass); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
+    H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &initial_pbh_mass_grams); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
 
-    double current_pbh_mass_for_header;
-    get_current_pbh_mass(All.Time, &current_pbh_mass_for_header);
+    double current_pbh_mass_grams;
+    get_current_pbh_mass(All.Time, &current_pbh_mass_grams);
+    current_pbh_mass_grams *= UNIT_MASS_IN_CGS;
 
     hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "PBH_CurrentMass", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
-    H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &current_pbh_mass_for_header); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
+    H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &current_pbh_mass_grams); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
 #endif
 
 }

@@ -149,13 +149,6 @@ void drift_particle(int i, integertime time1)
     if(divv_fac > +divv_fac_max) divv_fac = +divv_fac_max;
     if(divv_fac < -divv_fac_max) divv_fac = -divv_fac_max;
 
-#ifdef PBH_EVAPORATION_FEEDBACK
-    double divv_facDM = P[i].Particle_DivVelDM * dt_drift;
-    double divv_fac_maxDM = 0.3; //1.5; // don't allow Hsml to change too much in predict-step //
-    if(divv_facDM > +divv_fac_maxDM) divv_facDM = +divv_fac_maxDM;
-    if(divv_facDM < -divv_fac_maxDM) divv_facDM = -divv_fac_maxDM;
-#endif
-
 
 #ifdef GRAIN_FLUID
     if((1 << P[i].Type) & (GRAIN_PTYPES))
@@ -213,8 +206,11 @@ void drift_particle(int i, integertime time1)
 
             SphP[i].Density *= exp(-divv_fac);
 
-#ifdef PBH_EVAPORATION_FEEDBACK
-	    	P[i].DensityDM *= exp(-divv_facDM);
+#if (PBH_EVAPORATION_FEEDBACK == 1)
+            double divv_facDM = P[i].Particle_DivVelPBH * dt_drift; // only gas cells carry a DM density in this mode, so this is computed here rather than for every particle type
+            if(divv_facDM > +divv_fac_max) {divv_facDM = +divv_fac_max;}
+            if(divv_facDM < -divv_fac_max) {divv_facDM = -divv_fac_max;}
+            P[i].DensityPBH *= exp(-divv_facDM);
 #endif
             double etmp = SphP[i].InternalEnergyPred + SphP[i].DtInternalEnergy * dt_entr;
 #if defined(RADTRANSFER) && defined(RT_EVOLVE_ENERGY) /* block here to deal with tricky cases where radiation energy density is -much- larger than thermal */
