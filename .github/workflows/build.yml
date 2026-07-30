@@ -1,0 +1,61 @@
+name: build
+
+# Compile the code in the configurations we care about. The point is to catch the combinations that stop
+# compiling, which is what breaks most often here: a field or a function guarded by one macro but used
+# under another shows up immediately in one matrix entry and nowhere else.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false          # one broken configuration should not hide the state of the others
+      matrix:
+        include:
+          - name: no-pbhef
+            flags: ""
+          - name: pbhef-receiver
+            flags: "PBHEF=1"
+          - name: pbhef-donor
+            flags: "PBHEF=2"
+          - name: pbhef-valueless
+            flags: "PBHEF"
+          - name: pbhef-debug
+            flags: "PBHEF=1 PBHEF_DEBUG"
+          - name: pbhef-no-mass-loss
+            flags: "PBHEF=1 PBHEF_NO_MASS_LOSS"
+          # GALSF_SUBGRID_WIND_SCALING=2 is the only setting that compiles galaxy_sf/dm_dispersion_hsml.c
+          # and so the only one that declares SphP[].HsmlDM and SphP[].NumNgbDM. Those used to collide by
+          # name with the PBHEF fields, so this entry is what keeps the two sets apart. GALSF_EFFECTIVE_EQS
+          # is needed as well: FactorSN and EgySpecSN are declared under it but used under
+          # GALSF_SUBGRID_WINDS, so the two cannot be enabled separately.
+          - name: pbhef-with-subgrid-winds
+            flags: "PBHEF=1 COOLING GALSF GALSF_EFFECTIVE_EQS GALSF_SUBGRID_WINDS GALSF_SUBGRID_WIND_SCALING=2"
+
+    name: ${{ matrix.name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            openmpi-bin libopenmpi-dev libgsl-dev libhdf5-dev libfftw3-dev libfftw3-mpi-dev zlib1g-dev
+
+      - name: Write Config.sh for this entry
+        run: |
+          cp .github/ci/Config_base.sh Config_ci.sh
+          for flag in ${{ matrix.flags }}; do echo "$flag" >> Config_ci.sh; done
+          echo 'SYSTYPE="CI"' > Makefile.systype
+          echo "--- Config_ci.sh ---"; cat Config_ci.sh
+
+      - name: Build
+        run: make CONFIG=Config_ci.sh EXEC=GIZMO_ci -j"$(nproc)"
+
+      - name: Check the binary was produced
+        run: test -x GIZMO_ci && ls -l GIZMO_ci

@@ -3,6 +3,13 @@
 GIZMO-PBHEF.code-workspace
 .DS_Store
 
+# Language-server config, index and caches (clangd, ccls). .ccls holds machine-specific include
+# paths, so it is kept local; remove it from this list to share one across machines.
+.ccls
+.ccls-cache/
+.cache/
+compile_commands.json
+
 # Ignore initial condition files and exact solutions in  test problems
 scripts/test_problems/ics/*
 scripts/test_problems/exact_solutions/*
