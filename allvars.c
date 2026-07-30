@@ -285,7 +285,7 @@ FILE *FdBhWindDetails;
 
 
 /*! table for the cosmological drift factors */
-#if defined(PBH_EVAPORATION_FEEDBACK) && !defined(PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS)
+#if defined(PBHEF) && !defined(PBHEF_NO_MASS_LOSS)
 double PBH_Table_Time[PBH_TABLE_SIZE];
 #endif
 double DriftTable[DRIFT_TABLE_LENGTH];

@@ -447,9 +447,9 @@
 ##   4217) with evaporation rates from Mosbech & Picker 2022 (SciPost Phys. 13, 100). The black holes are
 ##   monochromatic, and the PBH_MassFraction and PBH_InitialMass parameters are defined at the start of the
 ##   run rather than at formation: see the notes in scripts/params.txt before choosing them.
-#PBH_EVAPORATION_FEEDBACK=1             # Enable primordial black hole evaporation feedback. =1: receiver-based, energy injection calculated at the gas particle locations. =2: donor-based, energy injection calculated at the dm particle locations (future extension). Setting this without a value is read as =1
-#DEBUG_PBH_EVAPORATION_FEEDBACK         # Enable debug outputs for primordial black hole evaporation feedback module. This will output additional information to help verify the heating rates and energy injection from PBHEF.
-#PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS  # Enable primordial black hole evaporation feedback without explicitly calculating the mass loss from PBHs (in the specific internal energy only).
+#PBHEF=1                          # Enable primordial black hole evaporation feedback. =1: receiver-based, energy injection calculated at the gas particle locations. =2: donor-based, energy injection calculated at the dm particle locations (future extension). Setting this without a value is read as =1
+#PBHEF_DEBUG                      # Enable debug outputs for primordial black hole evaporation feedback module. This will output additional information to help verify the heating rates and energy injection from PBHEF.
+#PBHEF_NO_MASS_LOSS               # Enable primordial black hole evaporation feedback without explicitly calculating the mass loss from PBHs (in the specific internal energy only).
 ####################################################################################################
 
 

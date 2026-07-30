@@ -968,7 +968,7 @@ void read_file(char *fname, int readTask, int lastTask)
             if(RestartFlag == 2 && blocknr == IO_HSMS) {continue;}
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK /* both are recomputed at the start of every step, so there is nothing to read back */
+#ifdef PBHEF /* both are recomputed at the start of every step, so there is nothing to read back */
             if(RestartFlag == 2 && blocknr == IO_DENSDM) {continue;}
             if(RestartFlag == 2 && blocknr == IO_PBHEF_Dtu) {continue;}
 #endif

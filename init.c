@@ -209,7 +209,7 @@ void init(void)
     {
         for(j = 0; j < 3; j++) {P[i].GravAccel[j] = 0;}
 
-#ifdef PBH_EVAPORATION_FEEDBACK /* these live on every particle type, so they must be zeroed here and not in the gas loop below */
+#ifdef PBHEF /* these live on every particle type, so they must be zeroed here and not in the gas loop below */
         P[i].DensityPBH = 0; P[i].HsmlPBH = 0; P[i].NumNgbPBH = 0; P[i].DhsmlNgbFactorPBH = 0; P[i].Particle_DivVelPBH = 0;
 #endif
 
@@ -517,7 +517,7 @@ void init(void)
     {
         SphP[i].InternalEnergyPred = SphP[i].InternalEnergy;
 
-#ifdef PBH_EVAPORATION_FEEDBACK /* zero for every restart mode: get_timestep() can read this before the first hydro loop refills it */
+#ifdef PBHEF /* zero for every restart mode: get_timestep() can read this before the first hydro loop refills it */
         SphP[i].PBHEF_Dtu = 0;
 #endif
 
@@ -761,8 +761,8 @@ void init(void)
 
     if(RestartFlag != 3 && RestartFlag != 5) {setup_smoothinglengths();}
 
-#ifdef PBH_EVAPORATION_FEEDBACK
-	if(RestartFlag != 3 && RestartFlag != 5) {dm_setup_smoothinglengths();}
+#ifdef PBHEF
+	if(RestartFlag != 3 && RestartFlag != 5) {pbhef_setup_smoothinglengths();}
 #endif
 
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
@@ -1247,8 +1247,8 @@ void disp_setup_smoothinglengths(void)
 #endif
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
-void dm_setup_smoothinglengths(void)
+#ifdef PBHEF
+void pbhef_setup_smoothinglengths(void)
 {
     int i;
     if(RestartFlag == 0 || RestartFlag == 2)
@@ -1264,7 +1264,7 @@ void dm_setup_smoothinglengths(void)
         printf("PBHEF: Initializing smoothing lengths for DM density calculations...\n");
     }
 
-	dm_density();
+	pbhef_density();
 }
 #endif
 

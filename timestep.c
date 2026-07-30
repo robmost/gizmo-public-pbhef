@@ -1036,7 +1036,7 @@ integertime get_timestep(int p,		/*!< particle index */
 
 // Additional time step limiter based on the PBHEF injection energy rate, from the propagation of a
 //   Sedov-Taylor blast wave: dt <= (CourantFac*L)^(5/3) * (rho/P_inj)^(1/3)  [List et al. 2019, eq. 9]
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
     if(P[p].Type == 0)
     {
         double PBHEF_energy_rate = SphP[p].PBHEF_Dtu * P[p].Mass; // need to multiply by mass to get energy

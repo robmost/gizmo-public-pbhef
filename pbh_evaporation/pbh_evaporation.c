@@ -19,7 +19,7 @@
  *
  * This file was written by Robert Mostoghiu Paun, for GIZMO, based on Florian List's dark matter annihilation feedback routine.
  *
- * Method 1 - receiver-based approach (activate using PBH_EVAPORATION_FEEDBACK)
+ * Method 1 - receiver-based approach (activate using PBHEF)
   - PBH (traced by N-Body DM particles) density is calculated at each gas particle using smoothing length HsmlPBH
   - from PBH density, PBH evaporation rate at gas particle is calculated
   - energy injection at each gas particle
@@ -33,7 +33,7 @@
  */
 
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
 
 struct kernel_density /*! defines a number of useful variables we will use below */
 {
@@ -42,14 +42,14 @@ struct kernel_density /*! defines a number of useful variables we will use below
 
 
 /*! routine to determine if a given element is actually going to be active in the density subroutines below to calculate HsmlPBH and rhoDM */
-int dm_density_isactive(int n)
+int pbhef_density_isactive(int n)
 {
 
     if(P[n].TimeBin < 0) {return 0;}
     if(P[n].Mass <= 0) {return 0;}
-#if (PBH_EVAPORATION_FEEDBACK == 1)
+#if (PBHEF == 1)
     if(P[n].Type != 0){return 0;}  /* only gas particles */
-#elif (PBH_EVAPORATION_FEEDBACK == 2)
+#elif (PBHEF == 2)
 	if(P[n].Type != 1){return 0;}  /* only DM particles */
 #endif
     return 1;
@@ -59,7 +59,7 @@ int dm_density_isactive(int n)
 /*! largest kernel length allowed for the DM neighbor search. All.MaxHsml defaults to an effectively
     infinite value, which lets a particle in a DM-poor region walk an enormous part of the tree, so we
     also keep the search within a small multiple of the particle's own kernel, as disp_density() does */
-double dm_return_maxhsml(int i)
+double pbhef_return_maxhsml(int i)
 {
     double maxsoft = All.MaxHsml;
     if(PPP[i].Hsml > 0) {maxsoft = DMIN(maxsoft, 10.*PPP[i].Hsml);}
@@ -67,10 +67,10 @@ double dm_return_maxhsml(int i)
 }
 
 
-#define CORE_FUNCTION_NAME dm_density_evaluate /* name of the 'core' function doing the actual inter-neighbor operations. this MUST be defined somewhere as "int CORE_FUNCTION_NAME(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)" */
-#define INPUTFUNCTION_NAME dmkerneldensity_particle2in    /* name of the function which loads the element data needed (for e.g. broadcast to other processors, neighbor search) */
-#define OUTPUTFUNCTION_NAME dmkerneldensity_out2particle  /* name of the function which takes the data returned from other processors and combines it back to the original elements */
-#define CONDITIONFUNCTION_FOR_EVALUATION if(dm_density_isactive(i)) /* function for which elements will be 'active' and allowed to undergo operations. can be a function call, e.g. 'dm_density_is_active(i)', or a direct function call like 'if(P[i].Mass>0)' */
+#define CORE_FUNCTION_NAME pbhef_density_evaluate /* name of the 'core' function doing the actual inter-neighbor operations. this MUST be defined somewhere as "int CORE_FUNCTION_NAME(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)" */
+#define INPUTFUNCTION_NAME pbhef_density_particle2in    /* name of the function which loads the element data needed (for e.g. broadcast to other processors, neighbor search) */
+#define OUTPUTFUNCTION_NAME pbhef_density_out2particle  /* name of the function which takes the data returned from other processors and combines it back to the original elements */
+#define CONDITIONFUNCTION_FOR_EVALUATION if(pbhef_density_isactive(i)) /* function for which elements will be 'active' and allowed to undergo operations. can be a function call, e.g. 'density_is_active(i)', or a direct function call like 'if(P[i].Mass>0)' */
 #include "../system/code_block_xchange_initialize.h" /* pre-define all the ALL_CAPS variables we will use below, so their naming conventions are consistent and they compile together, as well as defining some of the function calls needed */
 
 /*! this structure defines the variables that need to be sent -from- the 'searching' element */
@@ -84,7 +84,7 @@ static struct INPUT_STRUCT_NAME
  *DATAIN_NAME, *DATAGET_NAME;
 
 /*! this subroutine assigns the values to the variables that need to be sent -from- the 'searching' element */
-void dmkerneldensity_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loop_iteration)
+static void pbhef_density_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loop_iteration)
 {
     int k;
     in->HsmlPBH = P[i].HsmlPBH;
@@ -103,7 +103,7 @@ static struct OUTPUT_STRUCT_NAME
  *DATARESULT_NAME, *DATAOUT_NAME;
 
 /*! this subroutine assigns the values to the variables that need to be sent -back to- the 'searching' element */
-void dmkerneldensity_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int mode, int loop_iteration)
+static void pbhef_density_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int mode, int loop_iteration)
 {
     ASSIGN_ADD(P[i].NumNgbPBH, out->NgbPBH, mode);
 	ASSIGN_ADD(P[i].DensityPBH, out->RhoPBH, mode);
@@ -114,11 +114,11 @@ void dmkerneldensity_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int mod
 
 /*! This function represents the core of the initial dm kernel-identification and volume computation. The target particle may either be local, or reside in the communication buffer. */
 /*!   -- this subroutine should in general contain no writes to shared memory. for optimization reasons, a couple of such writes have been included here in the sub-code for some sink routines -- those need to be handled with special care, both for thread safety and because of iteration. in general writes to shared memory in density.c are strongly discouraged -- */
-int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)
+int pbhef_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)
 {
     int j, n, startnode, numngb_inbox, listindex = 0; double r2, h2, u, mass_j;
     struct kernel_density kernel; struct INPUT_STRUCT_NAME local; struct OUTPUT_STRUCT_NAME out; memset(&out, 0, sizeof(struct OUTPUT_STRUCT_NAME));
-    if(mode == 0) {dmkerneldensity_particle2in(&local, target, loop_iteration);} else {local = DATAGET_NAME[target];}
+    if(mode == 0) {pbhef_density_particle2in(&local, target, loop_iteration);} else {local = DATAGET_NAME[target];}
     h2 = local.HsmlPBH * local.HsmlPBH; kernel_hinv(local.HsmlPBH, &kernel.hinv, &kernel.hinv3, &kernel.hinv4);
     if(mode == 0) {startnode = All.MaxPart; /* root node */} else {startnode = DATAGET_NAME[target].NodeList[0]; startnode = Nodes[startnode].u.d.nextnode;    /* open it */}
     while(startnode >= 0) {
@@ -164,7 +164,7 @@ int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodeco
         } // while(startnode)
         if(mode == 1) {listindex++; if(listindex < NODELISTLENGTH) {startnode = DATAGET_NAME[target].NodeList[listindex]; if(startnode >= 0) {startnode = Nodes[startnode].u.d.nextnode; /* open it */}}} /* continue to open leaves if needed */
     }// while(startnode)
-    if(mode == 0) {dmkerneldensity_out2particle(&out, target, 0, loop_iteration);} else {DATARESULT_NAME[target] = out;} /* collects the result at the right place */
+    if(mode == 0) {pbhef_density_out2particle(&out, target, 0, loop_iteration);} else {DATARESULT_NAME[target] = out;} /* collects the result at the right place */
     return 0;
 }
 
@@ -173,7 +173,7 @@ int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodeco
  * and rotation of the velocity field.  This is used then to compute the effective volume of the element in MFM/MFV/SPH-type methods, which is then used to
  * update volumetric quantities like density and pressure. The routine iterates to attempt to find a target kernel size set adaptively -- see code user guide for details
  */
-void dm_density(void)
+void pbhef_density(void)
 {
     /* initialize variables used below, in particlar the structures we need to call throughout the iteration */
     CPU_Step[CPU_PBHEFDMDENSMISC] += measure_time(); double t00_truestart = my_second(); MyFloat *LeftPBH, *RightPBH; double fac, fac_lim, desnumngb, desnumngbdev; long long ntot;
@@ -183,12 +183,12 @@ void dm_density(void)
 
     /* initialize anything we need to about the active particles before their loop */
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i]) {
-        if(dm_density_isactive(i)) {
+        if(pbhef_density_isactive(i)) {
 
             P[i].NumNgbPBH = 0;
             LeftPBH[i] = RightPBH[i] = 0;
 
-            double maxsoft = dm_return_maxhsml(i); /* before the first pass, need to ensure the particles do not exceed the maximum Hsml allowed */
+            double maxsoft = pbhef_return_maxhsml(i); /* before the first pass, need to ensure the particles do not exceed the maximum Hsml allowed */
             if((P[i].HsmlPBH <= 0) || !isfinite(P[i].HsmlPBH) || (P[i].HsmlPBH > 0.99*maxsoft)) {P[i].HsmlPBH = 0.99*maxsoft;} /* don't set to exactly maxsoft because our looping below won't treat this correctly */
 
         }} /* done with intial zero-out loop */
@@ -206,7 +206,7 @@ void dm_density(void)
         for(i = FirstActiveParticle, npleft = 0; i >= 0; i = NextActiveParticle[i])
         {
 
-            if(dm_density_isactive(i))  // This makes sure that for method 1 (2), only gas particles (DM particles) are treated
+            if(pbhef_density_isactive(i))  // This makes sure that for method 1 (2), only gas particles (DM particles) are treated
             {
                 if(P[i].NumNgbPBH > 0)
                 {
@@ -223,7 +223,7 @@ void dm_density(void)
                 P[i].Particle_DivVelPBH *= P[i].DhsmlNgbFactorPBH;
 
                 double minsoft = All.MinHsml;
-                double maxsoft = dm_return_maxhsml(i);
+                double maxsoft = pbhef_return_maxhsml(i);
                 desnumngb = All.DesNumNgb; // Leave it constant
                 /* the DM density only sets a heating rate that is linear in it, and a kernel of DesNumNgb neighbours
                    already carries ~1/sqrt(DesNumNgb) shot noise, so converging to All.MaxNumNgbDeviation (tuned for the
@@ -410,7 +410,7 @@ void dm_density(void)
                     P[i].TimeBin = -P[i].TimeBin - 1; // Mark as inactive
                     redo_particle = 0;
                 }
-            } //  if(dm_density_isactive(i)), active particle
+            } //  if(pbhef_density_isactive(i)), active particle
         } // for(i = FirstActiveParticle, npleft = 0; i >= 0; i = NextActiveParticle[i]), end DM loop
 
         tend = my_second();
@@ -420,7 +420,7 @@ void dm_density(void)
         {
             iter++;
             if(iter > 10) {PRINT_STATUS("PBHEF ngb iteration %d: need to repeat for %d%09d particles", iter, (int) (ntot / 1000000000), (int) (ntot % 1000000000));}
-            if(iter > MAXITER) {printf("PBHEF failed to converge in neighbour iteration in dm_density()\n"); fflush(stdout); endrun(1156);}
+            if(iter > MAXITER) {printf("PBHEF failed to converge in neighbour iteration in pbhef_density()\n"); fflush(stdout); endrun(1156);}
         }
     }
     while(ntot > 0);
@@ -448,7 +448,7 @@ void dm_density(void)
     is an effective coefficient averaged over the life of the black hole and is a function of the -initial- mass alone. That
     is what makes the constant-alpha solution M(t) = (M0^3 - 3 alpha hbar c^4 t / G^2)^(1/3) give the correct lifetime, and
     it is why this must not be re-evaluated on the current mass as the black hole evaporates. */
-double calculate_alpha(double m_pbh_initial_grams)
+double pbhef_calculate_alpha(double m_pbh_initial_grams)
 {
     const double alpha_highmass = 2.011e-4; /* the large-mass limit of the fit */
     double alpha = alpha_highmass;
@@ -467,9 +467,9 @@ double calculate_alpha(double m_pbh_initial_grams)
 }
 
 
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+#ifndef PBHEF_NO_MASS_LOSS
 /*! Integrand for the elapsed cosmic time, dt = da / (a H(a)) */
-double pbh_time_integ(double a, void *param)
+static double pbhef_time_integ(double a, void *param)
 {
     return 1 / (hubble_function(a) * a);
 }
@@ -478,22 +478,22 @@ double pbh_time_integ(double a, void *param)
 
 /*! Rate of change of the cube of the PBH mass, which is a constant.
  *  From dM/dt = -(hbar c^4/G^2) alpha / M^2 we get d(M^3)/dt = -3 (hbar c^4/G^2) alpha, and alpha is held fixed at its
- *  initial-mass value (see calculate_alpha above), so M^3 is exactly linear in cosmic time:
+ *  initial-mass value (see pbhef_calculate_alpha above), so M^3 is exactly linear in cosmic time:
  *      M(t)^3 = M0^3 - 3 (hbar c^4/G^2) alpha t
  *  All.PBH_EvaporationConstant holds hbar c^6/G^2, so divide by c^2 to get hbar c^4/G^2. */
-double pbh_mass3_decay_rate(void)
+double pbhef_mass3_decay_rate(void)
 {
     return 3.0 * (All.PBH_EvaporationConstant / (C_LIGHT_CODE * C_LIGHT_CODE)) * All.PBH_Alpha;
 }
 
 
 /*! Tabulate the cosmic time elapsed since All.TimeBegin as a function of the scale factor. That is the only quantity that
- *  needs tabulating: given it, the PBH mass follows in closed form (see pbh_mass3_decay_rate above), so there is no need
+ *  needs tabulating: given it, the PBH mass follows in closed form (see pbhef_mass3_decay_rate above), so there is no need
  *  to integrate the mass loss itself. The grid is uniform in log(a) and the integration is done with the same GSL routine
  *  and the same conventions as init_drift_table(), so the lookup below mirrors get_drift_factor(). */
-void init_pbh_mass_evolution(void)
+void pbhef_init_mass_evolution(void)
 {
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+#ifndef PBHEF_NO_MASS_LOSS
     if(All.ComovingIntegrationOn)
     {
 #define PBH_WORKSIZE 100000
@@ -501,7 +501,7 @@ void init_pbh_mass_evolution(void)
         double logTimeBegin = log(All.TimeBegin), logTimeMax = log(All.TimeMax);
         gsl_function F; gsl_integration_workspace *workspace;
         workspace = gsl_integration_workspace_alloc(PBH_WORKSIZE);
-        F.function = &pbh_time_integ;
+        F.function = &pbhef_time_integ;
         for(i = 0; i < PBH_TABLE_SIZE; i++)
         {
             gsl_integration_qag(&F, exp(logTimeBegin),
@@ -515,7 +515,7 @@ void init_pbh_mass_evolution(void)
 
     if(ThisTask == 0)
     {
-        double final_mass; get_current_pbh_mass(All.TimeMax, &final_mass);
+        double final_mass; pbhef_get_current_mass(All.TimeMax, &final_mass);
         printf("PBH mass loss: initial mass %g, mass at the end of the run (a=%g) %g [code units]\n", All.PBH_InitialMass, All.TimeMax, final_mass);
         if(final_mass <= 0) {printf("PBH mass loss: the black holes evaporate completely before the end of the run, after which there is no heating.\n");}
         printf("\n");
@@ -525,17 +525,17 @@ void init_pbh_mass_evolution(void)
 #endif
 }
 
-#if (PBH_EVAPORATION_FEEDBACK == 1)
+#if (PBHEF == 1)
 /*! Constant part of the receiver-based heating rate. The rate per unit gas mass is
  *  f0 * (rho_dm/rho_gas) * C * alpha / (m0 * m(t)^2), and everything except the local density ratio is the
  *  same for every cell on a given step, so this is evaluated once per step rather than once per cell.
  *  The power of m(t) is -2 rather than -3 because the number of black holes is conserved as they lose
  *  mass, so the mass fraction in black holes, f(t), itself scales as m(t)/m0.
  */
-double pbh_evaporation_heating_prefactor(void)
+double pbhef_heating_prefactor(void)
 {
-    if(!pbh_evaporation_is_active()) {return 0;}
-    double current_pbh_mass; get_current_pbh_mass(All.Time, &current_pbh_mass);
+    if(!pbhef_is_active()) {return 0;}
+    double current_pbh_mass; pbhef_get_current_mass(All.Time, &current_pbh_mass);
     return All.PBH_MassFraction * All.PBH_EvaporationConstant * All.PBH_Alpha / (All.PBH_InitialMass * current_pbh_mass * current_pbh_mass);
 }
 
@@ -545,7 +545,7 @@ double pbh_evaporation_heating_prefactor(void)
  *  DtInternalEnergy to specific energy units first, and which zeroes it again for cells that are frozen or
  *  decoupled further down the same loop.
  */
-void pbh_evaporation_inject(int i, double heating_prefactor)
+void pbhef_inject(int i, double heating_prefactor)
 {
     if(SphP[i].Density <= 0) {return;}
     double dm_dens_over_gas_dens = P[i].DensityPBH / SphP[i].Density; // dimensionless ratio of DM density to gas density
@@ -554,9 +554,9 @@ void pbh_evaporation_inject(int i, double heating_prefactor)
     SphP[i].DtInternalEnergy += heat_source; // add internal energy created by PBH evaporation
     SphP[i].PBHEF_Dtu += heat_source;
 
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF_DEBUG
     if(P[i].ID == All.PBH_EnergyID) {
-        double current_pbh_mass; get_current_pbh_mass(All.Time, &current_pbh_mass);
+        double current_pbh_mass; pbhef_get_current_mass(All.Time, &current_pbh_mass);
         printf(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, atime=%g, InternalEnergy=%g, rhoDM=%g, rho=%g,\n"
                "                            dm_dens_over_gas_dens=%g, f=%g, C=%g, alpha=%g,\n"
                "                            PBHm0=%g, PBHm(t)=%g, heat_source=%g, PBHEF_Dtu=%g, DtInternalEnergy=%g\n",
@@ -575,11 +575,11 @@ void pbh_evaporation_inject(int i, double heating_prefactor)
  *  but given a zero PBH mass fraction, or once the black holes have fully evaporated. Note that the DM
  *  density is then left at its last computed value rather than being updated.
  */
-int pbh_evaporation_is_active(void)
+int pbhef_is_active(void)
 {
     if(All.PBH_MassFraction <= 0) {return 0;}
     if(All.PBH_Alpha <= 0) {return 0;}
-    double current_pbh_mass; get_current_pbh_mass(All.Time, &current_pbh_mass);
+    double current_pbh_mass; pbhef_get_current_mass(All.Time, &current_pbh_mass);
     if(current_pbh_mass <= 0) {return 0;}
     return 1;
 }
@@ -588,9 +588,9 @@ int pbh_evaporation_is_active(void)
 /*! Elapsed cosmic time since All.TimeBegin, at scale factor a. In a non-cosmological run All.Time already is the time,
  *  so this is just the difference. In a cosmological run it comes from the table built above, using the same log(a)
  *  indexing as get_drift_factor(). */
-double pbh_elapsed_time(double a)
+double pbhef_elapsed_time(double a)
 {
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+#ifndef PBHEF_NO_MASS_LOSS
     if(!All.ComovingIntegrationOn) {return DMAX(a - All.TimeBegin, 0);}
 
     double logTimeBegin = log(All.TimeBegin), logTimeMax = log(All.TimeMax);
@@ -608,14 +608,14 @@ double pbh_elapsed_time(double a)
 
 /*! Current PBH mass. M^3 is exactly linear in cosmic time for a fixed alpha, so this is evaluated in closed form rather
  *  than interpolated: only the time itself comes from a table. A black hole that has evaporated returns a mass of zero. */
-void get_current_pbh_mass(double a, double *mass_out)
+void pbhef_get_current_mass(double a, double *mass_out)
 {
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
-    double mass3 = All.PBH_InitialMass * All.PBH_InitialMass * All.PBH_InitialMass - pbh_mass3_decay_rate() * pbh_elapsed_time(a);
+#ifndef PBHEF_NO_MASS_LOSS
+    double mass3 = All.PBH_InitialMass * All.PBH_InitialMass * All.PBH_InitialMass - pbhef_mass3_decay_rate() * pbhef_elapsed_time(a);
     if(mass3 <= 0) {*mass_out = 0;} else {*mass_out = cbrt(mass3);}
 #else
     *mass_out = All.PBH_InitialMass;
 #endif
 }
 
-#endif /* PBH_EVAPORATION_FEEDBACK */
+#endif /* PBHEF */

@@ -662,8 +662,8 @@ void hydro_final_operations_and_cleanup(void)
 {
     int i,k;
 
-#if (PBH_EVAPORATION_FEEDBACK == 1)
-    double pbhef_heating_prefactor = pbh_evaporation_heating_prefactor(); /* the same for every cell on this step */
+#if (PBHEF == 1)
+    double heating_prefactor = pbhef_heating_prefactor(); /* the same for every cell on this step */
 #endif
 
 
@@ -783,8 +783,8 @@ void hydro_final_operations_and_cleanup(void)
             // = du/dlna -3*(gamma-1)*u ; then dlna/dt = H(z) =  All.cf_hubble_a //
 
 
-#if (PBH_EVAPORATION_FEEDBACK == 1) /* Done after the hydro loop */
-            pbh_evaporation_inject(i, pbhef_heating_prefactor); /* add internal energy created by PBH evaporation */
+#if (PBHEF == 1) /* Done after the hydro loop */
+            pbhef_inject(i, heating_prefactor); /* add internal energy created by PBH evaporation */
 #endif
 
 
@@ -999,7 +999,7 @@ void hydro_force_initial_operations_preloop(void)
             SphP[i].MaxKineticEnergyNgb = MIN_REAL_NUMBER;
 #endif
             SphP[i].DtInternalEnergy = 0; //SphP[i].dInternalEnergy = 0;//manifest-indiv-timestep-debug//
-#if (PBH_EVAPORATION_FEEDBACK == 1)
+#if (PBHEF == 1)
             SphP[i].PBHEF_Dtu = 0; // Reset PBHEF specific energy change rate
 #endif
             for(k=0;k<3;k++) {SphP[i].HydroAccel[k] = 0;} //SphP[i].dMomentum[k] = 0;//manifest-indiv-timestep-debug//
