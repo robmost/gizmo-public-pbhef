@@ -784,7 +784,7 @@ void hydro_final_operations_and_cleanup(void)
 
 
 #if (PBHEF == 1) /* Done after the hydro loop */
-            pbhef_inject(i, heating_prefactor); /* add internal energy created by PBH evaporation */
+            pbhef_receiver_inject(i, heating_prefactor); /* add internal energy created by PBH evaporation */
 #endif
 
 

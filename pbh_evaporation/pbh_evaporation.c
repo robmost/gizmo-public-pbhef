@@ -570,7 +570,7 @@ double pbhef_prefactor_cached(void)
  *  DtInternalEnergy to specific energy units first, and which zeroes it again for cells that are frozen or
  *  decoupled further down the same loop.
  */
-void pbhef_inject(int i, double heating_prefactor)
+void pbhef_receiver_inject(int i, double heating_prefactor)
 {
     if(SphP[i].Density <= 0) {return;}
     double dm_dens_over_gas_dens = P[i].DensityPBH / SphP[i].Density; // dimensionless ratio of DM density to gas density
