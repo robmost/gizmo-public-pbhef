@@ -211,6 +211,9 @@ void init(void)
 
 #ifdef PBHEF /* these live on every particle type, so they must be zeroed here and not in the gas loop below */
         P[i].DensityPBH = 0; P[i].HsmlPBH = 0; P[i].NumNgbPBH = 0; P[i].DhsmlNgbFactorPBH = 0; P[i].Particle_DivVelPBH = 0;
+#if (PBHEF == 2)
+        P[i].PBHEF_MaxTimebin = TIMEBINS;
+#endif
 #endif
 
 #ifdef COMPUTE_TIDAL_TENSOR_IN_GRAVTREE /* init tidal tensor for first output (not used for calculation) */
@@ -519,6 +522,9 @@ void init(void)
 
 #ifdef PBHEF /* zero for every restart mode: get_timestep() can read this before the first hydro loop refills it */
         SphP[i].PBHEF_Dtu = 0;
+#if (PBHEF == 2)
+        {int b; for(b = 0; b < TIMEBINS; b++) {SphP[i].PBHEF_DtuBin[b] = 0;}}
+#endif
 #endif
 
         for(j = 0; j < 3; j++)

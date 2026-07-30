@@ -2885,6 +2885,9 @@ extern ALIGN(32) struct particle_data
     MyFloat NumNgbPBH;                  /*!< PBH (DM) neighbor number around particle */
 	MyFloat DhsmlNgbFactorPBH;		   /*!< PBH (DM) correction factor needed for varying kernel lengths */
     MyFloat Particle_DivVelPBH; 		   /*!< PBH (DM) divergence of velocity */
+#if (PBHEF == 2)
+    int PBHEF_MaxTimebin;              /*!< donor-based: largest timebin allowed, written by donors onto the gas they feed */
+#endif
 #endif
 
 }
@@ -3346,6 +3349,10 @@ extern struct gas_cell_data
 
 #ifdef PBHEF
   MyDouble PBHEF_Dtu;                /*!< total energy injection rate due to PBH evaporation */
+#if (PBHEF == 2)
+  float PBHEF_DtuBin[TIMEBINS];      /*!< donor-based: that rate split by the timebin of the donor it came from, so a donor
+                                          can replace its own share when it wakes. PBHEF_Dtu is the sum over these */
+#endif
 #endif
 
 }

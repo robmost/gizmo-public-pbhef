@@ -1058,6 +1058,11 @@ int pbhef_density_evaluate(int target, int mode, int *exportflag, int *exportnod
 void pbhef_density(void);
 int pbhef_is_active(void);
 double pbhef_heating_prefactor(void);
+double pbhef_prefactor_cached(void);
+double pbhef_donor_power(int i);
+int pbhef_donor_isactive(int n);
+int pbhef_donor_can_receive(int j);
+void pbhef_donor_feedback(void);
 void pbhef_inject(int i, double heating_prefactor);
 double pbhef_calculate_alpha(double m_pbh_initial_grams);
 void pbhef_init_mass_evolution(void);
