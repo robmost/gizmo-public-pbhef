@@ -657,6 +657,7 @@ void pbhef_get_current_mass(double a, double *mass_out)
 
 static double PBH_RateIntended;   /*!< rate the active donors mean to inject, this task */
 static double PBH_RateCoupled;    /*!< rate that actually landed on gas, this task */
+static long PBH_NumUncapped;      /*!< active receivers found on a longer step than their donor, this task */
 
 /*! total power of the black holes carried by DM particle i */
 double pbhef_donor_power(int i)
@@ -719,6 +720,7 @@ static void pbhef_donor_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loo
 static struct OUTPUT_STRUCT_NAME
 {
     MyDouble RateCoupled; /* rate that actually landed on the gas, for the budget report */
+    int MaxTimebin;       /* largest bin this donor may take, from its receivers */
 }
  *DATARESULT_NAME, *DATAOUT_NAME;
 
@@ -727,14 +729,18 @@ static void pbhef_donor_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int 
 {
     #pragma omp atomic
     PBH_RateCoupled += out->RateCoupled;
+#ifdef PBHEF_LIMIT_DM_TIMESTEP
+    if(out->MaxTimebin < P[i].PBHEF_MaxTimebin) {P[i].PBHEF_MaxTimebin = out->MaxTimebin;}
+#endif
 }
 
 /*! gives each gas neighbor of one DM particle its share of the evaporation rate. NOTE unlike the density
     loops here this writes to -other- elements, so those writes are atomic as in mechanical_fb.c */
 int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)
 {
-    int j, n, startnode, numngb_inbox, listindex = 0; double dp[3], r2, h2, r, u, wk, dwk, hinv, hinv3, hinv4;
+    int j, n, startnode, numngb_inbox, listindex = 0, n_uncapped = 0; double dp[3], r2, h2, r, u, wk, dwk, hinv, hinv3, hinv4;
     struct INPUT_STRUCT_NAME local; struct OUTPUT_STRUCT_NAME out; memset(&out, 0, sizeof(struct OUTPUT_STRUCT_NAME));
+    out.MaxTimebin = TIMEBINS;
     if(mode == 0) {pbhef_donor_particle2in(&local, target, loop_iteration);} else {local = DATAGET_NAME[target];}
     if(local.Power <= 0 || local.GasDensity <= 0 || local.HsmlPBH <= 0)
     {
@@ -764,6 +770,15 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
 
                     double dtu_j = local.Power * wk / local.GasDensity; /* specific energy rate for this cell */
 
+                    /* A receiver on a longer step than its donor would integrate this rate for too long,
+                       so scale it down by the ratio of the two steps. The cap below is meant to prevent
+                       that, but it only takes effect from the next step, so the case is reachable. */
+                    if(local.Timebin < P[j].TimeBin)
+                    {
+                        dtu_j *= (double)(1 << local.Timebin) / (double)(1 << P[j].TimeBin);
+                        if(TimeBinActive[P[j].TimeBin]) {n_uncapped++;} /* cap should have applied by now */
+                    }
+
                     #pragma omp atomic
                     SphP[j].PBHEF_DtuBin[local.Timebin] += (float)dtu_j;
 
@@ -773,6 +788,9 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                         #pragma omp critical
                         {if(P[j].PBHEF_MaxTimebin > local.Timebin) {P[j].PBHEF_MaxTimebin = local.Timebin;}}
                     }
+#ifdef PBHEF_LIMIT_DM_TIMESTEP /* and, optionally, the donor within a few bins of its receivers */
+                    {int cap = P[j].TimeBin + PBHEF_LIMIT_DM_TIMESTEP; if(cap < out.MaxTimebin) {out.MaxTimebin = cap;}}
+#endif
 
                     out.RateCoupled += dtu_j * P[j].Mass;
                 } // if(r2 < h2)
@@ -780,6 +798,10 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
         } // while(startnode)
         if(mode == 1) {listindex++; if(listindex < NODELISTLENGTH) {startnode = DATAGET_NAME[target].NodeList[listindex]; if(startnode >= 0) {startnode = Nodes[startnode].u.d.nextnode; /* open it */}}} /* continue to open leaves if needed */
     } // while(startnode)
+    if(n_uncapped) {
+        #pragma omp atomic
+        PBH_NumUncapped += n_uncapped;
+    }
     if(mode == 0) {pbhef_donor_out2particle(&out, target, 0, loop_iteration);} else {DATARESULT_NAME[target] = out;} /* collects the result at the right place */
     return 0;
 }
@@ -794,7 +816,7 @@ void pbhef_donor_feedback(void)
     for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {if(TimeBinActive[b]) {SphP[i].PBHEF_DtuBin[b] = 0;}}}
 
     double prefactor = pbhef_prefactor_cached(); /* also warms the cache before the threaded loop below */
-    PBH_RateCoupled = 0; PBH_RateIntended = 0;
+    PBH_RateCoupled = 0; PBH_RateIntended = 0; PBH_NumUncapped = 0;
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
         if(pbhef_density_isactive(i)) {PBH_RateIntended += prefactor * P[i].Mass;}
@@ -817,6 +839,11 @@ void pbhef_donor_feedback(void)
     double budget_local[2] = {PBH_RateIntended, PBH_RateCoupled}, budget[2];
     MPI_Allreduce(&budget_local[0], &budget[0], 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     if(budget[0] > 0) {PRINT_STATUS(" ..PBHEF donor budget: intended=%g coupled=%g (fraction=%.6f)", budget[0], budget[1], budget[1]/budget[0]);}
+
+    /* an active receiver on a longer step than its donor means the cap has not held. its rate is scaled
+       down so no energy is lost, but it is a sign the coupling is not doing its job */
+    long nbad_local = PBH_NumUncapped, nbad; MPI_Allreduce(&nbad_local, &nbad, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    if(nbad) {PRINT_WARNING("PBHEF donor: %ld active gas cells were on a longer timestep than a donor feeding them", nbad);}
 
     CPU_Step[CPU_PBHEFDONOR] += measure_time(); /* collect timings and reset clock for next timing */
 }

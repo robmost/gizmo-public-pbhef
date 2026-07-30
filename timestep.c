@@ -1049,6 +1049,24 @@ integertime get_timestep(int p,		/*!< particle index */
             if(dt_PBHEF < dt) {dt = dt_PBHEF;}
         }
     }
+#if (PBHEF == 2)
+    /* donors record the smallest bin among themselves on each cell they feed, so that a receiver never
+       integrates a rate for longer than the donor that set it. Under PBHEF_LIMIT_DM_TIMESTEP the donors
+       carry the reverse constraint in the same field. Reset after use: it is rebuilt every step. */
+    if(P[p].Type == 0
+#ifdef PBHEF_LIMIT_DM_TIMESTEP
+       || P[p].Type == 1
+#endif
+      )
+    {
+        if(P[p].PBHEF_MaxTimebin > 0 && P[p].PBHEF_MaxTimebin < TIMEBINS)
+        {
+            double dt_cap = (double)(((integertime) 1) << P[p].PBHEF_MaxTimebin) * All.Timebase_interval / All.cf_hubble_a;
+            if(dt_cap > 0 && dt_cap < dt) {dt = dt_cap;}
+        }
+        P[p].PBHEF_MaxTimebin = TIMEBINS;
+    }
+#endif
 #endif
 
 
