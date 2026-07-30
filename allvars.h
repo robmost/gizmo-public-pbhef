@@ -1492,6 +1492,7 @@ typedef MyDouble MyBigFloat;
 #define CPU_PBHEFDMDENSWAIT     49
 #define CPU_PBHEFDMDENSCOMM     50
 #define CPU_PBHEFDMDENSMISC     51
+#define CPU_PBHEFDONOR          52  /* re-uses another spare slot above */
 
 #define CPU_PARTS          58  /* this gives the number of parts above (must be last) */
 

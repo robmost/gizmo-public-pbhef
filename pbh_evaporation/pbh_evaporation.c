@@ -665,7 +665,7 @@ double pbhef_donor_power(int i)
 }
 
 /*! DM particles that are active and have gas to give their energy to */
-int pbhef_donor_isactive(int n)
+static int pbhef_donor_isactive(int n)
 {
     if(!pbhef_density_isactive(n)) {return 0;}
     if(P[n].HsmlPBH <= 0 || P[n].DensityPBH <= 0) {return 0;} /* no gas inside the kernel, so no receivers */
@@ -675,7 +675,7 @@ int pbhef_donor_isactive(int n)
 
 /*! gas cells that may take the energy: the same ones hydro_final_operations_and_cleanup() does not zero.
     A skipped neighbor's share is not handed to the others, so it shows up in the budget report below */
-int pbhef_donor_can_receive(int j)
+static int pbhef_donor_can_receive(int j)
 {
     if(P[j].Type != 0 || P[j].Mass <= 0) {return 0;}
 #ifdef BOX_BND_PARTICLES
@@ -792,9 +792,7 @@ void pbhef_donor_feedback(void)
     /* clear the slots whose donors will deposit again. must cover every gas cell, not just the active
        ones, since an active donor also feeds sleeping receivers */
     for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {if(TimeBinActive[b]) {SphP[i].PBHEF_DtuBin[b] = 0;}}}
-    if(!pbhef_is_active()) {for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {SphP[i].PBHEF_DtuBin[b] = 0;} SphP[i].PBHEF_Dtu = 0;} return;}
 
-    PRINT_STATUS(" ..PBHEF Donor-based approach:  sharing evaporation energy over the gas...");
     double prefactor = pbhef_prefactor_cached(); /* also warms the cache before the threaded loop below */
     PBH_RateCoupled = 0; PBH_RateIntended = 0;
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
@@ -820,7 +818,7 @@ void pbhef_donor_feedback(void)
     MPI_Allreduce(&budget_local[0], &budget[0], 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     if(budget[0] > 0) {PRINT_STATUS(" ..PBHEF donor budget: intended=%g coupled=%g (fraction=%.6f)", budget[0], budget[1], budget[1]/budget[0]);}
 
-    CPU_Step[CPU_PBHEFDMDENSMISC] += measure_time(); /* collect timings and reset clock for next timing */
+    CPU_Step[CPU_PBHEFDONOR] += measure_time(); /* collect timings and reset clock for next timing */
 }
 #include "../system/code_block_xchange_finalize.h" /* de-define the relevant variables and macros to avoid compilation errors and memory leaks */
 

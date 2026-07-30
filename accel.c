@@ -109,7 +109,11 @@ void compute_hydro_densities_and_forces(void)
         hydro_force();		/* adds hydrodynamical accelerations and computes du/dt  */
 
 #if (PBHEF == 2)
-        pbhef_donor_feedback(); /* shares the PBH evaporation rate from the DM particles over the gas */
+        if(pbhef_is_active())
+        {
+            PRINT_STATUS(" ..PBHEF Donor-based approach:  sharing evaporation energy over the gas...");
+            pbhef_donor_feedback();   /* shares the evaporation rate from the DM particles over their gas neighbors */
+        }
 #endif
 
         compute_additional_forces_for_all_particles(); /* other accelerations that need to be computed are done here */
