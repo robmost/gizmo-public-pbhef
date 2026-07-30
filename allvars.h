@@ -215,7 +215,7 @@
 
 #include "eos/eos.h"
 
-#ifdef PBHEF /* PBH evaporation feedback: =1 is the receiver-based method, =2 the donor-based method. a valueless definition is read as =1, so older config files keep working */
+#ifdef PBHEF /* PBH evaporation feedback: =1 is the receiver-based method, =2 the donor-based method. a valueless definition is read as =1 */
 #if !CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(PBHEF)
 #undef PBHEF
 #define PBHEF 1

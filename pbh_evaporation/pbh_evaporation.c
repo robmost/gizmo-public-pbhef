@@ -84,7 +84,7 @@ static struct INPUT_STRUCT_NAME
  *DATAIN_NAME, *DATAGET_NAME;
 
 /*! this subroutine assigns the values to the variables that need to be sent -from- the 'searching' element */
-void pbhef_density_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loop_iteration)
+static void pbhef_density_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loop_iteration)
 {
     int k;
     in->HsmlPBH = P[i].HsmlPBH;
@@ -103,7 +103,7 @@ static struct OUTPUT_STRUCT_NAME
  *DATARESULT_NAME, *DATAOUT_NAME;
 
 /*! this subroutine assigns the values to the variables that need to be sent -back to- the 'searching' element */
-void pbhef_density_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int mode, int loop_iteration)
+static void pbhef_density_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int mode, int loop_iteration)
 {
     ASSIGN_ADD(P[i].NumNgbPBH, out->NgbPBH, mode);
 	ASSIGN_ADD(P[i].DensityPBH, out->RhoPBH, mode);
@@ -469,7 +469,7 @@ double pbhef_calculate_alpha(double m_pbh_initial_grams)
 
 #ifndef PBHEF_NO_MASS_LOSS
 /*! Integrand for the elapsed cosmic time, dt = da / (a H(a)) */
-double pbhef_time_integ(double a, void *param)
+static double pbhef_time_integ(double a, void *param)
 {
     return 1 / (hubble_function(a) * a);
 }
