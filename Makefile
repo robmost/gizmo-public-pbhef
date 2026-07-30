@@ -1284,6 +1284,23 @@ OPT     +=  -DOLD_HDF5
 endif
 
 #----------------------------------------------------------------------------------------------
+ifeq ($(SYSTYPE),"CI")
+CC       =  mpicc   # sets the C-compiler
+CXX      =  mpicxx
+OPTIMIZE =  -O1 -Wall -g   # the point here is to compile, not to run fast, so keep the optimizer cheap
+ifeq (OPENMP,$(findstring OPENMP,$(CONFIGVARS)))
+    OPTIMIZE += -fopenmp # openmp required compiler flags
+endif
+FC       =  $(CC)
+GSL_INCL =  -I/usr/include
+GSL_LIBS =  -L/usr/lib/x86_64-linux-gnu
+FFTW_INCL=  -I/usr/include
+FFTW_LIBS=  -L/usr/lib/x86_64-linux-gnu
+MPICHLIB =                              # the mpicc wrapper already knows where its own library is
+HDF5INCL =  -I/usr/include/hdf5/serial -DH5_USE_16_API
+HDF5LIB  =  -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5
+endif
+
 ifeq ($(SYSTYPE),"MacbookProM1")
 CC       =  /opt/homebrew/bin/mpicc  # sets the C-compiler
 CXX      =  /opt/homebrew/bin/mpicxx
