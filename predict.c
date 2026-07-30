@@ -206,7 +206,7 @@ void drift_particle(int i, integertime time1)
 
             SphP[i].Density *= exp(-divv_fac);
 
-#if (PBH_EVAPORATION_FEEDBACK == 1)
+#if (PBHEF == 1)
             double divv_facDM = P[i].Particle_DivVelPBH * dt_drift; // only gas cells carry a DM density in this mode, so this is computed here rather than for every particle type
             if(divv_facDM > +divv_fac_max) {divv_facDM = +divv_fac_max;}
             if(divv_facDM < -divv_fac_max) {divv_facDM = -divv_fac_max;}

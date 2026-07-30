@@ -61,7 +61,7 @@ void compute_hydro_densities_and_forces(void)
         PRINT_STATUS("Start hydrodynamics computation...");
         density();		/* computes density, and pressure */
 
-#if (PBH_EVAPORATION_FEEDBACK == 1)
+#if (PBHEF == 1)
         if(pbh_evaporation_is_active())
         {
             PRINT_STATUS(" ..PBHEF Receiver-based approach:  estimating DM densities (at gas particles)...");

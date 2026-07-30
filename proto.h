@@ -1052,7 +1052,7 @@ void grav_accel_jerk(double mass, double dx[3], double dv[3], double accel[3], d
 double eccentric_anomaly(double mean_anomaly, double ecc);
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
 void dm_setup_smoothinglengths(void);
 void dm_density(void);
 int dm_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration);

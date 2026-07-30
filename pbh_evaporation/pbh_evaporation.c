@@ -19,7 +19,7 @@
  *
  * This file was written by Robert Mostoghiu Paun, for GIZMO, based on Florian List's dark matter annihilation feedback routine.
  *
- * Method 1 - receiver-based approach (activate using PBH_EVAPORATION_FEEDBACK)
+ * Method 1 - receiver-based approach (activate using PBHEF)
   - PBH (traced by N-Body DM particles) density is calculated at each gas particle using smoothing length HsmlPBH
   - from PBH density, PBH evaporation rate at gas particle is calculated
   - energy injection at each gas particle
@@ -33,7 +33,7 @@
  */
 
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
 
 struct kernel_density /*! defines a number of useful variables we will use below */
 {
@@ -47,9 +47,9 @@ int dm_density_isactive(int n)
 
     if(P[n].TimeBin < 0) {return 0;}
     if(P[n].Mass <= 0) {return 0;}
-#if (PBH_EVAPORATION_FEEDBACK == 1)
+#if (PBHEF == 1)
     if(P[n].Type != 0){return 0;}  /* only gas particles */
-#elif (PBH_EVAPORATION_FEEDBACK == 2)
+#elif (PBHEF == 2)
 	if(P[n].Type != 1){return 0;}  /* only DM particles */
 #endif
     return 1;
@@ -467,7 +467,7 @@ double calculate_alpha(double m_pbh_initial_grams)
 }
 
 
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+#ifndef PBHEF_NO_MASS_LOSS
 /*! Integrand for the elapsed cosmic time, dt = da / (a H(a)) */
 double pbh_time_integ(double a, void *param)
 {
@@ -493,7 +493,7 @@ double pbh_mass3_decay_rate(void)
  *  and the same conventions as init_drift_table(), so the lookup below mirrors get_drift_factor(). */
 void init_pbh_mass_evolution(void)
 {
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+#ifndef PBHEF_NO_MASS_LOSS
     if(All.ComovingIntegrationOn)
     {
 #define PBH_WORKSIZE 100000
@@ -525,7 +525,7 @@ void init_pbh_mass_evolution(void)
 #endif
 }
 
-#if (PBH_EVAPORATION_FEEDBACK == 1)
+#if (PBHEF == 1)
 /*! Constant part of the receiver-based heating rate. The rate per unit gas mass is
  *  f0 * (rho_dm/rho_gas) * C * alpha / (m0 * m(t)^2), and everything except the local density ratio is the
  *  same for every cell on a given step, so this is evaluated once per step rather than once per cell.
@@ -554,7 +554,7 @@ void pbh_evaporation_inject(int i, double heating_prefactor)
     SphP[i].DtInternalEnergy += heat_source; // add internal energy created by PBH evaporation
     SphP[i].PBHEF_Dtu += heat_source;
 
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF_DEBUG
     if(P[i].ID == All.PBH_EnergyID) {
         double current_pbh_mass; get_current_pbh_mass(All.Time, &current_pbh_mass);
         printf(" ..PBHEF (after injection): i=%d, Type=%d, ID=%llu, atime=%g, InternalEnergy=%g, rhoDM=%g, rho=%g,\n"
@@ -590,7 +590,7 @@ int pbh_evaporation_is_active(void)
  *  indexing as get_drift_factor(). */
 double pbh_elapsed_time(double a)
 {
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+#ifndef PBHEF_NO_MASS_LOSS
     if(!All.ComovingIntegrationOn) {return DMAX(a - All.TimeBegin, 0);}
 
     double logTimeBegin = log(All.TimeBegin), logTimeMax = log(All.TimeMax);
@@ -610,7 +610,7 @@ double pbh_elapsed_time(double a)
  *  than interpolated: only the time itself comes from a table. A black hole that has evaporated returns a mass of zero. */
 void get_current_pbh_mass(double a, double *mass_out)
 {
-#ifndef PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS
+#ifndef PBHEF_NO_MASS_LOSS
     double mass3 = All.PBH_InitialMass * All.PBH_InitialMass * All.PBH_InitialMass - pbh_mass3_decay_rate() * pbh_elapsed_time(a);
     if(mass3 <= 0) {*mass_out = 0;} else {*mass_out = cbrt(mass3);}
 #else
@@ -618,4 +618,4 @@ void get_current_pbh_mass(double a, double *mass_out)
 #endif
 }
 
-#endif /* PBH_EVAPORATION_FEEDBACK */
+#endif /* PBHEF */

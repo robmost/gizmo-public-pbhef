@@ -60,9 +60,9 @@ void begrun(void)
       printf("\nSize of particle structure       %d  [bytes]\n", (int) sizeof(struct particle_data));
       printf("Size of hydro-cell structure   %d  [bytes]\n\n", (int) sizeof(struct gas_cell_data));
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
       printf("-----\n");
-#if (PBH_EVAPORATION_FEEDBACK == 1)
+#if (PBHEF == 1)
       printf("PBHEF activated\nReceiver-based approach, feedback calculated at gas positions\n");
 #else
       printf("PBHEF activated\nDonor-based approach, feedback calculated at DM positions\n");
@@ -442,12 +442,12 @@ void begrun(void)
       All.NetworkTempThreshold = all.NetworkTempThreshold;
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
       All.PBH_MassFraction = all.PBH_MassFraction;
       All.PBH_InitialMass = all.PBH_InitialMass;
       All.PBH_EvaporationConstant = all.PBH_EvaporationConstant;
       All.PBH_Alpha = all.PBH_Alpha;
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF_DEBUG
       All.PBH_EnergyID = all.PBH_EnergyID;
 #endif
       init_pbh_mass_evolution(); /* the mass table is not carried in the restart file, so rebuild it here */
@@ -607,11 +607,11 @@ void set_units(void)
 #endif
 
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
     if(ThisTask == 0)
     {
       printf("PBHEF parameters: PBH_MassFraction = %g, PBH_InitialMass = %g\n", All.PBH_MassFraction, All.PBH_InitialMass);
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF_DEBUG
       printf("PBHEF debug mode parameters: PBH_EnergyID = %d\n", All.PBH_EnergyID);
 #endif
     }
@@ -2103,7 +2103,7 @@ void read_parameter_file(char *fname)
 #endif
 #endif  // CHIMES
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
       strcpy(tag[nt], "PBH_MassFraction");
       addr[nt] = &All.PBH_MassFraction;
       id[nt++] = REAL;
@@ -2111,7 +2111,7 @@ void read_parameter_file(char *fname)
       strcpy(tag[nt], "PBH_InitialMass");
       addr[nt] = &All.PBH_InitialMass;
       id[nt++] = REAL;
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF_DEBUG
       strcpy(tag[nt], "PBH_EnergyID");
       addr[nt] = &All.PBH_EnergyID;
       id[nt++] = INT;
@@ -2354,10 +2354,10 @@ void read_parameter_file(char *fname)
                 if(strcmp("AgeTracerBinEnd",tag[i])==0) {*((double *)addr[i])=14000.; printf("Tag %s (%s) not set in parameter file: right-edge of last age-tracer bin is at ~t_Hubble (=%g Myr) \n",tag[i],alternate_tag[i],All.AgeTracerBinEnd); continue;}
 #endif
 #endif
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
                 if(strcmp("PBH_MassFraction",tag[i])==0) {*((double *)addr[i])=0.1; printf("Tag %s (%s) not set in parameter file: defaulting to a fraction of PBHs in DM particles of (=%g) \n",tag[i],alternate_tag[i],All.PBH_MassFraction); continue;}
                 if(strcmp("PBH_InitialMass",tag[i])==0) {*((double *)addr[i])=1.0e15; printf("Tag %s (%s) not set in parameter file: defaulting to an initial PBH mass relevant at z~99 of (=%g grams) \n",tag[i],alternate_tag[i],All.PBH_InitialMass); continue;}
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF_DEBUG
                 if(strcmp("PBH_EnergyID",tag[i])==0) {*((int *)addr[i])=0; printf("Tag %s (%s) not set in parameter file: defaulting to the PBH EnergyID (=%d) \n",tag[i],alternate_tag[i],All.PBH_EnergyID); continue;}
 #endif
 #endif
@@ -2652,7 +2652,7 @@ void read_parameter_file(char *fname)
 #endif
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
     if(All.PBH_MassFraction < 0.0 || All.PBH_MassFraction > 1.0)
     {
         if(ThisTask == 0) {printf("PBH_MassFraction must be between 0 and 1 (inclusive)\n"); endrun(1);}
@@ -2661,8 +2661,8 @@ void read_parameter_file(char *fname)
     {
         if(ThisTask == 0) {printf("PBH_InitialMass must be > 0\n"); endrun(1);}
     }
-#if (PBH_EVAPORATION_FEEDBACK == 2)
-    if(ThisTask == 0) {printf("PBH_EVAPORATION_FEEDBACK=2 (donor-based) is not implemented yet: use PBH_EVAPORATION_FEEDBACK=1\n"); endrun(1);}
+#if (PBHEF == 2)
+    if(ThisTask == 0) {printf("PBHEF=2 (donor-based) is not implemented yet: use PBHEF=1\n"); endrun(1);}
 #endif
 #endif
 

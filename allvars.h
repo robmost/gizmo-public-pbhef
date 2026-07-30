@@ -215,13 +215,13 @@
 
 #include "eos/eos.h"
 
-#ifdef PBH_EVAPORATION_FEEDBACK /* PBH evaporation feedback: =1 is the receiver-based method, =2 the donor-based method. a valueless definition is read as =1, so older config files keep working */
-#if !CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(PBH_EVAPORATION_FEEDBACK)
-#undef PBH_EVAPORATION_FEEDBACK
-#define PBH_EVAPORATION_FEEDBACK 1
+#ifdef PBHEF /* PBH evaporation feedback: =1 is the receiver-based method, =2 the donor-based method. a valueless definition is read as =1, so older config files keep working */
+#if !CHECK_IF_PREPROCESSOR_HAS_NUMERICAL_VALUE_(PBHEF)
+#undef PBHEF
+#define PBHEF 1
 #endif
-#if (PBH_EVAPORATION_FEEDBACK < 1) || (PBH_EVAPORATION_FEEDBACK > 2)
-#error "PBH_EVAPORATION_FEEDBACK must be set to 1 (receiver-based) or 2 (donor-based)"
+#if (PBHEF < 1) || (PBHEF > 2)
+#error "PBHEF must be set to 1 (receiver-based) or 2 (donor-based)"
 #endif
 #endif
 
@@ -1934,7 +1934,7 @@ extern FILE *FdBhWindDetails;
 #endif
 #endif
 
-#if defined(PBH_EVAPORATION_FEEDBACK) && !defined(PBH_EVAPORATION_FEEDBACK_NO_MASS_LOSS)
+#if defined(PBHEF) && !defined(PBHEF_NO_MASS_LOSS)
 extern double PBH_Table_Time[PBH_TABLE_SIZE]; /*! table for the cosmic time elapsed since All.TimeBegin, on a grid uniform in log(a), as for the drift factors above */
 #endif
 extern double DriftTable[DRIFT_TABLE_LENGTH]; /*! table for the cosmological drift factors */
@@ -2518,12 +2518,12 @@ extern struct global_data_all_processes
   double BH_fb_period;
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
   double PBH_MassFraction;           /*!< Mass fraction of dark matter in primordial black holes */
   double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
   double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */
   double PBH_Alpha;                  /*!< PBH evaporation rate parameter, alpha, following the analytical fit from Mosbech et al. (2022) */
-#ifdef DEBUG_PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF_DEBUG
   int PBH_EnergyID;                  /*!< ID of the particle to track for energy debugging */
 #endif
 #endif
@@ -2879,7 +2879,7 @@ extern ALIGN(32) struct particle_data
     MyLongDouble NV_T[3][3];                                           /*!< holds the tensor used for gradient estimation */
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
 	MyDouble DensityPBH;		           /*!< current DM mass density of particle */
     MyFloat HsmlPBH;			           /*!< PBH (DM) search radius around particle for neighbors/interactions */
     MyFloat NumNgbPBH;                  /*!< PBH (DM) neighbor number around particle */
@@ -3344,7 +3344,7 @@ extern struct gas_cell_data
 #endif
 #endif
 
-#ifdef PBH_EVAPORATION_FEEDBACK
+#ifdef PBHEF
   MyDouble PBHEF_Dtu;                /*!< total energy injection rate due to PBH evaporation */
 #endif
 
