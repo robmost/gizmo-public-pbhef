@@ -1292,8 +1292,8 @@ ifeq (OPENMP,$(findstring OPENMP,$(CONFIGVARS)))
 	OPTIMIZE += -fopenmp # openmp required compiler flags
 endif
 FC       =  $(CC)
-GSL_INCL =  -I/opt/homebrew/include/gsl
-GSL_LIBS =  -L/opt/homebrew/lib -lgsl -lgslcblas
+GSL_INCL =  -I/opt/homebrew/include
+GSL_LIBS =  -L/opt/homebrew/lib   # the -lgsl -lgslcblas are appended by the generic LIBS line below
 FFTW_INCL=  -I/opt/homebrew/include
 FFTW_LIBS=  -L/opt/homebrew/lib
 MPICHLIB =  -L/opt/homebrew/lib
@@ -1311,9 +1311,9 @@ ifeq (OPENMP,$(findstring OPENMP,$(CONFIGVARS)))
 endif
 FC       =  $(CC)
 GSL_INCL =  -I$(EBROOTGSL)/include
-GSL_LIBS =  -L$(EBROOTGSL)/lib -lgsl -lgslcblas
+GSL_LIBS =  -L$(EBROOTGSL)/lib   # the -lgsl -lgslcblas are appended by the generic LIBS line below
 FFTW_INCL=  -I$(EBROOTFFTW)/include
-FFTW_LIBS=  -I$(EBROOTFFTW)/lib
+FFTW_LIBS=  -L$(EBROOTFFTW)/lib
 MPICHLIB =  -L$(EBROOTOPENMPI)/lib
 HDF5INCL =  -I$(EBROOTHDF5)/include -DH5_USE_16_API
 HDF5LIB  =  -L$(EBROOTHDF5)/lib  -lhdf5 #-static -lz
@@ -1321,6 +1321,16 @@ ifeq (COOL_GRACKLE,$(findstring COOL_GRACKLE,$(CONFIGVARS)))
 GRACKLEINCL = -I/home/rmostogh/code/local/include
 GRACKLELIBS = -L/home/rmostogh/code/local/lib -lgrackle
 endif
+endif
+
+#----- sanity checks on SYSTYPE. without these, a value that matches none of the blocks above leaves the
+#-----   compiler flags and every library path unset, and the build then fails much later on a missing
+#-----   header, which looks like a broken library install rather than an unset target machine
+ifndef SYSTYPE
+$(error SYSTYPE is not set: uncomment your machine in Makefile.systype, or export SYSTYPE in your shell)
+endif
+ifeq ($(findstring ",$(SYSTYPE)),)
+$(error SYSTYPE=$(SYSTYPE) has no quotes, so it matches none of the blocks in this Makefile. Make cannot add them to a variable set on the command line, so pass them yourself: make SYSTYPE='"$(SYSTYPE)"')
 endif
 
 #----------------------------------------------------------------------------------------------
@@ -1559,5 +1569,3 @@ compile_time_info.c: $(CONFIG)
 
 clean:
 	rm -f $(OBJS) $(FOBJS) $(EXEC) *.oo *.c~ compile_time_info.c GIZMO_config.h
-
-
