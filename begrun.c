@@ -2661,9 +2661,6 @@ void read_parameter_file(char *fname)
     {
         if(ThisTask == 0) {printf("PBH_InitialMass must be > 0\n"); endrun(1);}
     }
-#if (PBHEF == 2)
-    if(ThisTask == 0) {printf("PBHEF=2 (donor-based) is not implemented yet: use PBHEF=1\n"); endrun(1);}
-#endif
 #endif
 
 
