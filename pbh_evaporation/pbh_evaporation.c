@@ -23,7 +23,9 @@
   - PBH (traced by N-Body DM particles) density is calculated at each gas particle using smoothing length HsmlPBH
   - from PBH density, PBH evaporation rate at gas particle is calculated
   - energy injection at each gas particle
- * Method 2 - donor-based approach, also uses the functionality in this file in order to determine the PBH density around DM particles.
+ * Method 2 - donor-based approach (PBHEF=2)
+  - the loop runs the other way round: HsmlPBH is a gas search radius and DensityPBH the gas density at the DM particle
+  - the evaporation power follows from the DM particle mass alone, and is shared over its gas neighbors
  *
  */
 /*!
@@ -41,7 +43,7 @@ struct kernel_density /*! defines a number of useful variables we will use below
 };
 
 
-/*! routine to determine if a given element is actually going to be active in the density subroutines below to calculate HsmlPBH and rhoDM */
+/*! elements active in the density loop below: gas for the receiver-based method, DM for the donor-based one */
 static int pbhef_density_isactive(int n)
 {
 
@@ -56,13 +58,25 @@ static int pbhef_density_isactive(int n)
 }
 
 
+#if (PBHEF == 1)
+#define PBH_NGB_BITMASK 2  /* gas searches for DM neighbors */
+#else
+#define PBH_NGB_BITMASK 1  /* DM searches for gas neighbors */
+#endif
+
+
 /*! largest kernel length allowed for the DM neighbor search. All.MaxHsml defaults to an effectively
     infinite value, which lets a particle in a DM-poor region walk an enormous part of the tree, so we
     also keep the search within a small multiple of the particle's own kernel, as disp_density() does */
 static double pbhef_return_maxhsml(int i)
 {
     double maxsoft = All.MaxHsml;
+#if (PBHEF == 1)
     if(PPP[i].Hsml > 0) {maxsoft = DMIN(maxsoft, 10.*PPP[i].Hsml);}
+#else
+    double soft = ForceSoftening_KernelRadius(i); /* a DM particle has no gas kernel of its own */
+    if(soft > 0) {maxsoft = DMIN(maxsoft, 100.*soft);}
+#endif
     return maxsoft;
 }
 
@@ -116,14 +130,14 @@ static void pbhef_density_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, in
 /*!   -- this subroutine should in general contain no writes to shared memory. for optimization reasons, a couple of such writes have been included here in the sub-code for some sink routines -- those need to be handled with special care, both for thread safety and because of iteration. in general writes to shared memory in density.c are strongly discouraged -- */
 int pbhef_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)
 {
-    int j, n, startnode, numngb_inbox, listindex = 0; double r2, h2, u, mass_j;
+    int j, k, n, startnode, numngb_inbox, listindex = 0; double r2, h2, u, mass_j;
     struct kernel_density kernel; struct INPUT_STRUCT_NAME local; struct OUTPUT_STRUCT_NAME out; memset(&out, 0, sizeof(struct OUTPUT_STRUCT_NAME));
     if(mode == 0) {pbhef_density_particle2in(&local, target, loop_iteration);} else {local = DATAGET_NAME[target];}
     h2 = local.HsmlPBH * local.HsmlPBH; kernel_hinv(local.HsmlPBH, &kernel.hinv, &kernel.hinv3, &kernel.hinv4);
     if(mode == 0) {startnode = All.MaxPart; /* root node */} else {startnode = DATAGET_NAME[target].NodeList[0]; startnode = Nodes[startnode].u.d.nextnode;    /* open it */}
     while(startnode >= 0) {
         while(startnode >= 0) {
-            numngb_inbox = ngb_treefind_variable_threads_targeted(local.Pos, local.HsmlPBH, target, &startnode, mode, exportflag, exportnodecount, exportindex, ngblist, 2); // search for DM particles only
+            numngb_inbox = ngb_treefind_variable_threads_targeted(local.Pos, local.HsmlPBH, target, &startnode, mode, exportflag, exportnodecount, exportindex, ngblist, PBH_NGB_BITMASK);
             if(numngb_inbox < 0) {return -2;}
             for(n = 0; n < numngb_inbox; n++)
             {
@@ -149,9 +163,8 @@ int pbhef_density_evaluate(int target, int mode, int *exportflag, int *exportnod
                     /* for everything below, we do NOT include the particle self-contribution! */
                     if(kernel.r > 0)
                     {
-                        kernel.dv[0] = local.Vel[0] - P[j].Vel[0];  // we use Vel here to estimate divergence since VelPred is not calculated for DM particles
-                        kernel.dv[1] = local.Vel[1] - P[j].Vel[1];
-                        kernel.dv[2] = local.Vel[2] - P[j].Vel[2];
+                        if(P[j].Type == 0) {for(k=0;k<3;k++) {kernel.dv[k] = local.Vel[k] - SphP[j].VelPred[k];}} // VelPred is gas-only
+                        else {for(k=0;k<3;k++) {kernel.dv[k] = local.Vel[k] - P[j].Vel[k];}}
 
                         NGB_SHEARBOX_BOUNDARY_VELCORR_(local.Pos,P[j].Pos,kernel.dv,1); /* wrap velocities for shearing boxes if needed */
 

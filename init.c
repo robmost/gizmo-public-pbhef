@@ -1255,13 +1255,18 @@ void pbhef_setup_smoothinglengths(void)
     {
         for(i = 0; i < NumPart; i++)
         {
-            P[i].HsmlPBH = PPP[i].Hsml; /* guess that the dm smoothing lengths are initially the same as gas smoothing length */
+            P[i].HsmlPBH = PPP[i].Hsml; /* guess that the search radius is initially the same as the gas smoothing length */
+            if(P[i].Type != 0 && P[i].HsmlPBH <= 0) {P[i].HsmlPBH = ForceSoftening_KernelRadius(i);} /* no gas kernel to borrow */
         }
     }
 
     if(ThisTask == 0)
     {
-        printf("PBHEF: Initializing smoothing lengths for DM density calculations...\n");
+#if (PBHEF == 1)
+        printf("PBHEF: Initializing smoothing lengths for the DM density around the gas particles...\n");
+#else
+        printf("PBHEF: Initializing smoothing lengths for the gas density around the DM particles...\n");
+#endif
     }
 
 	pbhef_density();
