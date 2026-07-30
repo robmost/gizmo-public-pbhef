@@ -1298,7 +1298,7 @@ FFTW_INCL=  -I/usr/include
 FFTW_LIBS=  -L/usr/lib/x86_64-linux-gnu
 MPICHLIB =                              # the mpicc wrapper already knows where its own library is
 HDF5INCL =  -I/usr/include/hdf5/serial -DH5_USE_16_API
-HDF5LIB  =  -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5
+HDF5LIB  =  -L/usr/lib/x86_64-linux-gnu/hdf5/serial -lhdf5 -lz
 endif
 
 ifeq ($(SYSTYPE),"MacbookProM1")
