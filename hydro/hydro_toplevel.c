@@ -663,7 +663,7 @@ void hydro_final_operations_and_cleanup(void)
     int i,k;
 
 #if (PBHEF == 1)
-    double pbhef_heating_prefactor = pbh_evaporation_heating_prefactor(); /* the same for every cell on this step */
+    double heating_prefactor = pbhef_heating_prefactor(); /* the same for every cell on this step */
 #endif
 
 
@@ -784,7 +784,7 @@ void hydro_final_operations_and_cleanup(void)
 
 
 #if (PBHEF == 1) /* Done after the hydro loop */
-            pbh_evaporation_inject(i, pbhef_heating_prefactor); /* add internal energy created by PBH evaporation */
+            pbhef_inject(i, heating_prefactor); /* add internal energy created by PBH evaporation */
 #endif
 
 

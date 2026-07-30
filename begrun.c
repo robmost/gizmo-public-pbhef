@@ -450,7 +450,7 @@ void begrun(void)
 #ifdef PBHEF_DEBUG
       All.PBH_EnergyID = all.PBH_EnergyID;
 #endif
-      init_pbh_mass_evolution(); /* the mass table is not carried in the restart file, so rebuild it here */
+      pbhef_init_mass_evolution(); /* the mass table is not carried in the restart file, so rebuild it here */
 #endif
 
       if(All.TimeMax != all.TimeMax) {readjust_timebase(All.TimeMax, all.TimeMax);}
@@ -619,7 +619,7 @@ void set_units(void)
     // Calculate the PBH evaporation rate alpha. Alpha is considered dimensionless in the Mosbech et al. (2022) paper.
     // Calculate the PBH evaraporation rate alpha BEFORE converting the initial mass to code units.
     double initial_mass_grams = All.PBH_InitialMass; // keep the mass in grams for the messages below
-    All.PBH_Alpha = calculate_alpha(All.PBH_InitialMass);
+    All.PBH_Alpha = pbhef_calculate_alpha(All.PBH_InitialMass);
 
     // Convert initial mass in code units
     All.PBH_InitialMass /= UNIT_MASS_IN_CGS;
@@ -629,7 +629,7 @@ void set_units(void)
     double constant_cgs = PLANCK_HBAR_CGS * pow(C_LIGHT_CGS, 6.0) / pow(GRAVITY_G_CGS, 2.0);
     All.PBH_EvaporationConstant = constant_cgs / (pow(UNIT_MASS_IN_CGS, 3.0) * pow(UNIT_LENGTH_IN_CGS, 2.0) * pow(UNIT_TIME_IN_CGS, -3.0));
 
-    // calculate_alpha() clamps to the large-mass limit of the fit, so this should never trigger. Keep it as a check
+    // pbhef_calculate_alpha() clamps to the large-mass limit of the fit, so this should never trigger. Keep it as a check
     //   because a negative alpha would silently cool the gas and make the black holes gain mass instead of evaporate.
     if(All.PBH_Alpha <= 0.0)
     {
@@ -647,7 +647,7 @@ void set_units(void)
     }
 
     // Initialize the mass evolution table
-    init_pbh_mass_evolution();
+    pbhef_init_mass_evolution();
 #endif
 
 

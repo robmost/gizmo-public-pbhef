@@ -762,7 +762,7 @@ void init(void)
     if(RestartFlag != 3 && RestartFlag != 5) {setup_smoothinglengths();}
 
 #ifdef PBHEF
-	if(RestartFlag != 3 && RestartFlag != 5) {dm_setup_smoothinglengths();}
+	if(RestartFlag != 3 && RestartFlag != 5) {pbhef_setup_smoothinglengths();}
 #endif
 
 #ifdef AGS_HSML_CALCULATION_IS_ACTIVE
@@ -1248,7 +1248,7 @@ void disp_setup_smoothinglengths(void)
 #endif
 
 #ifdef PBHEF
-void dm_setup_smoothinglengths(void)
+void pbhef_setup_smoothinglengths(void)
 {
     int i;
     if(RestartFlag == 0 || RestartFlag == 2)
@@ -1264,7 +1264,7 @@ void dm_setup_smoothinglengths(void)
         printf("PBHEF: Initializing smoothing lengths for DM density calculations...\n");
     }
 
-	dm_density();
+	pbhef_density();
 }
 #endif
 

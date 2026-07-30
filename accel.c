@@ -62,10 +62,10 @@ void compute_hydro_densities_and_forces(void)
         density();		/* computes density, and pressure */
 
 #if (PBHEF == 1)
-        if(pbh_evaporation_is_active())
+        if(pbhef_is_active())
         {
             PRINT_STATUS(" ..PBHEF Receiver-based approach:  estimating DM densities (at gas particles)...");
-            dm_density();          /* computes dark matter density around gas particles */
+            pbhef_density();          /* computes dark matter density around gas particles */
         }
 #endif
 

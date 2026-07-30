@@ -5088,7 +5088,7 @@ void write_header_attributes_in_hdf5(hid_t handle)
     H5Awrite(hdf5_attribute, H5T_NATIVE_DOUBLE, &initial_pbh_mass_grams); H5Aclose(hdf5_attribute); H5Sclose(hdf5_dataspace);
 
     double current_pbh_mass_grams;
-    get_current_pbh_mass(All.Time, &current_pbh_mass_grams);
+    pbhef_get_current_mass(All.Time, &current_pbh_mass_grams);
     current_pbh_mass_grams *= UNIT_MASS_IN_CGS;
 
     hdf5_dataspace = H5Screate(H5S_SCALAR); hdf5_attribute = H5Acreate(handle, "PBH_CurrentMass", H5T_NATIVE_DOUBLE, hdf5_dataspace, H5P_DEFAULT);
