@@ -1054,16 +1054,12 @@ double eccentric_anomaly(double mean_anomaly, double ecc);
 
 #ifdef PBHEF
 void pbhef_setup_smoothinglengths(void);
-void pbhef_density(void);
 int pbhef_density_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration);
-int pbhef_density_isactive(int n);
-double pbhef_return_maxhsml(int i);
+void pbhef_density(void);
 int pbhef_is_active(void);
 double pbhef_heating_prefactor(void);
 void pbhef_inject(int i, double heating_prefactor);
 double pbhef_calculate_alpha(double m_pbh_initial_grams);
 void pbhef_init_mass_evolution(void);
-double pbhef_mass3_decay_rate(void);
-double pbhef_elapsed_time(double a);
 void pbhef_get_current_mass(double a, double *mass_out);
 #endif

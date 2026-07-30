@@ -42,7 +42,7 @@ struct kernel_density /*! defines a number of useful variables we will use below
 
 
 /*! routine to determine if a given element is actually going to be active in the density subroutines below to calculate HsmlPBH and rhoDM */
-int pbhef_density_isactive(int n)
+static int pbhef_density_isactive(int n)
 {
 
     if(P[n].TimeBin < 0) {return 0;}
@@ -59,7 +59,7 @@ int pbhef_density_isactive(int n)
 /*! largest kernel length allowed for the DM neighbor search. All.MaxHsml defaults to an effectively
     infinite value, which lets a particle in a DM-poor region walk an enormous part of the tree, so we
     also keep the search within a small multiple of the particle's own kernel, as disp_density() does */
-double pbhef_return_maxhsml(int i)
+static double pbhef_return_maxhsml(int i)
 {
     double maxsoft = All.MaxHsml;
     if(PPP[i].Hsml > 0) {maxsoft = DMIN(maxsoft, 10.*PPP[i].Hsml);}
@@ -481,7 +481,7 @@ static double pbhef_time_integ(double a, void *param)
  *  initial-mass value (see pbhef_calculate_alpha above), so M^3 is exactly linear in cosmic time:
  *      M(t)^3 = M0^3 - 3 (hbar c^4/G^2) alpha t
  *  All.PBH_EvaporationConstant holds hbar c^6/G^2, so divide by c^2 to get hbar c^4/G^2. */
-double pbhef_mass3_decay_rate(void)
+static double pbhef_mass3_decay_rate(void)
 {
     return 3.0 * (All.PBH_EvaporationConstant / (C_LIGHT_CODE * C_LIGHT_CODE)) * All.PBH_Alpha;
 }
@@ -588,7 +588,7 @@ int pbhef_is_active(void)
 /*! Elapsed cosmic time since All.TimeBegin, at scale factor a. In a non-cosmological run All.Time already is the time,
  *  so this is just the difference. In a cosmological run it comes from the table built above, using the same log(a)
  *  indexing as get_drift_factor(). */
-double pbhef_elapsed_time(double a)
+static double pbhef_elapsed_time(double a)
 {
 #ifndef PBHEF_NO_MASS_LOSS
     if(!All.ComovingIntegrationOn) {return DMAX(a - All.TimeBegin, 0);}
