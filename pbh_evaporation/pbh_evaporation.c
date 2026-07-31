@@ -811,6 +811,15 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
 void pbhef_donor_feedback(void)
 {
     int i, b;
+    /* once the black holes are gone nothing will deposit again, and a slot filled on the last active
+       step would otherwise keep heating and keep shortening timesteps for the rest of the run */
+    if(!pbhef_is_active())
+    {
+        for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {SphP[i].PBHEF_DtuBin[b] = 0;} SphP[i].PBHEF_Dtu = 0;}
+        return;
+    }
+    PRINT_STATUS(" ..PBHEF Donor-based approach:  sharing evaporation energy over the gas...");
+
     /* clear the slots whose donors will deposit again. must cover every gas cell, not just the active
        ones, since an active donor also feeds sleeping receivers */
     for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {if(TimeBinActive[b]) {SphP[i].PBHEF_DtuBin[b] = 0;}}}
