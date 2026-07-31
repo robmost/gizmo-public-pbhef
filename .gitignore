@@ -1,5 +1,6 @@
 # Local workspace files
 .vscode/*
+.zed/*
 GIZMO-PBHEF.code-workspace
 .DS_Store
 
