@@ -775,7 +775,7 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                        that, but it only takes effect from the next step, so the case is reachable. */
                     if(local.Timebin < P[j].TimeBin)
                     {
-                        dtu_j *= (double)(1 << local.Timebin) / (double)(1 << P[j].TimeBin);
+                        dtu_j *= (double)(((integertime) 1) << local.Timebin) / (double)(((integertime) 1) << P[j].TimeBin);
                         if(TimeBinActive[P[j].TimeBin]) {n_uncapped++;} /* cap should have applied by now */
                     }
 
