@@ -221,7 +221,7 @@ int NumPartGroup;
 /* variables for input/output , usually only used on process 0 */
 
 
-char ParameterFile[100];	/*!< file name of parameterfile used for starting the simulation */
+char ParameterFile[500];	/*!< file name of parameterfile used for starting the simulation */
 
 FILE
 #ifndef IO_REDUCED_MODE

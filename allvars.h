@@ -1877,7 +1877,7 @@ extern struct Subfind_DensityOtherPropsEval_data_out
 
 /* variables for input/output , usually only used on process 0 */
 
-extern char ParameterFile[100];	/*!< file name of parameterfile used for starting the simulation */
+extern char ParameterFile[500];	/*!< file name of parameterfile used for starting the simulation */
 extern FILE
 #ifndef IO_REDUCED_MODE
  *FdTimebin,    /*!< file handle for timebin.txt log-file. */
