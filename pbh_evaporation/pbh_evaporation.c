@@ -826,12 +826,19 @@ void pbhef_donor_feedback(void)
     #include "../system/code_block_xchange_perform_ops.h" /* this calls the large block of code which actually contains all the loops, MPI/OPENMP/Pthreads parallelization */
     #include "../system/code_block_xchange_perform_ops_demalloc.h" /* this de-allocates the memory for the MPI/OPENMP/Pthreads parallelization block which must appear above */
 
-    /* total the slots into the rate the rest of the code reads; only occupied bins can hold anything */
+    /* total the slots into the rate the rest of the code reads; only occupied bins can hold anything.
+       The total is then coupled the way the receiver mode couples its own, by adding to DtInternalEnergy
+       so that kicks.c can fold it into the implicit cooling solve. Only cells that are about to
+       integrate their rate may take it: hydro_force() has just rebuilt DtInternalEnergy for those, while
+       an inactive cell still carries the value it was given when it last woke and would be paid twice.
+       Cells the hydro loop excludes are already absent here, since pbhef_donor_can_receive() rejects
+       them before anything is deposited. */
     for(i = 0; i < N_gas; i++)
     {
         double dtu = 0;
         for(b = 0; b < TIMEBINS; b++) {if(TimeBinCount[b]) {dtu += SphP[i].PBHEF_DtuBin[b];}}
         SphP[i].PBHEF_Dtu = dtu;
+        if(dtu > 0 && TimeBinActive[P[i].TimeBin]) {SphP[i].DtInternalEnergy += dtu;}
     }
 
     /* the shares sum to one, so these should agree to round-off. this is not conservative by
