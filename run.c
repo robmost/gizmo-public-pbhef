@@ -51,6 +51,9 @@ void run(void)
         compute_statistics();	/* regular statistics outputs (like total energy) */
 
         write_cpu_log();		/* output some CPU usage log-info (accounts for everything needed up to the current sync-point) */
+#ifdef PBHEF
+        pbhef_log_energy();     /* one line of pbhef_energy.txt per sync-point, same cadence as cpu.txt */
+#endif
 
         if((All.Ti_Current >= TIMEBASE) || (All.Time > All.TimeMax)) /* check whether we reached the final time */
         {

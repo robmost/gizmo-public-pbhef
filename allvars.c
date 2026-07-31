@@ -242,6 +242,9 @@ FILE
 #endif
 *FdCPU;        /*!< file handle for cpu.txt log-file. */
 
+#ifdef PBHEF
+FILE *FdPBHEF;			/*!< file handle for pbhef_energy.txt log-file. */
+#endif
 #ifdef GALSF
 FILE *FdSfr;			/*!< file handle for sfr.txt log-file. */
 #endif

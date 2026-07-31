@@ -551,6 +551,32 @@ double pbhef_prefactor_cached(void)
 }
 
 
+/*! Running total of the energy this task has actually handed to gas cells, cleared each time it is
+    logged. Both modes add to it where they add to DtInternalEnergy, using the receiver's own timestep,
+    so what it counts is energy injected rather than energy surviving cooling. */
+static double PBH_EnergyInjectedThisTask = 0;
+
+void pbhef_note_injection(int i, double specific_rate)
+{
+    if(specific_rate <= 0) {return;}
+    PBH_EnergyInjectedThisTask += specific_rate * P[i].Mass * GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
+}
+
+/*! total mass of the particles that carry black holes. Constant while D5 holds, so found once */
+static double pbhef_donor_mass_total(void)
+{
+    static double mass_total = -1;
+    if(mass_total < 0)
+    {
+        int i; double m = 0;
+        for(i = 0; i < NumPart; i++) {if(P[i].Type == 1 && P[i].Mass > 0) {m += P[i].Mass;}}
+        MPI_Allreduce(&m, &mass_total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    }
+    return mass_total;
+}
+
+
+
 
 #if (PBHEF == 1)
 /*! Receiver-based energy injection for a single gas cell: adds the PBH evaporation heating to its internal
@@ -566,6 +592,7 @@ void pbhef_receiver_inject(int i, double heating_prefactor)
 
     SphP[i].DtInternalEnergy += heat_source; // add internal energy created by PBH evaporation
     SphP[i].PBHEF_Dtu += heat_source;
+    pbhef_note_injection(i, heat_source);
 
 #ifdef PBHEF_DEBUG
     if(P[i].ID == All.PBH_EnergyID) {
@@ -646,6 +673,7 @@ void pbhef_get_current_mass(double a, double *mass_out)
 static double PBH_RateIntended;   /*!< rate the active donors mean to inject, this task */
 static double PBH_RateCoupled;    /*!< rate that actually landed on gas, this task */
 static long PBH_NumUncapped;      /*!< active receivers found on a longer step than their donor, this task */
+static long PBH_NumDonors;        /*!< donors that had energy to give this step, this task */
 
 /*! total power of the black holes carried by DM particle i */
 double pbhef_donor_power(int i)
@@ -702,17 +730,26 @@ static struct INPUT_STRUCT_NAME
 }
  *DATAIN_NAME, *DATAGET_NAME;
 
+/*! the sum the shares are normalised by: the gas density for the mass-weighted kernel, the summed
+    solid angles otherwise */
+static double pbhef_donor_weight_sum(int i)
+{
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+    return P[i].AreaSumPBH;
+#else
+    return P[i].DensityPBH;
+#endif
+}
+
 static void pbhef_donor_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loop_iteration)
 {
     int k; for(k=0;k<3;k++) {in->Pos[k] = P[i].Pos[k];}
     in->HsmlPBH = P[i].HsmlPBH;
     in->Power = pbhef_donor_power(i);
     in->Timebin = P[i].TimeBin;
+    in->WeightSum = pbhef_donor_weight_sum(i);
 #ifdef PBHEF_SOLID_ANGLE_WEIGHTS
-    in->WeightSum = P[i].AreaSumPBH;
     double heff = P[i].HsmlPBH / P[i].NumNgbPBH; in->V_i = heff*heff*heff;
-#else
-    in->WeightSum = P[i].DensityPBH;
 #endif
 }
 
@@ -858,10 +895,11 @@ void pbhef_donor_feedback(void)
     for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {if(TimeBinActive[b]) {SphP[i].PBHEF_DtuBin[b] = 0;}}}
 
     double prefactor = pbhef_prefactor_cached(); /* also warms the cache before the threaded loop below */
-    PBH_RateCoupled = 0; PBH_RateIntended = 0; PBH_NumUncapped = 0;
+    PBH_RateCoupled = 0; PBH_RateIntended = 0; PBH_NumUncapped = 0; PBH_NumDonors = 0;
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
     {
         if(pbhef_density_isactive(i)) {PBH_RateIntended += prefactor * P[i].Mass;}
+        if(pbhef_donor_isactive(i, 1)) {PBH_NumDonors++;}
     }
 
 #ifdef PBHEF_SOLID_ANGLE_WEIGHTS
@@ -880,7 +918,11 @@ void pbhef_donor_feedback(void)
         double dE = 0;
         for(b = 0; b < TIMEBINS; b++) {if(TimeBinCount[b]) {dE += SphP[i].PBHEF_DtuBin[b];}}
         SphP[i].PBHEF_Dtu = (P[i].Mass > 0) ? dE / P[i].Mass : 0;
-        if(SphP[i].PBHEF_Dtu > 0 && TimeBinActive[P[i].TimeBin]) {SphP[i].DtInternalEnergy += SphP[i].PBHEF_Dtu;}
+        if(SphP[i].PBHEF_Dtu > 0 && TimeBinActive[P[i].TimeBin])
+        {
+            SphP[i].DtInternalEnergy += SphP[i].PBHEF_Dtu;
+            pbhef_note_injection(i, SphP[i].PBHEF_Dtu);
+        }
     }
 
     /* the shares sum to one, so these should agree to round-off. this is not conservative by
@@ -888,6 +930,23 @@ void pbhef_donor_feedback(void)
     double budget_local[2] = {PBH_RateIntended, PBH_RateCoupled}, budget[2];
     MPI_Allreduce(&budget_local[0], &budget[0], 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     if(budget[0] > 0) {PRINT_STATUS(" ..PBHEF donor budget: intended=%g coupled=%g (fraction=%.6f)", budget[0], budget[1], budget[1]/budget[0]);}
+
+#ifdef PBHEF_DEBUG
+    /* trace one donor. PBH_EnergyID names a DM particle here, where the receiver mode traces the gas
+       cell that receives; what matters on this side is the kernel and the normalisation it shares by */
+    for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
+    {
+        if(P[i].Type != 1 || P[i].ID != All.PBH_EnergyID) {continue;}
+        double current_pbh_mass; pbhef_get_current_mass(All.Time, &current_pbh_mass);
+        printf(" ..PBHEF (after sharing): i=%d, Type=%d, ID=%llu, atime=%g, Mass=%g, timebin=%d,\n"
+               "                          HsmlPBH=%g, NumNgbPBH=%g, weight_sum=%g, power=%g,\n"
+               "                          f=%g, C=%g, alpha=%g, PBHm0=%g, PBHm(t)=%g\n",
+          i, P[i].Type, (unsigned long long) P[i].ID, All.cf_atime, P[i].Mass, P[i].TimeBin,
+          P[i].HsmlPBH, (double) P[i].NumNgbPBH, pbhef_donor_weight_sum(i), pbhef_donor_power(i),
+          All.PBH_MassFraction, All.PBH_EvaporationConstant, All.PBH_Alpha, All.PBH_InitialMass, current_pbh_mass);
+        fflush(stdout);
+    }
+#endif
 
     /* an active receiver on a longer step than its donor means the cap has not held. its rate is scaled
        down so no energy is lost, but it is a sign the coupling is not doing its job */
@@ -900,5 +959,53 @@ void pbhef_donor_feedback(void)
 
 #endif /* PBHEF == 2 */
 
+
+/*! One line of pbhef_energy.txt per sync point, alongside cpu.txt. The test this exists for is the
+    global energy budget: the black holes radiate a total that is known in closed form, since PBH
+    evaporation is a one-body process, so summing what the gas actually received and dividing gives a
+    number that should be one for the donor method. It is the only diagnostic here that can see an
+    error in how a receiver's changing mass is handled, because the per-step budget report accumulates
+    at deposit time and would read one either way.
+
+    The expected energy integrates the current rate over the system timestep, which is first-order in
+    how fast m(t) changes; over a step that is far below the evaporation timescale the difference does
+    not matter. Note ENERGY_ENTROPY_SWITCH_IS_ACTIVE overwrites DtInternalEnergy in kicks.c, which
+    would leave this counting energy the gas never received. */
+void pbhef_log_energy(void)
+{
+    double injected_step;
+    MPI_Reduce(&PBH_EnergyInjectedThisTask, &injected_step, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    PBH_EnergyInjectedThisTask = 0;
+
+    /* measure the interval on the integer timeline, the same clock the receivers integrate their rate
+       over, rather than from All.TimeStep: that is a step in scale factor, not in log a */
+    static integertime ti_last = -1;
+    if(ti_last < 0) {ti_last = All.Ti_Current;}
+    double dt_sync = (All.Ti_Current - ti_last) * All.Timebase_interval / All.cf_hubble_a;
+    ti_last = All.Ti_Current;
+
+    double prefactor = pbhef_heating_prefactor();
+    double expected_step = prefactor * pbhef_donor_mass_total() * dt_sync;
+#if (PBHEF == 2)
+    double budget[2] = {0,0}, budget_local[2] = {PBH_RateIntended, PBH_RateCoupled};
+    long ndonors, ndonors_local = PBH_NumDonors;
+    MPI_Reduce(budget_local, budget, 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&ndonors_local, &ndonors, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+#endif
+    if(ThisTask != 0) {return;}
+
+    All.PBH_EnergyInjected += injected_step;
+    All.PBH_EnergyExpected += expected_step;
+    double current_mass; pbhef_get_current_mass(All.Time, &current_mass);
+    double ratio = (All.PBH_EnergyExpected > 0) ? All.PBH_EnergyInjected / All.PBH_EnergyExpected : 0;
+    double z = (All.ComovingIntegrationOn) ? 1./All.Time - 1. : 0;
+
+    fprintf(FdPBHEF, "%.16g %g %g %g %g %g %g %g", All.Time, z, current_mass * UNIT_MASS_IN_CGS,
+            prefactor, injected_step, All.PBH_EnergyInjected, All.PBH_EnergyExpected, ratio);
+#if (PBHEF == 2)
+    fprintf(FdPBHEF, " %g %ld", (budget[0] > 0) ? budget[1]/budget[0] : 0, ndonors);
+#endif
+    fprintf(FdPBHEF, "\n"); fflush(FdPBHEF);
+}
 
 #endif /* PBHEF */

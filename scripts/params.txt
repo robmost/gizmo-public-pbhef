@@ -290,13 +290,17 @@ FuzzyDM_Mass_in_eV        1e-22     % boson mass in eV for SFDM/Fuzzy DM module
 %---   evaluated, not what sets it, and neither mode adds a parameter of its own. DesNumNgb sizes the
 %---   kernel in both: the dark matter neighbours of a gas cell for PBHEF=1, the gas neighbours a dark
 %---   matter particle shares its evaporation power over for PBHEF=2.
+%--- Either mode writes pbhef_energy.txt to OutputDir, one line per sync point, comparing the energy
+%---   the gas actually received against the total the black holes should have radiated over the same
+%---   interval, which is known in closed form because evaporation is a one-body process. The donor
+%---   method matches it exactly; the receiver method does not, and the gap is a property of the method.
 %--- Under PBHEF=2, a dark matter particle with no gas in its kernel has nowhere to put its energy and
 %---   injects nothing. The donor energy-budget line printed each step reports how much of the intended
 %---   rate reached the gas, so watch it: in a zoom it is normal for the low-resolution particles outside
 %---   the refined region to account for a large part of the shortfall.
 PBH_MassFraction              0.1       % fraction of the dark matter mass in primordial black holes [dimensionless]
 PBH_InitialMass               1e15      % mass of a single primordial black hole, in [grams]
-PBH_EnergyID                  0         % ID of a gas cell to trace (only used with PBHEF_DEBUG, which traces PBHEF=1 only)
+PBH_EnergyID                  0         % ID of an element to trace with PBHEF_DEBUG: the receiving gas cell for PBHEF=1, the donating dark matter particle for PBHEF=2
 
 
 %-------------------------------------------------------------

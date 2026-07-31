@@ -757,6 +757,20 @@ void open_outputfiles(void)
     fprintf(FdBalance, "\n");
 #endif
 
+#ifdef PBHEF
+    sprintf(buf, "%s%s", All.OutputDir, "pbhef_energy.txt");
+    if(!(FdPBHEF = fopen(buf, mode))) {printf("error in opening file '%s'\n", buf); endrun(1);}
+    if(RestartFlag == 0)
+    {
+        fprintf(FdPBHEF, "# time redshift pbh_mass_grams prefactor dE_step E_injected E_expected ratio");
+#if (PBHEF == 2)
+        fprintf(FdPBHEF, " f_coupled n_donors");
+#endif
+        fprintf(FdPBHEF, "\n");
+        fflush(FdPBHEF);
+    }
+#endif
+
 #ifdef GALSF
   sprintf(buf, "%s%s", All.OutputDir, "sfr.txt");
   if(!(FdSfr = fopen(buf, mode))) {printf("error in opening file '%s'\n", buf); endrun(1);}

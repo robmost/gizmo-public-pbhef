@@ -41,6 +41,9 @@ void init(void)
     set_cosmo_factors_for_current_time();
 
     if(RestartFlag != 1) {All.MinMassForParticleMerger = 0; All.MaxMassForParticleSplit = 0;}
+#ifdef PBHEF
+    if(RestartFlag == 0) {All.PBH_EnergyInjected = 0; All.PBH_EnergyExpected = 0;}
+#endif
 
     if(RestartFlag == 3 && RestartSnapNum < 0)
     {

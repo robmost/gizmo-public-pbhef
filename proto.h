@@ -1058,6 +1058,8 @@ int pbhef_density_evaluate(int target, int mode, int *exportflag, int *exportnod
 void pbhef_density(void);
 int pbhef_is_active(void);
 double pbhef_heating_prefactor(void);
+void pbhef_log_energy(void);
+void pbhef_note_injection(int i, double specific_rate);
 double pbhef_prefactor_cached(void);
 double pbhef_donor_power(int i);
 int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration);
