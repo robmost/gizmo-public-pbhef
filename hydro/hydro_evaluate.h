@@ -22,7 +22,7 @@
 int hydro_force_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)
 {
     int j, k, n, startnode, numngb, kernel_mode, listindex;
-    double hinv_i,hinv3_i,hinv4_i,hinv_j,hinv3_j,hinv4_j,V_i,V_j,dt_hydrostep_i,dt_hydrostep_j,dt_hydrostep,r2,rinv,rinv_soft,u,Particle_Size_i;
+    double hinv_i,hinv3_i,hinv4_i,hinv_j,hinv3_j,hinv4_j,V_i,V_j,dt_hydrostep_j,dt_hydrostep,r2,rinv,rinv_soft,u,Particle_Size_i;
     double v_hll,k_hll,b_hll; v_hll=k_hll=0,b_hll=1;
     struct kernel_hydra kernel;
     struct INPUT_STRUCT_NAME local;
@@ -153,7 +153,7 @@ int hydro_force_evaluate(int target, int mode, int *exportflag, int *exportnodec
 
                 /* check if I need to compute this pair-wise interaction from "i" to "j", or skip it and let it be computed from "j" to "i" */
                 dt_hydrostep_j = GET_PARTICLE_TIMESTEP_IN_PHYSICAL(j);
-                dt_hydrostep = DMAX(dt_hydrostep_i , dt_hydrostep_j); // this is used for flux-limiting, so we always want to be more conservative and use the larger timestep //
+                dt_hydrostep = DMAX(local.dt_hydrostep_i , dt_hydrostep_j); // this is used for flux-limiting, so we always want to be more conservative and use the larger timestep //
                 double FluxCorrectionFactor_to_i = 1, FluxCorrectionFactor_to_j = 1; // these, by default, won't do anything, but will be used below in final flux assignment
 #if 0 //def USE_TIMESTEP_DILATION_FOR_ZOOMS
                 double DilationFactor_j = return_timestep_dilation_factor(j, 0);
@@ -372,7 +372,7 @@ int hydro_force_evaluate(int target, int mode, int *exportflag, int *exportnodec
                 /* now we will actually assign the hydro variables for the evolution step */
                 /* --------------------------------------------------------------------------------- */
 #ifdef HYDRO_MESHLESS_FINITE_VOLUME
-                double dmass_holder = Fluxes.rho * dt_hydrostep_i, dmass_limiter;
+                double dmass_holder = Fluxes.rho * local.dt_hydrostep_i, dmass_limiter;
                 if(dmass_holder > 0) {dmass_limiter=P[j].Mass;} else {dmass_limiter=local.Mass;}
                 dmass_limiter *= 0.1;
                 if(fabs(dmass_holder) > dmass_limiter) {dmass_holder *= dmass_limiter / fabs(dmass_holder);}
