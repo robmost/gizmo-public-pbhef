@@ -10,28 +10,16 @@
 #include "../kernel.h"
 
 /*! \file pbh_evaporation.c
- *  \brief DM density calculation around particles
+ *  \brief energy injection from evaporating primordial black holes, following List et al. 2019
  *
- *    This file contains a loop modeled on the standard gas density computation which
- *    determines the DARK MATTER density around a given set of particles and adjusts the smoothing length for this
-*     calculation.
- *    The dark matter density is used to set the energy injection due to primordial black hole (PBH) evaporation.
- *
- * This file was written by Robert Mostoghiu Paun, for GIZMO, based on Florian List's dark matter annihilation feedback routine.
- *
- * Method 1 - receiver-based approach (activate using PBHEF)
-  - PBH (traced by N-Body DM particles) density is calculated at each gas particle using smoothing length HsmlPBH
-  - from PBH density, PBH evaporation rate at gas particle is calculated
-  - energy injection at each gas particle
- * Method 2 - donor-based approach (PBHEF=2)
-  - the loop runs the other way round: HsmlPBH is a gas search radius and DensityPBH the gas density at the DM particle
-  - the evaporation power follows from the DM particle mass alone, and is shared over its gas neighbors
- *
+ *  The neighbour loop here is modelled on hydro/density.c and runs in either direction: PBHEF=1 finds the
+ *  DM around each gas cell and takes the evaporation rate from that density, PBHEF=2 finds the gas around
+ *  each DM particle, whose own mass sets the power it shares over them.
  */
 /*!
- * This file was originally part of the GADGET3 code developed by Volker Springel.
- * The code has been modified substantially (condensed, different criteria for kernel lengths, optimizations,
- * rewritten parallelism, new physics included, new variable/memory conventions added) by Phil Hopkins (phopkins@caltech.edu) for GIZMO.
+ * This file was originally part of the GADGET3 code developed by Volker Springel, modified substantially
+ * for GIZMO by Phil Hopkins (phopkins@caltech.edu), and written for PBH evaporation by Robert Mostoghiu
+ * Paun, after Florian List's dark matter annihilation feedback routine.
  */
 
 
@@ -646,19 +634,13 @@ void pbhef_get_current_mass(double a, double *mass_out)
 
 #if (PBHEF == 2)
 
-/*! Donor-based energy injection, after List et al. 2019. A DM particle carries f0*M_i/m0 black holes, each
+/*! Donor-based energy injection, after List et al. 2019. A DM particle carries f0*M_i/m0 black holes each
     radiating C*alpha/m(t)^2, so its power is the heating prefactor times its own mass, with no dependence
-    on the DM density around it. That power is shared over its gas neighbors as w_j / sum_k w_k, and each
-    receiver stores its share divided by its own mass, since what it needs is a specific energy rate.
-    The share is stored in the slot for the donor's own timebin, because donor and receivers are usually
-    not active on the same step. Slots are cleared for the bins active on this step, which is safe since
-    every donor in an active bin is about to deposit again.
-
-    Two choices of w_j. By default it is the mass-weighted kernel of eq. 5, w_j = M_j W(r,h), whose sum is
-    the gas density pbhef_density() has already put in DensityPBH, so no separate pass is needed. Under
-    PBHEF_SOLID_ANGLE_WEIGHTS it is the solid angle subtended by the effective face between the two, eq. 6,
-    which the paper prefers because it is isotropic however the gas mass is arranged. That sum has no
-    closed form, so it costs a first pass over the neighbors to build AreaSumPBH. */
+    on the DM density around it. It shares that power over its gas neighbors as w_j / sum_k w_k, stored per
+    unit receiver mass in the slot for the donor's own timebin, since the two are rarely active together.
+    By default w_j is the mass-weighted kernel of eq. 5, whose sum pbhef_density() has already left in
+    DensityPBH; PBHEF_SOLID_ANGLE_WEIGHTS uses instead the solid angle of eq. 6, isotropic however the gas
+    is arranged but with no closed-form sum, so it costs a pass of its own. */
 
 static double PBH_RateIntended;   /*!< rate the active donors mean to inject, this task */
 static double PBH_RateCoupled;    /*!< rate that actually landed on gas, this task */
@@ -886,13 +868,10 @@ void pbhef_donor_feedback(void)
 #endif
     pbhef_donor_loop(1);
 
-    /* total the slots into the rate the rest of the code reads; only occupied bins can hold anything.
-       The total is then coupled the way the receiver mode couples its own, by adding to DtInternalEnergy
-       so that kicks.c can fold it into the implicit cooling solve. Only cells that are about to
-       integrate their rate may take it: hydro_force() has just rebuilt DtInternalEnergy for those, while
-       an inactive cell still carries the value it was given when it last woke and would be paid twice.
-       Cells the hydro loop excludes are already absent here, since pbhef_donor_can_receive() rejects
-       them before anything is deposited. */
+    /* total the slots into the rate the rest of the code reads, and couple it where the receiver mode
+       couples its own, so kicks.c can fold it into the implicit cooling solve. Only active cells take
+       it: hydro_force() has just rebuilt their DtInternalEnergy, while an inactive one still holds the
+       value it was given when it last woke and would be paid twice. */
     for(i = 0; i < N_gas; i++)
     {
         double dtu = 0;
