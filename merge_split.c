@@ -624,6 +624,10 @@ int split_particle_i(int i, int n_particles_split, int i_nearest)
 #endif
         }
 #endif
+#if (PBHEF == 2)
+        /* the received rates are energies per unit time, so they divide with the mass, as the terms above do */
+        for(k=0;k<TIMEBINS;k++) {SphP[j].PBHEF_DtuBin[k] = mass_of_new_particle * SphP[i].PBHEF_DtuBin[k]; SphP[i].PBHEF_DtuBin[k] -= SphP[j].PBHEF_DtuBin[k];}
+#endif
 #ifdef HYDRO_MESHLESS_FINITE_VOLUME
         double dmass = mass_of_new_particle * SphP[i].DtMass;
         SphP[j].DtMass = dmass;
@@ -936,6 +940,9 @@ int merge_particles_ij(int i, int j)
 #endif
 
     // below, we need to take care of additional physics //
+#if (PBHEF == 2)
+    for(k=0;k<TIMEBINS;k++) {SphP[j].PBHEF_DtuBin[k] += SphP[i].PBHEF_DtuBin[k];} /* energies per unit time, so they add */
+#endif
 #if defined(RADTRANSFER)
     for(k=0;k<N_RT_FREQ_BINS;k++)
     {

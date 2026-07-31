@@ -3355,10 +3355,12 @@ extern struct gas_cell_data
 #endif
 
 #ifdef PBHEF
-  MyDouble PBHEF_Dtu;                /*!< total energy injection rate due to PBH evaporation */
+  MyDouble PBHEF_Dtu;                /*!< specific energy injection rate due to PBH evaporation */
 #if (PBHEF == 2)
-  float PBHEF_DtuBin[TIMEBINS];      /*!< donor-based: that rate split by the timebin of the donor it came from, so a donor
-                                          can replace its own share when it wakes. PBHEF_Dtu is the sum over these */
+  float PBHEF_DtuBin[TIMEBINS];      /*!< donor-based: the received -energy- rate, split by the timebin of the donor it came
+                                          from so a donor can replace its own share when it wakes. Held as an energy rate
+                                          rather than a specific one because the cell's mass can change before it is used
+                                          (MFV, splits, merges); PBHEF_Dtu is the sum over these, over the current mass */
 #endif
 #endif
 

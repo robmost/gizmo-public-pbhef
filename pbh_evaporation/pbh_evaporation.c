@@ -636,8 +636,9 @@ void pbhef_get_current_mass(double a, double *mass_out)
 
 /*! Donor-based energy injection, after List et al. 2019. A DM particle carries f0*M_i/m0 black holes each
     radiating C*alpha/m(t)^2, so its power is the heating prefactor times its own mass, with no dependence
-    on the DM density around it. It shares that power over its gas neighbors as w_j / sum_k w_k, stored per
-    unit receiver mass in the slot for the donor's own timebin, since the two are rarely active together.
+    on the DM density around it. It shares that power over its gas neighbors as w_j / sum_k w_k, stored in
+    the slot for the donor's own timebin since the two are rarely active together, and as a share of the
+    power rather than of the specific energy, because the receiver's mass can change before it wakes.
     By default w_j is the mass-weighted kernel of eq. 5, whose sum pbhef_density() has already left in
     DensityPBH; PBHEF_SOLID_ANGLE_WEIGHTS uses instead the solid angle of eq. 6, isotropic however the gas
     is arranged but with no closed-form sum, so it costs a pass of its own. */
@@ -789,20 +790,20 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                     if(!depositing) {out.AreaSum += w_j; continue;}
 #endif
 
-                    /* the shares w_j/sum_k w_k sum to one; each receiver wants its own per unit mass */
-                    double dtu_j = local.Power * w_j / (local.WeightSum * P[j].Mass);
+                    /* the shares w_j/sum_k w_k sum to one, so this is the receiver's cut of the power */
+                    double dE_j = local.Power * w_j / local.WeightSum;
 
                     /* A receiver on a longer step than its donor would integrate this rate for too long,
                        so scale it down by the ratio of the two steps. The cap below is meant to prevent
                        that, but it only takes effect from the next step, so the case is reachable. */
                     if(local.Timebin < P[j].TimeBin)
                     {
-                        dtu_j *= (double)(((integertime) 1) << local.Timebin) / (double)(((integertime) 1) << P[j].TimeBin);
+                        dE_j *= (double)(((integertime) 1) << local.Timebin) / (double)(((integertime) 1) << P[j].TimeBin);
                         if(TimeBinActive[P[j].TimeBin]) {n_uncapped++;} /* cap should have applied by now */
                     }
 
                     #pragma omp atomic
-                    SphP[j].PBHEF_DtuBin[local.Timebin] += (float)dtu_j;
+                    SphP[j].PBHEF_DtuBin[local.Timebin] += (float)dE_j;
 
                     /* keep the receiver on a step no longer than the donor's */
                     if(P[j].PBHEF_MaxTimebin > local.Timebin)
@@ -814,7 +815,7 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                     {int cap = P[j].TimeBin + PBHEF_LIMIT_DM_TIMESTEP; if(cap < out.MaxTimebin) {out.MaxTimebin = cap;}}
 #endif
 
-                    out.RateCoupled += dtu_j * P[j].Mass;
+                    out.RateCoupled += dE_j;
                 } // if(r2 < h2)
             } // numngb_inbox loop
         } // while(startnode)
@@ -868,16 +869,18 @@ void pbhef_donor_feedback(void)
 #endif
     pbhef_donor_loop(1);
 
-    /* total the slots into the rate the rest of the code reads, and couple it where the receiver mode
-       couples its own, so kicks.c can fold it into the implicit cooling solve. Only active cells take
-       it: hydro_force() has just rebuilt their DtInternalEnergy, while an inactive one still holds the
-       value it was given when it last woke and would be paid twice. */
+    /* total the slots and divide by the mass the cell has now, which is what makes this safe under MFV:
+       the slots hold a share of the donor's power, so a cell whose mass has changed since the deposit
+       still receives the energy that was budgeted for it. Couple it where the receiver mode couples its
+       own, so kicks.c can fold it into the implicit cooling solve. Only active cells take it:
+       hydro_force() has just rebuilt their DtInternalEnergy, while an inactive one still holds the value
+       it was given when it last woke and would be paid twice. */
     for(i = 0; i < N_gas; i++)
     {
-        double dtu = 0;
-        for(b = 0; b < TIMEBINS; b++) {if(TimeBinCount[b]) {dtu += SphP[i].PBHEF_DtuBin[b];}}
-        SphP[i].PBHEF_Dtu = dtu;
-        if(dtu > 0 && TimeBinActive[P[i].TimeBin]) {SphP[i].DtInternalEnergy += dtu;}
+        double dE = 0;
+        for(b = 0; b < TIMEBINS; b++) {if(TimeBinCount[b]) {dE += SphP[i].PBHEF_DtuBin[b];}}
+        SphP[i].PBHEF_Dtu = (P[i].Mass > 0) ? dE / P[i].Mass : 0;
+        if(SphP[i].PBHEF_Dtu > 0 && TimeBinActive[P[i].TimeBin]) {SphP[i].DtInternalEnergy += SphP[i].PBHEF_Dtu;}
     }
 
     /* the shares sum to one, so these should agree to round-off. this is not conservative by
