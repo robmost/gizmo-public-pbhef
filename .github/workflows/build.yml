@@ -18,28 +18,32 @@ jobs:
       matrix:
         include:
           - name: no-pbhef
-            flags: ""
+            flags: "HYDRO_MESHLESS_FINITE_MASS"
           - name: pbhef-receiver
-            flags: "PBHEF=1"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=1"
           - name: pbhef-donor
-            flags: "PBHEF=2"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2"
           - name: pbhef-valueless
-            flags: "PBHEF"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF"
           - name: pbhef-debug
-            flags: "PBHEF=1 PBHEF_DEBUG"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=1 PBHEF_DEBUG"
           - name: pbhef-no-mass-loss
-            flags: "PBHEF=1 PBHEF_NO_MASS_LOSS"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=1 PBHEF_NO_MASS_LOSS"
           - name: pbhef-donor-limit-dm-timestep
-            flags: "PBHEF=2 PBHEF_LIMIT_DM_TIMESTEP=2"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_LIMIT_DM_TIMESTEP=2"
           - name: pbhef-donor-solid-angle
-            flags: "PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS"
+          # the donor rate array stores an energy rate rather than a specific one so that a receiver
+          # whose mass has changed still gets the energy budgeted for it, which only matters here
+          - name: pbhef-donor-mfv
+            flags: "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2"
           # GALSF_SUBGRID_WIND_SCALING=2 is the only setting that compiles galaxy_sf/dm_dispersion_hsml.c
           # and so the only one that declares SphP[].HsmlDM and SphP[].NumNgbDM. Those used to collide by
           # name with the PBHEF fields, so this entry is what keeps the two sets apart. GALSF_EFFECTIVE_EQS
           # is needed as well: FactorSN and EgySpecSN are declared under it but used under
           # GALSF_SUBGRID_WINDS, so the two cannot be enabled separately.
           - name: pbhef-with-subgrid-winds
-            flags: "PBHEF=1 COOLING GALSF GALSF_EFFECTIVE_EQS GALSF_SUBGRID_WINDS GALSF_SUBGRID_WIND_SCALING=2"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=1 COOLING GALSF GALSF_EFFECTIVE_EQS GALSF_SUBGRID_WINDS GALSF_SUBGRID_WIND_SCALING=2"
 
     name: ${{ matrix.name }}
     steps:
