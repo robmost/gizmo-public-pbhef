@@ -31,6 +31,8 @@ jobs:
             flags: "PBHEF=1 PBHEF_NO_MASS_LOSS"
           - name: pbhef-donor-limit-dm-timestep
             flags: "PBHEF=2 PBHEF_LIMIT_DM_TIMESTEP=2"
+          - name: pbhef-donor-solid-angle
+            flags: "PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS"
           # GALSF_SUBGRID_WIND_SCALING=2 is the only setting that compiles galaxy_sf/dm_dispersion_hsml.c
           # and so the only one that declares SphP[].HsmlDM and SphP[].NumNgbDM. Those used to collide by
           # name with the PBHEF fields, so this entry is what keeps the two sets apart. GALSF_EFFECTIVE_EQS

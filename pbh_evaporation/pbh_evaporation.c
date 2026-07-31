@@ -648,12 +648,17 @@ void pbhef_get_current_mass(double a, double *mass_out)
 
 /*! Donor-based energy injection, after List et al. 2019. A DM particle carries f0*M_i/m0 black holes, each
     radiating C*alpha/m(t)^2, so its power is the heating prefactor times its own mass, with no dependence
-    on the DM density around it. That power is shared over its gas neighbors with the mass-weighted kernel
-    weights of eq. 5, normalised by their sum, which is the gas density pbhef_density() already put in
-    DensityPBH; per unit receiver mass the share is therefore W(r,h)/DensityPBH and the shares sum to one.
-    The share is stored as a rate, in the slot for the donor's own timebin, because donor and receivers are
-    usually not active on the same step. Slots are cleared for the bins active on this step, which is safe
-    since every donor in an active bin is about to deposit again. */
+    on the DM density around it. That power is shared over its gas neighbors as w_j / sum_k w_k, and each
+    receiver stores its share divided by its own mass, since what it needs is a specific energy rate.
+    The share is stored in the slot for the donor's own timebin, because donor and receivers are usually
+    not active on the same step. Slots are cleared for the bins active on this step, which is safe since
+    every donor in an active bin is about to deposit again.
+
+    Two choices of w_j. By default it is the mass-weighted kernel of eq. 5, w_j = M_j W(r,h), whose sum is
+    the gas density pbhef_density() has already put in DensityPBH, so no separate pass is needed. Under
+    PBHEF_SOLID_ANGLE_WEIGHTS it is the solid angle subtended by the effective face between the two, eq. 6,
+    which the paper prefers because it is isotropic however the gas mass is arranged. That sum has no
+    closed form, so it costs a first pass over the neighbors to build AreaSumPBH. */
 
 static double PBH_RateIntended;   /*!< rate the active donors mean to inject, this task */
 static double PBH_RateCoupled;    /*!< rate that actually landed on gas, this task */
@@ -665,12 +670,16 @@ double pbhef_donor_power(int i)
     return pbhef_prefactor_cached() * P[i].Mass;
 }
 
-/*! DM particles that are active and have gas to give their energy to */
-static int pbhef_donor_isactive(int n)
+/*! DM particles that are active and have gas to give their energy to. The weighting pass runs before the
+    sum it builds exists, so only the depositing pass may ask for it */
+static int pbhef_donor_isactive(int n, int loop_iteration)
 {
     if(!pbhef_density_isactive(n)) {return 0;}
     if(P[n].HsmlPBH <= 0 || P[n].DensityPBH <= 0) {return 0;} /* no gas inside the kernel, so no receivers */
     if(pbhef_donor_power(n) <= 0) {return 0;}
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+    if(loop_iteration > 0 && P[n].AreaSumPBH <= 0) {return 0;}
+#endif
     return 1;
 }
 
@@ -692,7 +701,7 @@ static int pbhef_donor_can_receive(int j)
 #define CORE_FUNCTION_NAME pbhef_donor_evaluate /* name of the 'core' function doing the actual inter-neighbor operations */
 #define INPUTFUNCTION_NAME pbhef_donor_particle2in    /* name of the function which loads the element data needed */
 #define OUTPUTFUNCTION_NAME pbhef_donor_out2particle  /* name of the function which takes the data returned from other processors */
-#define CONDITIONFUNCTION_FOR_EVALUATION if(pbhef_donor_isactive(i)) /* elements which are 'active' for this loop */
+#define CONDITIONFUNCTION_FOR_EVALUATION if(pbhef_donor_isactive(i,loop_iteration)) /* elements which are 'active' for this loop */
 #include "../system/code_block_xchange_initialize.h" /* pre-define all the ALL_CAPS variables we will use below */
 
 /*! variables sent -from- the donating DM particle */
@@ -701,8 +710,11 @@ static struct INPUT_STRUCT_NAME
     MyDouble Pos[3];
     MyFloat HsmlPBH;
     MyDouble Power;       /* total power of the black holes this DM particle carries */
-    MyDouble GasDensity;  /* normalisation: the mass-weighted kernel sum over its gas neighbors */
+    MyDouble WeightSum;   /* normalisation: the summed weights over its gas neighbors */
     int Timebin;          /* which slot the receivers should store the rate in */
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+    MyDouble V_i;         /* effective volume of the donor, for the face areas */
+#endif
     int NodeList[NODELISTLENGTH];
 }
  *DATAIN_NAME, *DATAGET_NAME;
@@ -711,9 +723,14 @@ static void pbhef_donor_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loo
 {
     int k; for(k=0;k<3;k++) {in->Pos[k] = P[i].Pos[k];}
     in->HsmlPBH = P[i].HsmlPBH;
-    in->GasDensity = P[i].DensityPBH;
     in->Power = pbhef_donor_power(i);
     in->Timebin = P[i].TimeBin;
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+    in->WeightSum = P[i].AreaSumPBH;
+    double heff = P[i].HsmlPBH / P[i].NumNgbPBH; in->V_i = heff*heff*heff;
+#else
+    in->WeightSum = P[i].DensityPBH;
+#endif
 }
 
 /*! variables sent -back to- the donating DM particle */
@@ -721,12 +738,18 @@ static struct OUTPUT_STRUCT_NAME
 {
     MyDouble RateCoupled; /* rate that actually landed on the gas, for the budget report */
     int MaxTimebin;       /* largest bin this donor may take, from its receivers */
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+    MyDouble AreaSum;     /* weighting pass only: the sum the shares are normalised by */
+#endif
 }
  *DATARESULT_NAME, *DATAOUT_NAME;
 
-/*! nothing needs to go back onto the DM particle itself: just accumulate the budget */
+/*! nothing needs to go back onto the DM particle itself except the weight sum: just accumulate the budget */
 static void pbhef_donor_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int mode, int loop_iteration)
 {
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+    if(loop_iteration == 0) {ASSIGN_ADD(P[i].AreaSumPBH, out->AreaSum, mode); return;}
+#endif
     #pragma omp atomic
     PBH_RateCoupled += out->RateCoupled;
 #ifdef PBHEF_LIMIT_DM_TIMESTEP
@@ -738,11 +761,14 @@ static void pbhef_donor_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int 
     loops here this writes to -other- elements, so those writes are atomic as in mechanical_fb.c */
 int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodecount, int *exportindex, int *ngblist, int loop_iteration)
 {
-    int j, n, startnode, numngb_inbox, listindex = 0, n_uncapped = 0; double dp[3], r2, h2, r, u, wk, dwk, hinv, hinv3, hinv4;
+    int j, n, startnode, numngb_inbox, listindex = 0, n_uncapped = 0, depositing = 1; double dp[3], r2, h2, r, u, wk, dwk, hinv, hinv3, hinv4;
     struct INPUT_STRUCT_NAME local; struct OUTPUT_STRUCT_NAME out; memset(&out, 0, sizeof(struct OUTPUT_STRUCT_NAME));
     out.MaxTimebin = TIMEBINS;
     if(mode == 0) {pbhef_donor_particle2in(&local, target, loop_iteration);} else {local = DATAGET_NAME[target];}
-    if(local.Power <= 0 || local.GasDensity <= 0 || local.HsmlPBH <= 0)
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+    depositing = (loop_iteration > 0); /* the pass before it only builds the normalisation */
+#endif
+    if(local.Power <= 0 || local.HsmlPBH <= 0 || (depositing && local.WeightSum <= 0))
     {
         if(mode == 0) {pbhef_donor_out2particle(&out, target, 0, loop_iteration);} else {DATARESULT_NAME[target] = out;}
         return 0;
@@ -762,13 +788,27 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                 dp[2] = local.Pos[2] - P[j].Pos[2];
                 NEAREST_XYZ(dp[0],dp[1],dp[2],1);
                 r2 = dp[0]*dp[0] + dp[1]*dp[1] + dp[2]*dp[2];
-                if(r2 < h2) /* same condition as the density loop, so the weights sum to GasDensity */
+                if(r2 < h2) /* same condition as the density loop, so the mass-weighted sum is DensityPBH */
                 {
                     r = sqrt(r2); u = r * hinv;
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS /* solid angle of the effective face between the two, as mechanical_fb.c builds it */
+                    double hinv_j = 1./PPP[j].Hsml, hinv3_j = hinv_j*hinv_j*hinv_j, hinv4_j = hinv_j*hinv3_j;
+                    double wk_j = 0, dwk_j = 0, u_j = r * hinv_j, V_j = P[j].Mass / SphP[j].Density;
+                    kernel_main(u, hinv3, hinv4, &wk, &dwk, 1); /* 1: only dwk is needed */
+                    if(u_j < 1) {kernel_main(u_j, hinv3_j, hinv4_j, &wk_j, &dwk_j, 1);} else {wk_j = dwk_j = 0;}
+                    double face_area = fabs(local.V_i*local.V_i*dwk + V_j*V_j*dwk_j);
+                    double w_j = (r > 0) ? 0.5 * (1 - 1/sqrt(1 + face_area / (M_PI*r*r))) : 1; /* a coincident cell subtends everything */
+#else
                     kernel_main(u, hinv3, hinv4, &wk, &dwk, -1); /* -1: only wk is needed */
-                    if(wk <= 0) {continue;}
+                    double w_j = P[j].Mass * wk;
+#endif
+                    if(w_j <= 0 || isnan(w_j)) {continue;}
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+                    if(!depositing) {out.AreaSum += w_j; continue;}
+#endif
 
-                    double dtu_j = local.Power * wk / local.GasDensity; /* specific energy rate for this cell */
+                    /* the shares w_j/sum_k w_k sum to one; each receiver wants its own per unit mass */
+                    double dtu_j = local.Power * w_j / (local.WeightSum * P[j].Mass);
 
                     /* A receiver on a longer step than its donor would integrate this rate for too long,
                        so scale it down by the ratio of the two steps. The cap below is meant to prevent
@@ -807,6 +847,16 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
 }
 
 
+/*! one pass of the neighbor loop above, in the mechanical_fb.c style: pass 0 only builds the weight sum */
+static void pbhef_donor_loop(int pass)
+{
+    #include "../system/code_block_xchange_perform_ops_malloc.h" /* this calls the large block of code which contains the memory allocations for the MPI/OPENMP/Pthreads parallelization block which must appear below */
+    loop_iteration = pass;
+    #include "../system/code_block_xchange_perform_ops.h" /* this calls the large block of code which actually contains all the loops, MPI/OPENMP/Pthreads parallelization */
+    #include "../system/code_block_xchange_perform_ops_demalloc.h" /* this de-allocates the memory for the MPI/OPENMP/Pthreads parallelization block which must appear above */
+}
+
+
 /*! top-level driver: must run after pbhef_density(), which sets HsmlPBH and DensityPBH */
 void pbhef_donor_feedback(void)
 {
@@ -831,9 +881,10 @@ void pbhef_donor_feedback(void)
         if(pbhef_density_isactive(i)) {PBH_RateIntended += prefactor * P[i].Mass;}
     }
 
-    #include "../system/code_block_xchange_perform_ops_malloc.h" /* this calls the large block of code which contains the memory allocations for the MPI/OPENMP/Pthreads parallelization block which must appear below */
-    #include "../system/code_block_xchange_perform_ops.h" /* this calls the large block of code which actually contains all the loops, MPI/OPENMP/Pthreads parallelization */
-    #include "../system/code_block_xchange_perform_ops_demalloc.h" /* this de-allocates the memory for the MPI/OPENMP/Pthreads parallelization block which must appear above */
+#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+    pbhef_donor_loop(0); /* the solid-angle weights have no closed-form sum, so total them first */
+#endif
+    pbhef_donor_loop(1);
 
     /* total the slots into the rate the rest of the code reads; only occupied bins can hold anything.
        The total is then coupled the way the receiver mode couples its own, by adding to DtInternalEnergy
