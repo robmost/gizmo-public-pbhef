@@ -190,7 +190,7 @@ void pbhef_density(void)
 {
     /* initialize variables used below, in particlar the structures we need to call throughout the iteration */
     CPU_Step[CPU_PBHEFDMDENSMISC] += measure_time(); double t00_truestart = my_second(); MyFloat *LeftPBH, *RightPBH; double fac, fac_lim, desnumngb, desnumngbdev; long long ntot;
-    int i, k, npleft, iter=0, redo_particle, particle_set_to_minhsml_flag = 0, particle_set_to_maxhsml_flag = 0;
+    int i, npleft, iter=0, redo_particle, particle_set_to_minhsml_flag = 0, particle_set_to_maxhsml_flag = 0;
     LeftPBH = (MyFloat *) mymalloc("LeftPBH", NumPart * sizeof(MyFloat));
     RightPBH = (MyFloat *) mymalloc("RightPBH", NumPart * sizeof(MyFloat));
 
