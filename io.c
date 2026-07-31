@@ -35,7 +35,7 @@ static int n_info;
 void savepositions(int num)
 {
     size_t bytes;
-    char buf[500], outputdir[100];
+    char buf[500], outputdir[500];
     int n, filenr, gr, ngroups, primaryTask, lastTask;
 
     CPU_Step[CPU_MISC] += measure_time();
