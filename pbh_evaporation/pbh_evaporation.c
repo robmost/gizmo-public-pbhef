@@ -1000,10 +1000,13 @@ void pbhef_log_energy(void)
     double ratio = (All.PBH_EnergyExpected > 0) ? All.PBH_EnergyInjected / All.PBH_EnergyExpected : 0;
     double z = (All.ComovingIntegrationOn) ? 1./All.Time - 1. : 0;
 
-    fprintf(FdPBHEF, "%.16g %g %g %g %g %g %g %g", All.Time, z, current_mass * UNIT_MASS_IN_CGS,
-            prefactor, injected_step, All.PBH_EnergyInjected, All.PBH_EnergyExpected, ratio);
+    /* every column at the same width as energy.txt, since the whole point of the file is a ratio that
+       has to be read against one to as many digits as there are */
+    fprintf(FdPBHEF, "%.16g %.16g %.16g %.16g %.16g %.16g %.16g %.16g", All.Time, z,
+            current_mass * UNIT_MASS_IN_CGS, prefactor, injected_step, All.PBH_EnergyInjected,
+            All.PBH_EnergyExpected, ratio);
 #if (PBHEF == 2)
-    fprintf(FdPBHEF, " %g %ld", (budget[0] > 0) ? budget[1]/budget[0] : 0, ndonors);
+    fprintf(FdPBHEF, " %.16g %ld", (budget[0] > 0) ? budget[1]/budget[0] : 0, ndonors);
 #endif
     fprintf(FdPBHEF, "\n"); fflush(FdPBHEF);
 }
