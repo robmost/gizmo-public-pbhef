@@ -890,10 +890,6 @@ void pbhef_donor_feedback(void)
     }
     PRINT_STATUS(" ..PBHEF Donor-based approach:  sharing evaporation energy over the gas...");
 
-    /* clear the slots whose donors will deposit again. must cover every gas cell, not just the active
-       ones, since an active donor also feeds sleeping receivers */
-    for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {if(TimeBinActive[b]) {SphP[i].PBHEF_DtuBin[b] = 0;}}}
-
     double prefactor = pbhef_prefactor_cached(); /* also warms the cache before the threaded loop below */
     PBH_RateCoupled = 0; PBH_RateIntended = 0; PBH_NumUncapped = 0; PBH_NumDonors = 0;
     for(i = FirstActiveParticle; i >= 0; i = NextActiveParticle[i])
@@ -901,6 +897,19 @@ void pbhef_donor_feedback(void)
         if(pbhef_density_isactive(i)) {PBH_RateIntended += prefactor * P[i].Mass;}
         if(pbhef_donor_isactive(i, 1)) {PBH_NumDonors++;}
     }
+
+    /* Timebins are provisional on the first call, with every particle still in bin 0, so bin 0 is the
+       slot the donors write. TimeBinActive[0] is true on every step (run.c:441), so the clear below
+       would drop that rate before any receiver had integrated it and the gas would go unheated until
+       the donors woke. Hold the slot until they write their real bins, which is the next call one of
+       them is active on. */
+    static int holding_first_deposit = 0;
+    int first_slot = (holding_first_deposit && !PBH_NumDonors) ? 1 : 0;
+    if(All.Ti_Current == 0) {holding_first_deposit = 1;} else if(PBH_NumDonors) {holding_first_deposit = 0;}
+
+    /* clear the slots whose donors will deposit again. must cover every gas cell, not just the active
+       ones, since an active donor also feeds sleeping receivers */
+    for(i = 0; i < N_gas; i++) {for(b = first_slot; b < TIMEBINS; b++) {if(TimeBinActive[b]) {SphP[i].PBHEF_DtuBin[b] = 0;}}}
 
 #ifdef PBHEF_SOLID_ANGLE_WEIGHTS
     pbhef_donor_loop(0); /* the solid-angle weights have no closed-form sum, so total them first */
@@ -916,7 +925,7 @@ void pbhef_donor_feedback(void)
     for(i = 0; i < N_gas; i++)
     {
         double dE = 0;
-        for(b = 0; b < TIMEBINS; b++) {if(TimeBinCount[b]) {dE += SphP[i].PBHEF_DtuBin[b];}}
+        for(b = 0; b < TIMEBINS; b++) {if(b == 0 || TimeBinCount[b]) {dE += SphP[i].PBHEF_DtuBin[b];}}
         SphP[i].PBHEF_Dtu = (P[i].Mass > 0) ? dE / P[i].Mass : 0;
         if(SphP[i].PBHEF_Dtu > 0 && TimeBinActive[P[i].TimeBin])
         {
