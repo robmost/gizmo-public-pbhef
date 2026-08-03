@@ -1,0 +1,80 @@
+%-------------------------------------------------------------------------
+%  An isolated disc galaxy in a live dark matter halo, from the bundled
+%  isodisk ICs: 35000 gas, 50000 halo, 20000 stellar disc, 10000 bulge and
+%  one sink, spanning about 130 kpc. Self-gravity is on and the halo has a
+%  real velocity dispersion, so this is the only PBHEF problem where the
+%  donors move appreciably between their own timesteps.
+%
+%  Only PartType1 carries black holes, which is the halo alone; the stellar
+%  disc and bulge are types 2 and 3 and are correctly left out.
+%
+%  Units are kpc, 1e10 Msun, km/s, so TimeMax = 1 is 978.5 Myr.
+%  run_matrix.sh overrides OutputDir per configuration.
+%-------------------------------------------------------------------------
+
+MaxMemSize                         3000   % MB per MPI task
+PartAllocFactor                    5
+
+InitCondFile                       scripts/test_problems/ics/isodisk_ics
+OutputDir                          scripts/test_problems/outputs/isolated_halo/runs/output
+
+TimeBegin                          0
+TimeMax                            0.25   % 245 Myr
+ComovingIntegrationOn              0
+
+TimeOfFirstSnapshot                0
+TimeBetSnapshot                    0.0625
+MaxSizeTimestep                    0.005
+MinSizeTimestep                    0
+CourantFac                         0.1
+TreeDomainUpdateFrequency          0.1
+
+DesNumNgb                          32
+AGS_DesNumNgb                      32
+MinGasHsmlFractional               0
+
+UnitLength_in_cm                   3.085678e21   % kpc
+UnitMass_in_g                      1.989e43      % 1e10 Msun
+UnitVelocity_in_cm_per_s           1.0e5         % km/s
+UnitMagneticField_in_gauss         1
+
+%--- as bundled with isodisk. SofteningHalo also sets how far a donor may
+%--- widen its kernel to find gas, at 100 * 2.8 * its value
+SofteningGas                       1.0e-4
+SofteningHalo                      0.050
+Softening_Type2                    0.020
+Softening_Type3                    0.020
+Softening_Type4                    0.005
+Softening_Type5                    0.005
+SofteningGasMaxPhys                1.0e-4
+SofteningHaloMaxPhys               0.050
+Softening_Type2_MaxPhysLimit       0.020
+Softening_Type3_MaxPhysLimit       0.020
+Softening_Type4_MaxPhysLimit       0.005
+Softening_Type5_MaxPhysLimit       0.005
+
+InitGasTemp                        0      % the ICs carry the internal energy
+MinGasTemp                         10
+
+%--- only read by the builds that enable the modules
+CritPhysDensity                    10.
+SfEffPerFreeFall                   1.0
+MaxSfrTimescale                    4.0
+TempSupernova                      3.0e8
+TempClouds                         1000.0
+FactorSN                           0.1
+FactorEVP                          3000.0
+FactorForSofterEQS                 1.0
+WindEfficiency                     2.0
+WindEnergyFraction                 0.06
+WindFreeTravelMaxTime              0.1
+WindFreeTravelDensFac              0.1
+VariableWindVelFactor              1.0
+VariableWindSpecMomentum           5000.
+
+%-------------- PBHEF (ignored by a build without it)
+%--- 2e-5 puts the energy injected over the run at a few times the thermal
+%--- energy of the gas and a few per cent of its total, which changes the
+%--- disc without destroying it
+PBH_MassFraction                   2.0e-5
+PBH_InitialMass                    1.0e16   % grams
