@@ -1,0 +1,70 @@
+%-------------------------------------------------------------------------
+%  Uniform-resolution LCDM box: 25 Mpc/h, 32^3 gas + 32^3 DM, z=99 to z=49.
+%
+%  ICs are from monofonIC (3LPT, CLASS transfer functions, baryons with
+%  their relative velocity to linear order). The configuration that made
+%  them is monofonic.conf beside this file; the cosmology below is copied
+%  from it and has to be kept in step with it.
+%
+%  This replaces sbcluster for PBHEF testing. sbcluster is a zoom with
+%  coarse dark matter sharing PartType1 with the refined particles, which
+%  makes the donor energy budget meaningless, and it goes to NaN under MFV
+%  with the hydro solver alone. Here the resolution is uniform and every
+%  dark matter particle has gas in its kernel, so the donor budget should
+%  read exactly 1.
+%
+%  Units are monofonIC's Gadget output: Mpc/h, 1e10 Msun/h, km/s.
+%  run_matrix.sh overrides OutputDir per configuration.
+%-------------------------------------------------------------------------
+
+MaxMemSize                         2000   % MB per MPI task
+PartAllocFactor                    3
+
+InitCondFile                       scripts/test_problems/ics/cosmo_test32_ics
+OutputDir                          scripts/test_problems/outputs/cosmo_test/runs/output
+
+TimeBegin                          0.01   % z = 99
+TimeMax                            0.02   % z = 49
+ComovingIntegrationOn              1
+BoxSize                            25     % Mpc/h
+
+%--- Planck 2018 TT,TE,EE+lowE+lensing+BAO, as passed to monofonIC
+Omega_Matter                       0.3158
+Omega_Lambda                       0.6842
+Omega_Baryon                       0.0494
+HubbleParam                        0.67321
+
+TimeOfFirstSnapshot                0.9    % past TimeMax, so only the final snapshot is written
+ScaleFac_Between_Snapshots         2
+MaxSizeTimestep                    0.01
+
+DesNumNgb                          32
+MinGasHsmlFractional               1
+
+UnitLength_in_cm                   3.085678e24   % Mpc/h
+UnitMass_in_g                      1.989e43      % 1e10 Msun/h
+UnitVelocity_in_cm_per_s           1.0e5         % km/s
+UnitMagneticField_in_gauss         1
+
+%--- softening is the mean interparticle spacing over 30
+SofteningGas                       0.026
+SofteningHalo                      0.026
+Softening_Type2                    0
+Softening_Type3                    0
+Softening_Type4                    0
+Softening_Type5                    0
+SofteningGasMaxPhys                0.026
+SofteningHaloMaxPhys               0.026
+Softening_Type2_MaxPhysLimit       0
+Softening_Type3_MaxPhysLimit       0
+Softening_Type4_MaxPhysLimit       0
+Softening_Type5_MaxPhysLimit       0
+
+%--- the ICs carry no InternalEnergy block, so this sets it (read_ic.c:960).
+%--- 2.7255*(1+z) at z=99, where the gas is still Compton-coupled to the CMB
+InitGasTemp                        273
+MinGasTemp                         10
+
+%-------------- PBHEF (ignored by a build without it)
+PBH_MassFraction                   0.1
+PBH_InitialMass                    1.0e15   % grams

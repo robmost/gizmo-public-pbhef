@@ -1,0 +1,60 @@
+%-------------------------------------------------------------------------
+%  Two-dimensional density jump, after List et al. 2019 section 5.1: cold
+%  gas with a factor 1e4 jump in density at x = 20 kpc, and a sharply
+%  peaked dark matter distribution straddling that jump. Self-gravity is
+%  off, as it is there, so the only thing that moves the gas is PBHEF.
+%
+%  The ICs come from make_ics.py beside this file; the box size and the
+%  softening below are tied to it and have to be changed with it.
+%
+%  Units are kpc, 1e10 Msun, km/s, so TimeMax = 1 is the paper's 978.5 Myr.
+%  run_matrix.sh overrides OutputDir per configuration.
+%-------------------------------------------------------------------------
+
+MaxMemSize                         2000   % MB per MPI task
+PartAllocFactor                    3
+
+InitCondFile                       scripts/test_problems/ics/density_jump_ics
+OutputDir                          scripts/test_problems/outputs/density_jump/runs/output
+
+TimeBegin                          0
+TimeMax                            1      % 978.5 Myr
+ComovingIntegrationOn              0
+BoxSize                            40     % kpc
+
+TimeOfFirstSnapshot                0
+TimeBetSnapshot                    0.25
+MaxSizeTimestep                    0.01   % the dark matter has no acceleration, so this is its step
+MinSizeTimestep                    0
+CourantFac                         0.1
+
+DesNumNgb                          16     % the paper's choice, and the usual value in 2D
+MinGasHsmlFractional               0
+
+UnitLength_in_cm                   3.085678e21   % kpc
+UnitMass_in_g                      1.989e43      % 1e10 Msun
+UnitVelocity_in_cm_per_s           1.0e5         % km/s
+UnitMagneticField_in_gauss         1
+
+%--- softening only enters the timestep and the cap on the PBHEF kernel here
+SofteningGas                       0.078
+SofteningHalo                      0.078
+Softening_Type2                    0
+Softening_Type3                    0
+Softening_Type4                    0
+Softening_Type5                    0
+SofteningGasMaxPhys                0.078
+SofteningHaloMaxPhys               0.078
+Softening_Type2_MaxPhysLimit       0
+Softening_Type3_MaxPhysLimit       0
+Softening_Type4_MaxPhysLimit       0
+Softening_Type5_MaxPhysLimit       0
+
+%--- the ICs carry the internal energy, so these only set the floor
+InitGasTemp                        0
+MinGasTemp                         0
+
+%-------------- PBHEF (ignored by a build without it)
+%--- chosen so the blast stays inside the box for the whole run, see the README
+PBH_MassFraction                   0.005
+PBH_InitialMass                    1.0e16   % grams

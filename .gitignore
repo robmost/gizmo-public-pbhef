@@ -4,6 +4,11 @@
 GIZMO-PBHEF.code-workspace
 .DS_Store
 
+# Python tooling config for the scripts. Kept local because it names the interpreter that has numpy,
+# h5py and matplotlib on this machine; the scripts themselves assume nothing about which python runs
+# them. Remove it from this list to share the ruff and basedpyright settings.
+pyproject.toml
+
 # Language-server config, index and caches (clangd, ccls). .ccls holds machine-specific include
 # paths, so it is kept local; remove it from this list to share one across machines.
 .ccls
@@ -14,7 +19,11 @@ compile_commands.json
 # Ignore initial condition files and exact solutions in  test problems
 scripts/test_problems/ics/*
 scripts/test_problems/exact_solutions/*
+# Under outputs/, keep the harness of each test problem and ignore what running it produces
 scripts/test_problems/outputs/*
+!scripts/test_problems/outputs/*/
+scripts/test_problems/outputs/*/runs/
+scripts/test_problems/outputs/*/output/
 
 # Ignore compilation files
 *.o
