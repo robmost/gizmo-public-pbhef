@@ -1445,13 +1445,22 @@ static int nheattab;		/* length of table */
 
 void ReadIonizeParams(char *fname)
 {
-    int i; FILE *fdcool;
-    if(!(fdcool = fopen(fname, "r"))) {printf(" Cannot read ionization table in file `%s'. Make sure the correct TREECOOL file is placed in the code run-time directory, and that any leading comments (e.g. lines preceded by ##) are deleted from the file.\n", fname); endrun(456);}
+    int i; FILE *fdcool; char line[1000];
+    if(!(fdcool = fopen(fname, "r"))) {printf(" Cannot read ionization table in file `%s'. Make sure the correct TREECOOL file is placed in the code run-time directory.\n", fname); endrun(456);}
     for(i=0; i<TABLESIZE; i++) {inlogz[i]=100; gH0[i]=0; gHe[i]=0; gHep[i]=0; eH0[i]=0; eHe[i]=0; eHep[i]=0;}
-    for(i=0; i<TABLESIZE; i++) {if(fscanf(fdcool, "%g %lg %lg %lg %lg %lg %lg", &inlogz[i], &gH0[i], &gHe[i], &gHep[i], &eH0[i], &eHe[i], &eHep[i]) == EOF) {break;}}
+    /* one line at a time, skipping comments and blanks. a bare fscanf cannot match the '##' header the
+       distributed tables carry and does not consume it either, so it spins on that one line and leaves
+       the table empty, which costs the run its ultraviolet background with nothing said about it */
+    for(i=0; i<TABLESIZE && fgets(line, sizeof(line), fdcool);)
+    {
+        char *c = line; while(*c == ' ' || *c == '\t') {c++;}
+        if(*c == '#' || *c == '\n' || *c == '\r' || *c == '\0') {continue;}
+        if(sscanf(c, "%g %lg %lg %lg %lg %lg %lg", &inlogz[i], &gH0[i], &gHe[i], &gHep[i], &eH0[i], &eHe[i], &eHep[i]) == 7) {i++;}
+    }
     fclose(fdcool);
     for(i=0, nheattab=0; i<TABLESIZE; i++) {if(gH0[i] != 0.0) {nheattab++;} else {break;}} /*  nheattab is the number of entries in the table */
     if(ThisTask == 0) printf(" ..read ionization table [TREECOOL] with %d non-zero UVB entries in file `%s'. Make sure to cite the authors from which the UV background was compiled! (See user guide for the correct references).\n", nheattab, fname);
+    if(nheattab < 1) {PRINT_WARNING("Ionization table `%s' yielded no usable entries, so this run has no ultraviolet background at all. Check the file is the one you meant to use.", fname);}
 }
 
 
