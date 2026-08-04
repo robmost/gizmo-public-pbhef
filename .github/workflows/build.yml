@@ -31,7 +31,9 @@ jobs:
             flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=1 PBHEF_NO_MASS_LOSS"
           - name: pbhef-donor-limit-dm-timestep
             flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_LIMIT_DM_TIMESTEP=2"
-          - name: pbhef-donor-solid-angle
+          # the flag selects the weighting the default does not: PBHEF=2 alone is the solid angle,
+          # which the pbhef-donor entry above already builds
+          - name: pbhef-donor-mass-weights
             flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_MASS_WEIGHTS"
           - name: pbhef-donor-debug
             flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_DEBUG"
