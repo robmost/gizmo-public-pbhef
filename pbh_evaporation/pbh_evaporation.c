@@ -684,6 +684,7 @@ static double PBH_RateIntended;   /*!< rate the active donors mean to inject, th
 static double PBH_RateCoupled;    /*!< rate that actually landed on gas, this task */
 static long PBH_NumUncapped;      /*!< active receivers found on a longer step than their donor, this task */
 static long PBH_NumDonors;        /*!< donors that had energy to give this step, this task */
+static long PBH_NumDonorsAll;     /*!< the same summed over tasks, which is what the slot-0 decision needs */
 
 /*! total power of the black holes carried by DM particle i */
 static double pbhef_donor_power(int i)
@@ -925,8 +926,12 @@ void pbhef_donor_feedback(void)
     /* Slot 0 is where the donors deposit while the timebins are still provisional, and bin 0 counts as
        active on every step, so clearing it unconditionally would throw that rate away before any
        receiver had integrated it. Clear it while the bins are provisional, which is the deposit's own
-       call, and again once donors are active to write real bins; in between, leave it standing. */
-    int first_slot = (pbhef_timebins_are_provisional() || PBH_NumDonors) ? 0 : 1;
+       call, and again once donors are active to write real bins; in between, leave it standing.
+       The donor count has to be the global one: donors deposit across task boundaries, so a task
+       holding no active donor of its own can still have its cells fed by one, and deciding locally
+       would leave those cells counting the provisional rate on top of the new one. */
+    MPI_Allreduce(&PBH_NumDonors, &PBH_NumDonorsAll, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+    int first_slot = (pbhef_timebins_are_provisional() || PBH_NumDonorsAll) ? 0 : 1;
 
     /* clear the slots whose donors will deposit again. must cover every gas cell, not just the active
        ones, since an active donor also feeds sleeping receivers */
@@ -1021,9 +1026,8 @@ void pbhef_log_energy(void)
     double expected_step = prefactor * pbhef_donor_mass_total() * dt_sync;
 #if (PBHEF == 2)
     double budget[2] = {0,0}, budget_local[2] = {PBH_RateIntended, PBH_RateCoupled};
-    long ndonors, ndonors_local = PBH_NumDonors;
+    long ndonors = PBH_NumDonorsAll; /* already summed over tasks by pbhef_donor_feedback */
     MPI_Reduce(budget_local, budget, 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&ndonors_local, &ndonors, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
     if(ThisTask != 0) {return;}
 
