@@ -42,7 +42,7 @@ void init(void)
 
     if(RestartFlag != 1) {All.MinMassForParticleMerger = 0; All.MaxMassForParticleSplit = 0;}
 #ifdef PBHEF
-    if(RestartFlag == 0) {All.PBH_EnergyInjected = 0; All.PBH_EnergyExpected = 0;}
+    if(RestartFlag == 0) {All.PBH_EnergyInjected = 0; All.PBH_EnergyExpected = 0; All.PBH_EnergyInjectedThisTask = 0; All.PBH_Ti_LastLog = -1;}
 #endif
 
     if(RestartFlag == 3 && RestartSnapNum < 0)

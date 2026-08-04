@@ -2528,6 +2528,8 @@ extern struct global_data_all_processes
 #ifdef PBHEF
   double PBH_EnergyInjected;         /*!< energy PBHEF has put into the gas so far, for pbhef_energy.txt */
   double PBH_EnergyExpected;         /*!< what the black holes should have radiated over the same interval */
+  double PBH_EnergyInjectedThisTask; /*!< this task's share of that, since the last line was written */
+  integertime PBH_Ti_LastLog;        /*!< when that line was written, to measure the interval since */
   double PBH_MassFraction;           /*!< Mass fraction of dark matter in primordial black holes */
   double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
   double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */

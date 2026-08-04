@@ -553,13 +553,12 @@ double pbhef_prefactor_cached(void)
 
 /*! Running total of the energy this task has actually handed to gas cells, cleared each time it is
     logged. Both modes add to it where they add to DtInternalEnergy, using the receiver's own timestep,
-    so what it counts is energy injected rather than energy surviving cooling. */
-static double PBH_EnergyInjectedThisTask = 0;
-
+    so what it counts is energy injected rather than energy surviving cooling. It lives on All, not in
+    a static, because restart.c saves All and a static would restart at zero. */
 void pbhef_note_injection(int i, double specific_rate)
 {
     if(specific_rate <= 0) {return;}
-    PBH_EnergyInjectedThisTask += specific_rate * P[i].Mass * GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
+    All.PBH_EnergyInjectedThisTask += specific_rate * P[i].Mass * GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
 }
 
 /*! total mass of the particles that carry black holes. Constant while D5 holds, so found once */
@@ -983,15 +982,16 @@ void pbhef_donor_feedback(void)
 void pbhef_log_energy(void)
 {
     double injected_step;
-    MPI_Reduce(&PBH_EnergyInjectedThisTask, &injected_step, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    PBH_EnergyInjectedThisTask = 0;
+    MPI_Reduce(&All.PBH_EnergyInjectedThisTask, &injected_step, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    All.PBH_EnergyInjectedThisTask = 0;
 
     /* measure the interval on the integer timeline, the same clock the receivers integrate their rate
-       over, rather than from All.TimeStep: that is a step in scale factor, not in log a */
-    static integertime ti_last = -1;
-    if(ti_last < 0) {ti_last = All.Ti_Current;}
-    double dt_sync = (All.Ti_Current - ti_last) * All.Timebase_interval / All.cf_hubble_a;
-    ti_last = All.Ti_Current;
+       over, rather than from All.TimeStep: that is a step in scale factor, not in log a. Also on All
+       rather than in a static, so a resumed run measures from the last line written and not from the
+       moment it resumed, which would drop an interval from the expected total. */
+    if(All.PBH_Ti_LastLog < 0) {All.PBH_Ti_LastLog = All.Ti_Current;}
+    double dt_sync = (All.Ti_Current - All.PBH_Ti_LastLog) * All.Timebase_interval / All.cf_hubble_a;
+    All.PBH_Ti_LastLog = All.Ti_Current;
 
     double prefactor = pbhef_heating_prefactor();
     double expected_step = prefactor * pbhef_donor_mass_total() * dt_sync;
