@@ -682,7 +682,7 @@ void empty_read_buffer(enum iofields blocknr, int offset, int pc, int type)
         case IO_DELAY_TIME_HII:
         case IO_CHIMES_FLUX_G0:
         case IO_CHIMES_FLUX_ION:
-        case IO_DENSDM:
+        case IO_PBHEF_DENSITY:
         case IO_PBHEF_Dtu:
             break;
         case IO_LASTENTRY:
@@ -969,7 +969,7 @@ void read_file(char *fname, int readTask, int lastTask)
 #endif
 
 #ifdef PBHEF /* both are recomputed at the start of every step, so there is nothing to read back */
-            if(RestartFlag == 2 && blocknr == IO_DENSDM) {continue;}
+            if(RestartFlag == 2 && blocknr == IO_PBHEF_DENSITY) {continue;}
             if(RestartFlag == 2 && blocknr == IO_PBHEF_Dtu) {continue;}
 #endif
 

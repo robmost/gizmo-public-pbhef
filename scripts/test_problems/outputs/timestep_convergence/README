@@ -1,0 +1,52 @@
+timestep_convergence
+====================
+
+Whether the energy each coupling method delivers is converged in the timestep, run on the density-jump
+problem because it is the one where the gas sub-cycles below the dark matter. MaxSizeTimestep sets the
+step of the dark matter, which has no acceleration here, so halving it doubles how often the donors
+deposit while the gas stays free to take shorter steps under the Courant condition.
+
+Files
+-----
+  run_matrix.sh  builds and runs both methods at five timesteps
+
+It borrows the IC and the parameter file from the density_jump problem, so build those first:
+
+  python3 scripts/test_problems/outputs/density_jump/make_ics.py
+
+Running
+-------
+From the repository root:
+
+  scripts/test_problems/outputs/timestep_convergence/run_matrix.sh 4
+
+Ten configurations, MFM only. The finest costs sixteen times the coarsest, since it takes sixteen
+times as many steps.
+
+Results
+-------
+Ratio of the energy the gas received to the analytic total the black holes radiated:
+
+  MaxSizeTimestep     receiver       donor      steps
+  0.02             0.991350899  0.999824937        65
+  0.01             0.991448704  0.999925270       129
+  0.005            0.991551756  0.999999994       257
+  0.0025           0.991589195  0.999999993       513
+  0.00125          0.991598649  0.999999994      1025
+
+Two separate results.
+
+The donor method is exactly conservative in the converged limit. Its ratio reaches 0.999999994 at
+MaxSizeTimestep = 0.005 and does not move for two further halvings, so the 7.5e-5 shortfall at 0.01 is
+a discretisation error and not a leak in the bookkeeping. Coarsening instead makes it worse in the way
+a first-order error should: 7.5e-5 at 0.01, 1.75e-4 at 0.02.
+
+The receiver method converges to a value that is not one. Successive differences are 9.8e-5, 1.03e-4,
+3.74e-5 and 9.45e-6, shrinking by about four per halving once the first two are past, which puts the
+limit at 0.99160. So its 0.84 per cent shortfall on this problem survives refinement: it is a property
+of reconstructing the dark matter density at the gas positions, not of the timestep. Refining the
+timestep makes the receiver slightly worse rather than better, because a better-resolved blast
+evacuates the injection region more effectively and leaves the peak sampled by fewer, larger cells.
+
+Neither method needs a timestep finer than 0.005 on this problem, which is a fortieth of the sound
+crossing time of the heated region at the end of the run.

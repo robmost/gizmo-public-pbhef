@@ -223,6 +223,16 @@
 #if (PBHEF < 1) || (PBHEF > 2)
 #error "PBHEF must be set to 1 (receiver-based) or 2 (donor-based)"
 #endif
+#if (PBHEF != 2) && (defined(PBHEF_MASS_WEIGHTS) || defined(PBHEF_LIMIT_DM_TIMESTEP))
+#error "PBHEF_MASS_WEIGHTS and PBHEF_LIMIT_DM_TIMESTEP only mean anything for PBHEF=2"
+#endif
+/*! the donor shares its energy by the solid angle each gas neighbour subtends (List et al. eq. 6),
+    which is what the receiver method effectively weights by and what the paper itself defaults to.
+    PBHEF_MASS_WEIGHTS selects their eq. 5 instead. Only this line decides which; everything below
+    tests the internal name, so the two choices never have to be kept in step by hand. */
+#if (PBHEF == 2) && !defined(PBHEF_MASS_WEIGHTS)
+#define PBHEF_WEIGH_BY_SOLID_ANGLE
+#endif
 #endif
 
 
@@ -1492,6 +1502,7 @@ typedef MyDouble MyBigFloat;
 #define CPU_PBHEFDMDENSWAIT     49
 #define CPU_PBHEFDMDENSCOMM     50
 #define CPU_PBHEFDMDENSMISC     51
+#define CPU_PBHEFDONOR          52  /* re-uses another spare slot above */
 
 #define CPU_PARTS          58  /* this gives the number of parts above (must be last) */
 
@@ -1896,6 +1907,9 @@ extern FILE
 #endif
 #endif
  *FdCPU;        /*!< file handle for cpu.txt log-file. */
+#ifdef PBHEF
+extern FILE *FdPBHEF;		/*!< file handle for pbhef_energy.txt log-file. */
+#endif
 #ifdef GALSF
 extern FILE *FdSfr;		/*!< file handle for sfr.txt log-file. */
 #endif
@@ -2519,6 +2533,10 @@ extern struct global_data_all_processes
 #endif
 
 #ifdef PBHEF
+  double PBH_EnergyInjected;         /*!< energy PBHEF has put into the gas so far, for pbhef_energy.txt */
+  double PBH_EnergyExpected;         /*!< what the black holes should have radiated over the same interval */
+  double PBH_EnergyInjectedThisTask; /*!< this task's share of that, since the last line was written */
+  integertime PBH_Ti_LastLog;        /*!< when that line was written, to measure the interval since */
   double PBH_MassFraction;           /*!< Mass fraction of dark matter in primordial black holes */
   double PBH_InitialMass;            /*!< Initial mass of a single primordial black hole in grams */
   double PBH_EvaporationConstant;    /*!< Pre-calculated constant term for heating rate (hbar*c^6/G^2 in code units) */
@@ -2885,6 +2903,12 @@ extern ALIGN(32) struct particle_data
     MyFloat NumNgbPBH;                  /*!< PBH (DM) neighbor number around particle */
 	MyFloat DhsmlNgbFactorPBH;		   /*!< PBH (DM) correction factor needed for varying kernel lengths */
     MyFloat Particle_DivVelPBH; 		   /*!< PBH (DM) divergence of velocity */
+#if (PBHEF == 2)
+    int PBHEF_MaxTimebin;              /*!< donor-based: largest timebin allowed, written by donors onto the gas they feed */
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
+    MyFloat AreaSumPBH;                /*!< donor-based: summed solid-angle weights of the gas neighbors, which normalise their shares */
+#endif
+#endif
 #endif
 
 }
@@ -3345,7 +3369,13 @@ extern struct gas_cell_data
 #endif
 
 #ifdef PBHEF
-  MyDouble PBHEF_Dtu;                /*!< total energy injection rate due to PBH evaporation */
+  MyDouble PBHEF_Dtu;                /*!< specific energy injection rate due to PBH evaporation */
+#if (PBHEF == 2)
+  float PBHEF_DtuBin[TIMEBINS];      /*!< donor-based: the received -energy- rate, split by the timebin of the donor it came
+                                          from so a donor can replace its own share when it wakes. Held as an energy rate
+                                          rather than a specific one because the cell's mass can change before it is used
+                                          (MFV, splits, merges); PBHEF_Dtu is the sum over these, over the current mass */
+#endif
 #endif
 
 }
@@ -3741,7 +3771,7 @@ enum iofields
   IO_DENS_AROUND_STAR,
   IO_DELAY_TIME_HII,
   IO_MOLECULARFRACTION,
-  IO_DENSDM,
+  IO_PBHEF_DENSITY,
   IO_PBHEF_Dtu,
   IO_LASTENTRY			/* This should be kept - it signals the end of the list */
 };

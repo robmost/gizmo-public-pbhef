@@ -61,11 +61,15 @@ void compute_hydro_densities_and_forces(void)
         PRINT_STATUS("Start hydrodynamics computation...");
         density();		/* computes density, and pressure */
 
-#if (PBHEF == 1)
+#ifdef PBHEF
         if(pbhef_is_active())
         {
+#if (PBHEF == 1)
             PRINT_STATUS(" ..PBHEF Receiver-based approach:  estimating DM densities (at gas particles)...");
-            pbhef_density();          /* computes dark matter density around gas particles */
+#else
+            PRINT_STATUS(" ..PBHEF Donor-based approach:  estimating gas densities (at DM particles)...");
+#endif
+            pbhef_density();          /* the kernel the evaporation energy is shared over, at gas or at DM */
         }
 #endif
 
@@ -107,6 +111,11 @@ void compute_hydro_densities_and_forces(void)
         dynamic_diff_calc(); /* This MUST be called immediately following gradient calculations */
 #endif
         hydro_force();		/* adds hydrodynamical accelerations and computes du/dt  */
+
+#if (PBHEF == 2)
+        pbhef_donor_feedback();   /* shares the evaporation rate from the DM particles over their gas neighbors */
+#endif
+
         compute_additional_forces_for_all_particles(); /* other accelerations that need to be computed are done here */
         PRINT_STATUS(" ..hydro force computation done.");
 

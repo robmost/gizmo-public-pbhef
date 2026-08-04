@@ -41,6 +41,9 @@ void init(void)
     set_cosmo_factors_for_current_time();
 
     if(RestartFlag != 1) {All.MinMassForParticleMerger = 0; All.MaxMassForParticleSplit = 0;}
+#ifdef PBHEF
+    if(RestartFlag == 0) {All.PBH_EnergyInjected = 0; All.PBH_EnergyExpected = 0; All.PBH_EnergyInjectedThisTask = 0; All.PBH_Ti_LastLog = -1;}
+#endif
 
     if(RestartFlag == 3 && RestartSnapNum < 0)
     {
@@ -211,6 +214,12 @@ void init(void)
 
 #ifdef PBHEF /* these live on every particle type, so they must be zeroed here and not in the gas loop below */
         P[i].DensityPBH = 0; P[i].HsmlPBH = 0; P[i].NumNgbPBH = 0; P[i].DhsmlNgbFactorPBH = 0; P[i].Particle_DivVelPBH = 0;
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
+        P[i].AreaSumPBH = 0;
+#endif
+#if (PBHEF == 2)
+        P[i].PBHEF_MaxTimebin = TIMEBINS;
+#endif
 #endif
 
 #ifdef COMPUTE_TIDAL_TENSOR_IN_GRAVTREE /* init tidal tensor for first output (not used for calculation) */
@@ -519,6 +528,9 @@ void init(void)
 
 #ifdef PBHEF /* zero for every restart mode: get_timestep() can read this before the first hydro loop refills it */
         SphP[i].PBHEF_Dtu = 0;
+#if (PBHEF == 2)
+        {int b; for(b = 0; b < TIMEBINS; b++) {SphP[i].PBHEF_DtuBin[b] = 0;}}
+#endif
 #endif
 
         for(j = 0; j < 3; j++)
@@ -1255,13 +1267,18 @@ void pbhef_setup_smoothinglengths(void)
     {
         for(i = 0; i < NumPart; i++)
         {
-            P[i].HsmlPBH = PPP[i].Hsml; /* guess that the dm smoothing lengths are initially the same as gas smoothing length */
+            P[i].HsmlPBH = PPP[i].Hsml; /* guess that the search radius is initially the same as the gas smoothing length */
+            if(P[i].Type != 0 && P[i].HsmlPBH <= 0) {P[i].HsmlPBH = ForceSoftening_KernelRadius(i);} /* no gas kernel to borrow */
         }
     }
 
     if(ThisTask == 0)
     {
-        printf("PBHEF: Initializing smoothing lengths for DM density calculations...\n");
+#if (PBHEF == 1)
+        printf("PBHEF: Initializing smoothing lengths for the DM density around the gas particles...\n");
+#else
+        printf("PBHEF: Initializing smoothing lengths for the gas density around the DM particles...\n");
+#endif
     }
 
 	pbhef_density();

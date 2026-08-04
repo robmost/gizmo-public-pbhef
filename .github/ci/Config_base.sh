@@ -2,10 +2,9 @@
 #
 # Base configuration used by the build matrix in .github/workflows/build.yml. Each matrix entry appends
 # its own flags to a copy of this file. Keep it close to the sbcluster test problem, so the matrix
-# exercises a configuration we actually run.
+# exercises a configuration we actually run. The hydro solver is not here, because entries choose it.
 
 BOX_PERIODIC
-HYDRO_MESHLESS_FINITE_MASS
 PMGRID=64
 PM_HIRES_REGION_CLIPPING=1000
 ADAPTIVE_GRAVSOFT_FORGAS

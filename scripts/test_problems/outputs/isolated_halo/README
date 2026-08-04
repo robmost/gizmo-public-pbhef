@@ -1,0 +1,127 @@
+isolated_halo
+=============
+
+An isolated disc galaxy in a live dark matter halo, from the bundled isodisk ICs. This is the only
+PBHEF problem with self-gravity and a halo with a real velocity dispersion, so it is the one that
+exercises two things the idealised problems cannot: donors that move appreciably between their own
+timesteps, and a dark matter distribution far more extended than the gas.
+
+35000 gas, 50000 halo, 20000 stellar disc, 10000 bulge and one sink, spanning about 130 kpc. Only
+PartType1 carries black holes, which is the halo alone; the stellar disc and bulge are types 2 and 3
+and are correctly left out.
+
+Files
+-----
+  isolated_halo.params  GIZMO parameters; run_matrix.sh overrides OutputDir per run
+  run_matrix.sh         builds and runs the six configurations
+  runs/                 everything generated, one directory per configuration
+
+The initial conditions are the bundled isodisk_ics, which are not kept in the repository. Any copy of
+scripts/test_problems/ics/isodisk_ics.hdf5 will do.
+
+Running
+-------
+From the repository root:
+
+  scripts/test_problems/outputs/isolated_halo/run_matrix.sh 4
+
+Naming configurations after the task count runs only those:
+
+  scripts/test_problems/outputs/isolated_halo/run_matrix.sh 4 cool_base cool_pbhef1 cool_pbhef2
+
+Six configurations, MFM throughout: no PBHEF, the receiver method and the donor method, each without
+and with radiative cooling and star formation. The donor runs use the default weighting, the solid
+angle of List et al. eq. 6. Each runs to t = 0.25, the longest of the problems here.
+
+The ultraviolet background
+--------------------------
+The three cooling runs read the z=0 ultraviolet background from a TREECOOL file in the directory the
+code is run from. GIZMO evaluates it even in a non-cosmological run, at z=0, so it is not optional
+here. Check every cooling run's log for
+
+  ..read ionization table [TREECOOL] with 204 non-zero UVB entries
+
+A 0 there means the run had no background at all and has to be redone. The reader used to produce that
+silently for any table still carrying its comment header, which is how the file is distributed; it now
+skips comments and warns when the table comes out empty, but a truncated or wrong-format file can still
+leave it short, so the count is worth reading.
+
+Results
+-------
+Ratio of the energy the gas received to the analytic total the black holes radiated, over a run to
+t = 0.25, and for the donor runs the lowest per-step fraction of its intended rate that found gas:
+
+  config       injected/expected  worst-coupled
+  pbhef1                0.045281  -
+  pbhef2                0.328621  0.370308
+  cool_pbhef1           0.279394  -
+  cool_pbhef2           0.501361  0.703454
+
+Two things to read here.
+
+Without cooling the two methods disagree by a factor of seven, and both numbers are accounted for.
+The donor is limited by how far it may widen its kernel, which is 100 * 2.8 * SofteningHalo, or 14 kpc
+here: 68.97 per cent of the halo mass has no gas particle within 14 kpc, leaving 31.03 per cent
+reachable, against a budget report of 0.3096 on the first steps. The receiver is limited by something
+else entirely. Its coupled power is the dark matter density summed over the gas cells weighted by their
+volumes, which is the dark matter mass lying inside the volume the gas occupies: 3.5 per cent of the
+halo at the start. That is far below the 19.4 per cent inside a sphere of 25 kpc, because a cell's
+volume is its mass over its density, so the gas volume is dominated by the diffuse outskirts while the
+dark matter mass is centrally concentrated.
+
+Both are faithful to their own definition. They disagree because "dark matter overlapping the gas" and
+"dark matter within one kernel of some gas" are very different quantities once the gas is a thin disc
+inside an extended halo.
+
+With cooling and star formation both couple much more, and the gap narrows from a factor of seven to a
+factor of under two. The reason is that the gas becomes far more diffuse, which is not the same thing
+as the gas moving. Measured at the end of each run:
+
+  run           r_med   r_90  gas volume  DM within 14 kpc of gas
+  pbhef1        10.68  23.73   1.819e+05                   0.3484
+  cool_pbhef1   12.13  30.26   1.226e+06                   0.6369
+  pbhef2        10.67  23.79   2.487e+05                   0.3693
+  cool_pbhef2   12.63  34.40   2.294e+06                   0.7221
+
+The median radius barely shifts, by about 14 per cent, while the volume grows nearly sevenfold, so the
+volume is not coming from a bulk migration outwards. It comes from the density: the median density of
+the gas that is not in a decoupled wind falls from 4.5e-4 to 3.0e-5, a factor of fifteen. A cell's
+volume is its mass over its density, so a more diffuse cell occupies more of the space the receiver
+integrates its dark matter density over, wherever it happens to sit.
+
+The decoupled wind particles are not the cause, though they are the obvious candidate. They are 13 per
+cent of the cells but hold 0.60 per cent of the volume, and they are dense and central rather than
+diffuse and distant: median density 5.0e-4 at a median radius of 4.9 kpc.
+
+There is some genuine outward transport on top of that, which is what moves the donor's number. Gas
+mass by radial shell, without and with cooling:
+
+  shell [kpc]      0-5    5-10   10-20   20-40   40-80
+  pbhef1        0.1733  0.2427  0.3424  0.1297  0.0116
+  cool_pbhef1   0.1411  0.2089  0.3000  0.1995  0.0343
+
+The inner shells lose mass and the 20-40 and 40-80 kpc shells gain 54 and 196 per cent, which is what
+brings the share of the halo with gas inside a donor's 14 kpc reach from 0.35 to 0.64.
+
+What is not established here is why the gas ends up so much more diffuse under this feedback model.
+Star formation and wind launching both remove the dense phase, and returning wind material lands in the
+outskirts, but this test was not designed to separate those and does not.
+
+So how much energy either method couples in a galaxy is set by where the baryonic physics puts the gas
+and how dense it leaves it, not by the evaporation model. Any figure quoted for the coupled fraction
+has to name the feedback model it came with.
+
+Why this is worse here than for annihilation feedback
+----------------------------------------------------
+List et al. found the two approaches agreed well on an isolated galaxy. Their rate goes as the square
+of the dark matter density, and squaring concentrates the power towards the centre, where the gas is.
+Weighting this halo both ways and asking how much lies within 14 kpc of any gas:
+
+  linear in rho, as PBH evaporation is       0.3103
+  quadratic in rho, as annihilation is       0.8870
+
+So almost nine tenths of an annihilation signal comes from where the gas already is, and both of their
+methods sample nearly the same thing. Barely a third of an evaporation signal does, because a one-body
+rate weights the outer halo far more heavily, and that is exactly where there is no gas to heat. The
+same difference that makes the two methods agree more closely than DMAF's on the idealised problems
+makes them agree less closely on a realistic galaxy.

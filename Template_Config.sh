@@ -447,9 +447,11 @@
 ##   4217) with evaporation rates from Mosbech & Picker 2022 (SciPost Phys. 13, 100). The black holes are
 ##   monochromatic, and the PBH_MassFraction and PBH_InitialMass parameters are defined at the start of the
 ##   run rather than at formation: see the notes in scripts/params.txt before choosing them.
-#PBHEF=1                          # Enable primordial black hole evaporation feedback. =1: receiver-based, energy injection calculated at the gas particle locations. =2: donor-based, energy injection calculated at the dm particle locations (future extension). Setting this without a value is read as =1
+#PBHEF=1                          # Enable primordial black hole evaporation feedback. =1: receiver-based, energy injection calculated at the gas particle locations. =2: donor-based, energy injection calculated at the dm particle locations and shared over their gas neighbours, after List et al. 2019. Setting this without a value is read as =1
 #PBHEF_DEBUG                      # Enable debug outputs for primordial black hole evaporation feedback module. This will output additional information to help verify the heating rates and energy injection from PBHEF.
 #PBHEF_NO_MASS_LOSS               # Enable primordial black hole evaporation feedback without explicitly calculating the mass loss from PBHs (in the specific internal energy only).
+#PBHEF_LIMIT_DM_TIMESTEP=2         # Donor-based only (PBHEF=2). Keeps a dm particle within this many timebins of the gas it feeds, so that it cannot sit on a much longer step than its receivers. =2 is a factor of 4, the value recommended by List et al. 2019. Receivers are always held to their donor's step, with or without this
+#PBHEF_MASS_WEIGHTS                # Donor-based only (PBHEF=2). Shares a dm particle's evaporation energy over its gas neighbours by the mass-weighted kernel of List et al. 2019 eq. 5 rather than by the solid angle each subtends, their eq. 6, which is the default here. Saves the second pass over the neighbours that building the solid-angle normalisation costs, but sends more of the energy to whichever neighbours are densest, where the default and the receiver-based method both weight by the volume a neighbour occupies
 ####################################################################################################
 
 

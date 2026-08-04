@@ -1,0 +1,60 @@
+%-------------------------------------------------------------------------
+%  Peaked dark matter in a gas cavity, in two dimensions. Self-gravity is
+%  off and the gas is cold, so the only thing that moves it is PBHEF.
+%
+%  The ICs come from make_ics.py beside this file, one per cavity radius;
+%  run_matrix.sh overrides InitCondFile and OutputDir per run. The box size
+%  and the softening below are tied to the ICs and change with them.
+%
+%  Units are kpc, 1e10 Msun, km/s, so one time unit is 978.5 Myr.
+%-------------------------------------------------------------------------
+
+MaxMemSize                         2000   % MB per MPI task
+PartAllocFactor                    3
+
+InitCondFile                       scripts/test_problems/ics/gas_poor_r0_ics
+OutputDir                          scripts/test_problems/outputs/gas_poor/runs/output
+
+TimeBegin                          0
+TimeMax                            0.25
+ComovingIntegrationOn              0
+BoxSize                            40     % kpc
+
+TimeOfFirstSnapshot                0
+TimeBetSnapshot                    0.0625
+MaxSizeTimestep                    0.0025
+MinSizeTimestep                    0
+CourantFac                         0.1
+
+DesNumNgb                          16
+MinGasHsmlFractional               0
+
+UnitLength_in_cm                   3.085678e21   % kpc
+UnitMass_in_g                      1.989e43      % 1e10 Msun
+UnitVelocity_in_cm_per_s           1.0e5         % km/s
+UnitMagneticField_in_gauss         1
+
+%--- with self-gravity off, softening only sets the ceiling on how far a
+%--- donor may widen its kernel to find gas: 100 * 2.8 * the value below,
+%--- so 21.8 kpc here, wider than the box. run_matrix.sh lowers it in one
+%--- run to bring the ceiling under the cavity radius.
+SofteningGas                       0.078
+SofteningHalo                      0.078
+Softening_Type2                    0
+Softening_Type3                    0
+Softening_Type4                    0
+Softening_Type5                    0
+SofteningGasMaxPhys                0.078
+SofteningHaloMaxPhys               0.078
+Softening_Type2_MaxPhysLimit       0
+Softening_Type3_MaxPhysLimit       0
+Softening_Type4_MaxPhysLimit       0
+Softening_Type5_MaxPhysLimit       0
+
+%--- the ICs carry the internal energy, so these only set the floor
+InitGasTemp                        0
+MinGasTemp                         0
+
+%-------------- PBHEF (ignored by a build without it)
+PBH_MassFraction                   0.005
+PBH_InitialMass                    1.0e16   % grams

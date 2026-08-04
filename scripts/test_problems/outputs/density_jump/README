@@ -1,0 +1,92 @@
+density_jump
+============
+
+The two-dimensional density-jump test of List et al. 2019 (MNRAS 489, 4217), their section 5.1. It
+is the direct comparison of the donor and receiver methods: the same dark matter distribution feeds
+the same gas, and what differs is only which side of the pair does the neighbour search. Their
+result was that the receiver method coupled 17.3 per cent of the energy the donor method did. Ours
+is 99.2 per cent, and that difference is the point of running it.
+
+The setup is hostile to the receiver method by construction. Gas fills a regular grid with a factor
+1e4 jump in cell mass across x = 20 kpc, so the cells straddling it have wildly different densities.
+Dark matter fills a finer regular grid with masses following a two-dimensional Gaussian of width
+3 kpc centred on the jump, so its mass is concentrated in a handful of particles while every
+particle still has gas in its kernel. The receiver method has to rebuild that peaked mass
+distribution by summing kernels at the gas positions; the donor method never needs the dark matter
+density at all, because PBH evaporation is one-body and a donor's power depends on its own mass.
+
+Self-gravity is off, as it is in the paper, so nothing moves the gas but the evaporation heating.
+The gas is cold enough (0.01 (km/s)^2, a sound speed of 0.1 km/s) that the pressure jump across the
+discontinuity drifts it by well under one cell over the whole run: the two no-PBHEF runs finish with
+a maximum speed of 0.04 km/s under MFM and 0.16 km/s under MFV, against 9.6 km/s with the heating on.
+
+Files
+-----
+  make_ics.py          writes the IC; the box size and the softening in the parameters follow from it
+  density_jump.params  GIZMO parameters; run_matrix.sh overrides OutputDir per run
+  run_matrix.sh        builds and runs the eight configurations
+  analyse.py           the table below and runs/density_jump.png
+  runs/                everything generated, one directory per configuration
+
+Running
+-------
+From the repository root:
+
+  python3 scripts/test_problems/outputs/density_jump/make_ics.py
+  scripts/test_problems/outputs/density_jump/run_matrix.sh 4
+  python3 scripts/test_problems/outputs/density_jump/analyse.py
+
+make_ics.py needs numpy and h5py; analyse.py also needs matplotlib. Neither is needed to run
+the simulations themselves, only to build the initial conditions and read the results.
+
+The eight configurations are the two hydro solvers crossed with no PBHEF, PBHEF=1 (receiver),
+PBHEF=2 (donor, which weights by the solid angle of their eq. 6 by default), and PBHEF=2 with
+PBHEF_MASS_WEIGHTS (donor, the mass-weighted kernel of their eq. 5). The paper uses
+MFM. Each configuration runs 258 sync points to t = 1, of which the 129 that cpu.txt records are the
+ones where the longest timebin is active; on four cores that is of order a minute.
+
+Choosing the normalisation
+--------------------------
+PBH_MassFraction and PBH_InitialMass are set so the blast stays inside the box for the whole run,
+which is the paper's own criterion. A 1e16 g black hole with f = 0.005 radiates 1.3e40 erg/s over
+1e10 Msun of dark matter, 4.0e56 erg over the 978.5 Myr of the run, which puts the shock at 11 kpc
+under MFM and 13 to 15 kpc under MFV against a half-width of 20 kpc. That mass loses 4e-6 of itself over
+the run, so m(t) is effectively constant here and the mass evolution is not part of what this tests;
+the cosmo_test problem covers that.
+
+Results
+-------
+Ratio of the energy the gas received to the analytic total the black holes radiated, and the
+instantaneous power coupled against the same total at the start and end of the run:
+
+  config              injected/expected    power t=0  power t=end
+  mfm_pbhef1                0.991448704     0.999267     0.963362
+  mfm_pbhef2_mass           0.999925270     0.999996     1.000005
+  mfm_pbhef2_iso            0.999809803     0.999996     1.000005
+  mfv_pbhef1                0.992532974     0.999267     0.973901
+  mfv_pbhef2_mass           1.000074580     0.999996     1.000593
+  mfv_pbhef2_iso            0.999861159     0.999996     1.000409
+
+The ratio is read at the last sync point the donors deposited on, which for this problem is the final
+one, where every timebin is synchronised. Read at an intermediate sync point it lags by up to one
+timestep's worth of energy for whichever cells are asleep, which is an artefact of comparing a
+continuous expectation against a total that accrues in per-cell chunks, not a loss.
+
+The donor method couples the analytic total to 8e-5 over the run, whichever weighting and whichever
+solver. The receiver method starts within 0.07 per cent on the undisturbed grid and degrades to 3.7 per
+cent short by the end, as its own feedback evacuates the gas around the dark matter peak and leaves the
+peak sampled by a handful of very large cells; integrated over the run that is 0.85 per cent. The
+receiver therefore couples 99.2 per cent of what the donor does, against 17.3 per cent in the paper.
+
+Their 82.7 per cent shortfall follows from annihilation being two-body: the receiver method needs
+rho_chi^2, and a kernel average suppresses sharp mass peaks quadratically. Evaporation is one-body, so
+what the receiver needs is rho_chi, and the volume-weighted sum of a kernel-smoothed density is a
+decent quadrature of the total mass as long as the gas samples the peak. The residual is that
+quadrature failing where the gas has been blown away, which is what the gas_poor problem isolates.
+
+The two weightings agree on the total to 1e-4 but not on where the energy goes: the mass-weighted
+kernel puts 46.5 per cent of the power on the low-density side at t=0 against the solid angle's
+50.0 per cent, because a donor whose kernel straddles the jump sees 1e4 times more mass on the dense
+side. Only donors within their own kernel radius of the jump can do this, and 16 gas neighbours at
+this resolution is a third of a kpc against a 3 kpc peak, which is why the asymmetry comes out at a
+few per cent and not a factor of two.

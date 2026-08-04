@@ -51,6 +51,9 @@ void run(void)
         compute_statistics();	/* regular statistics outputs (like total energy) */
 
         write_cpu_log();		/* output some CPU usage log-info (accounts for everything needed up to the current sync-point) */
+#ifdef PBHEF
+        pbhef_log_energy();     /* one line of pbhef_energy.txt per sync-point, same cadence as cpu.txt */
+#endif
 
         if((All.Ti_Current >= TIMEBASE) || (All.Time > All.TimeMax)) /* check whether we reached the final time */
         {
@@ -882,6 +885,9 @@ void write_cpu_log(void)
 	      "pbh_dmcomm        %10.2f  %5.1f%%\n"
 	      "pbh_dmimbal       %10.2f  %5.1f%%\n"
         "pbh_dmmisc        %10.2f  %5.1f%%\n"
+#if (PBHEF == 2)
+        "pbh_donor         %10.2f  %5.1f%%\n"
+#endif
 #endif
           "misc          %10.2f  %5.1f%%\n",
 
@@ -971,6 +977,9 @@ void write_cpu_log(void)
     All.CPU_Sum[CPU_PBHEFDMDENSCOMM], (All.CPU_Sum[CPU_PBHEFDMDENSCOMM]) / All.CPU_Sum[CPU_ALL] * 100,
     All.CPU_Sum[CPU_PBHEFDMDENSWAIT], (All.CPU_Sum[CPU_PBHEFDMDENSWAIT]) / All.CPU_Sum[CPU_ALL] * 100,
     All.CPU_Sum[CPU_PBHEFDMDENSMISC], (All.CPU_Sum[CPU_PBHEFDMDENSMISC]) / All.CPU_Sum[CPU_ALL] * 100,
+#if (PBHEF == 2)
+    All.CPU_Sum[CPU_PBHEFDONOR], (All.CPU_Sum[CPU_PBHEFDONOR]) / All.CPU_Sum[CPU_ALL] * 100,
+#endif
 #endif
     All.CPU_Sum[CPU_MISC], (All.CPU_Sum[CPU_MISC]) / All.CPU_Sum[CPU_ALL] * 100);
 

@@ -1,0 +1,78 @@
+cosmo_test
+==========
+
+A small uniform-resolution LCDM box for exercising PBHEF under both hydro solvers: 25 Mpc/h,
+32^3 gas + 32^3 dark matter, z=99 to z=49, Planck 2018.
+
+Why not sbcluster. Its dark matter is a zoom with 80x-mass coarse particles sharing PartType1 with
+the refined ones, so in donor mode 62 per cent of the coupled energy came from coarse particles and
+landed in the 5 per cent of gas cells at the edge of the refined region, at 13.6 times the mean
+rate. It also goes to NaN under MFV at the second sync point with PBHEF not compiled in at all.
+Here the resolution is uniform and every dark matter particle has gas in its kernel, so the donor
+energy budget is a clean 1.0 and both solvers get a fair test.
+
+Files
+-----
+  monofonic.conf      the monofonIC configuration that produced the ICs, kept for provenance
+  cosmo_test.params   GIZMO parameters; run_matrix.sh overrides OutputDir per run
+  run_matrix.sh       builds and runs the eight configurations
+  runs/               everything generated, one directory per configuration
+
+The initial conditions
+----------------------
+Initial conditions are not kept in the repository, and this is the one problem here whose ICs cannot be
+regenerated from a script beside it: they came from monofonIC, which is a separate code. If you have a
+copy of scripts/test_problems/ics/cosmo_test32_ics.hdf5 you need nothing else. To rebuild it, run
+monofonIC on the monofonic.conf beside this file, set its `filename` to
+scripts/test_problems/ics/cosmo_test32_ics.hdf5, and run it from the repository root:
+
+  <path to>/monofonIC scripts/test_problems/outputs/cosmo_test/monofonic.conf
+
+monofonIC omits two header attributes that read_ic.c opens without checking, so add them or every
+run prints an HDF5 error stack at startup:
+
+  python3 -c "import h5py,numpy as np; f=h5py.File('scripts/test_problems/ics/cosmo_test32_ics.hdf5','r+'); \
+    f['Header'].attrs['NumPart_Total_HighWord']=np.zeros(6,dtype=np.uint32); \
+    f['Header'].attrs['Flag_DoublePrecision']=np.int32(0)"
+
+Both values were already being taken as zero, since header is file-scope and therefore zeroed, and
+zero is right for a single-precision IC under 2^32 particles. The diagnostics were cosmetic; the
+attributes are added so a real value can never be missed.
+
+Change GridRes in monofonic.conf to change resolution; the softening in cosmo_test.params is the
+mean interparticle spacing over 30 and has to be changed with it.
+
+Running
+-------
+From the repository root:
+
+  scripts/test_problems/outputs/cosmo_test/run_matrix.sh 2          # both solvers, the default
+  scripts/test_problems/outputs/cosmo_test/run_matrix.sh 2 mfm      # one solver only
+
+The eight configurations are the two hydro solvers crossed with no PBHEF, PBHEF=1 (receiver),
+PBHEF=2 (donor, which weights by the solid angle of List et al. eq. 6 by default), and PBHEF=2 with
+PBHEF_MASS_WEIGHTS (donor, the mass-weighted kernel of their eq. 5).
+
+What to look for
+----------------
+  - the donor budget fraction, printed every step, should be 1.000000
+  - no NaN in any run
+  - MFM and MFV should both reach z=49 in 129 steps
+  - the last column of pbhef_energy.txt, the energy the gas received over the analytic total
+
+All eight configurations pass. Measured ratios of injected to analytic energy at z=49:
+
+  MFM donor, either weighting    0.99999999
+  MFV donor, either weighting    0.99999999
+  MFM receiver                   0.99749600
+  MFV receiver                   0.99755300
+
+The MFV runs are the ones that matter for the donor storage convention, which holds a share of the
+donor's power rather than a specific energy: gas cells there change mass by up to 11 per cent over the
+run, so a specific energy would deliver the wrong amount by that much, and the ratio still reads one.
+
+The budget fraction alone cannot see that, because it accumulates at deposit time and reads one whether
+or not the mass handling is right. Only the energy ratio can, since it integrates what was delivered.
+
+Note also that the donors here are active on every step, so this problem does not exercise a receiver
+sub-cycling below its donor. The density_jump and gas_poor problems do.

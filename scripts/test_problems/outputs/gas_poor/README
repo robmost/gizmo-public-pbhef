@@ -1,0 +1,95 @@
+gas_poor
+========
+
+Peaked dark matter in a gas cavity, in two dimensions. The distinction it measures is the one the
+donor method exists for: a donor shares out a power fixed by its own mass and widens its kernel until
+it finds gas to give it to, while a receiver can only heat gas that already sits where the dark matter
+density is high. Moving the gas away should therefore leave the donor unaffected and starve the
+receiver.
+
+The cavity radius is the only thing that changes between runs. Gas fills a regular grid at uniform
+mass everywhere outside a disc of radius R at the centre; the dark matter sits on a finer regular grid
+with masses following a 3 kpc Gaussian on the same centre. Neither distribution is otherwise altered,
+so the fraction of dark matter mass with no gas over it is a known function of R:
+
+  R [kpc]        0      2      4      6      9
+  fraction     0.000  0.200  0.589  0.865  0.989
+
+Self-gravity is off and the gas is cold, so nothing moves it but the evaporation heating.
+
+Files
+-----
+  make_ics.py       writes one IC per cavity radius
+  gas_poor.params   GIZMO parameters; run_matrix.sh overrides the IC, OutputDir and the softening
+  run_matrix.sh     builds and runs the fourteen configurations
+  analyse.py        the table below and runs/gas_poor.png
+  runs/             everything generated, one directory per configuration
+
+Running
+-------
+From the repository root:
+
+  python3 scripts/test_problems/outputs/gas_poor/make_ics.py
+  scripts/test_problems/outputs/gas_poor/run_matrix.sh 4
+  python3 scripts/test_problems/outputs/gas_poor/analyse.py
+
+make_ics.py needs numpy and h5py; analyse.py also needs matplotlib. Neither is needed to run
+the simulations themselves, only to build the initial conditions and read the results.
+
+MFM throughout. Fourteen configurations, each a short run to t = 0.25.
+
+The kernel ceiling
+------------------
+A donor may widen its kernel to 100 times All.ForceSoftening, and ForceSoftening is 2.8 times the
+Plummer-equivalent softening in the parameter file for the cubic spline. SofteningHalo = 0.078 kpc
+therefore lets a donor search 21.8 kpc, wider than the half-width of the box, so no cavity that fits
+in the box can starve it. The two shortreach runs set SofteningHalo = 0.020 kpc instead, putting the
+ceiling at 5.6 kpc, which is inside the 9 kpc cavity. With self-gravity off the softening does nothing
+else here, so it is a clean knob on the ceiling alone.
+
+Results
+-------
+Instantaneous power coupled as a fraction of the analytic total, at the start and end of the run; the
+same fraction integrated over the run; and for donor runs the lowest per-step coupled fraction the
+budget report saw, with the number of donors that had no gas in reach at that step.
+
+  config                 power t=0  power t=end   whole-run  worst-coupled
+  r0_pbhef1               0.999264     0.998566    0.998607  -
+  r2_pbhef1               0.807508     0.993366    0.914861  -
+  r4_pbhef1               0.422202     0.945046    0.589454  -
+  r6_pbhef1               0.140623     0.271028    0.173310  -
+  r9_pbhef1               0.011713     0.013218    0.012131  -
+  r0_pbhef2               0.999996     0.999998    1.000000  1.000000 (0 starved)
+  r2_pbhef2               0.999996     0.999998    1.000000  1.000000 (0 starved)
+  r4_pbhef2               0.999996     0.999998    1.000017  1.000000 (0 starved)
+  r6_pbhef2               0.999995     0.999998    1.000047  1.000000 (0 starved)
+  r9_pbhef2               0.999995     0.999998    0.999999  1.000000 (0 starved)
+  r9_pbhef2_mass          0.999996     0.999998    0.999999  1.000000 (0 starved)
+  r9_pbhef1_shortreach    0.011713     0.013218    0.012131  -
+  r9_pbhef2_shortreach    0.524114     0.999997    0.772050  0.524116 (6009 starved)
+
+The receiver couples the fraction of dark matter that has gas over it, and nothing more. Against the
+table at the top of this file: 0.808 where 0.800 of the mass is covered, 0.422 against 0.411, 0.141
+against 0.135, 0.0117 against 0.0111. It runs a little above each because its own kernel is 16 dark
+matter neighbours wide, so mass just inside the rim is still seen by the gas cells just outside it.
+The donor couples 1.000 at every radius, under either weighting.
+
+The receiver recovers at small radii and not at large ones: 0.81 to 0.99 at 2 kpc, 0.42 to 0.95 at
+4 kpc, but only 0.14 to 0.27 at 6 kpc and 0.012 to 0.013 at 9 kpc. It suppresses its own heating
+exactly where the gas is missing, so there is nothing to drive gas back and the suppression holds.
+
+The donor's coupled fraction also returns to 1.000 when the ceiling is short enough to starve it, and
+that recovery is worth looking at closely rather than taking at face value. The heated rim expands
+outwards, as it must: mean radial velocity in the 8 to 11 kpc shell of the shortreach run runs +0.016,
++0.272 and +0.893 km/s over the four snapshots. What reaches the middle is a thin tongue of gas
+expanding into the vacuum on the inward-facing side, and by the end of the run 32 cells out of 55108
+sit inside 5 kpc, carrying 0.048 of 82.66 in mass. Those 32 cells receive 69.3 per cent of the total
+evaporation power, at a specific heating rate four orders of magnitude above the median and an internal
+energy five orders above it. Nothing goes unstable here, and the run ends in a single timebin, but the
+budget is balanced by concentrating almost all of the energy onto six hundredths of a per cent of the
+gas mass. Whether that is preferable to dropping it is a physics question, not a bookkeeping one.
+
+So the report has to be read as a minimum over the run rather than a final value, and for two reasons
+rather than one. It hides the starved phase, and the state it reports as healthy is the concentrated
+one. The starved phase itself is detected cleanly: 0.524116 with the donor count short by exactly the
+6009 that had no gas in reach, so no code change is needed to see the condition arise.

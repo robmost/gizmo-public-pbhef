@@ -1797,7 +1797,7 @@ void fill_write_buffer(enum iofields blocknr, int *startindex, int pc, int type)
 #endif
         break;
 
-	case IO_DENSDM:             /* DM mass density of particle */
+	case IO_PBHEF_DENSITY:             /* the density the evaporation coupling was evaluated from: dark matter at a gas cell in the receiver mode, gas at a dark matter particle in the donor mode */
 #ifdef PBHEF
         for(n = 0; n < pc; pindex++) {
             if(P[pindex].Type == type)
@@ -2130,7 +2130,7 @@ int get_bytes_per_blockelement(enum iofields blocknr, int mode)
                 bytes_per_blockelement = 20 * sizeof(MyOutputFloat);
             break;
 
-        case IO_DENSDM:
+        case IO_PBHEF_DENSITY:
 		case IO_PBHEF_Dtu:
             if(mode)
                 bytes_per_blockelement = sizeof(MyInputFloat);
@@ -2412,7 +2412,7 @@ int get_values_per_blockelement(enum iofields blocknr)
             values = 20;
             break;
 
-        case IO_DENSDM:
+        case IO_PBHEF_DENSITY:
 		case IO_PBHEF_Dtu:
             values = 1;
             break;
@@ -2654,7 +2654,7 @@ long get_particles_in_block(enum iofields blocknr, int *typelist)
             for(i = 0; i < 6; i++) {if(((1 << i) & (GDE_TYPES))) {nsel += header.npart[i];} else {typelist[i] = 0;}}
             return nsel;
             break;
-        case IO_DENSDM:
+        case IO_PBHEF_DENSITY:
             for(i = 1; i < 6; i++) {typelist[i] = 0;}
 #if (PBHEF == 2)
             typelist[0] = 0; typelist[1] = 1; /* donor-based: the DM density is evaluated at the DM particles */
@@ -3301,7 +3301,7 @@ int blockpresent(enum iofields blocknr)
 #endif
             break;
 
-        case IO_DENSDM:
+        case IO_PBHEF_DENSITY:
 #ifdef PBHEF
             return 1;
 #else
@@ -3742,8 +3742,12 @@ void get_Tab_IO_Label(enum iofields blocknr, char *label)
         case IO_DYNERRORDEFAULT:
             strncpy(label, "derd", 4);
             break;
-        case IO_DENSDM:
+        case IO_PBHEF_DENSITY:
+#if (PBHEF == 2)
+            strncpy(label, "dGas", 4);
+#else
             strncpy(label, "dDM", 4);
+#endif
             break;
 		case IO_PBHEF_Dtu:
             strncpy(label, "PBHF", 4);
@@ -4169,8 +4173,14 @@ void get_dataset_name(enum iofields blocknr, char *buf)
         case IO_DYNERRORDEFAULT:
             strcpy(buf, "DynamicErrorDefault");
             break;
-        case IO_DENSDM:
-            strcpy(buf, "DensityPBH");
+        case IO_PBHEF_DENSITY:
+            /* the two modes evaluate different densities at different particle types, so name each for
+               what it holds rather than leave one name to mean both */
+#if (PBHEF == 2)
+            strcpy(buf, "PBHEF_DensityGas");
+#else
+            strcpy(buf, "PBHEF_DensityDM");
+#endif
             break;
 		case IO_PBHEF_Dtu:
             strcpy(buf, "PBHEF_Dtu");
