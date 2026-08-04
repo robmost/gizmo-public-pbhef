@@ -73,8 +73,8 @@ Both are faithful to their own definition. They disagree because "dark matter ov
 inside an extended halo.
 
 With cooling and star formation both couple much more, and the gap narrows from a factor of seven to a
-factor of under two. The cause is the sub-grid winds, which drive gas out into the halo where the dark
-matter is. Measured at the end of each run:
+factor of under two. The reason is that the gas becomes far more diffuse, which is not the same thing
+as the gas moving. Measured at the end of each run:
 
   run           r_med   r_90  gas volume  DM within 14 kpc of gas
   pbhef1        10.68  23.73   1.819e+05                   0.3484
@@ -82,10 +82,33 @@ matter is. Measured at the end of each run:
   pbhef2        10.67  23.79   2.487e+05                   0.3693
   cool_pbhef2   12.63  34.40   2.294e+06                   0.7221
 
-The gas volume grows by a factor of seven to nine, which is what the receiver integrates over, and the
-share of the halo with gas within a donor's reach roughly doubles. So how much energy either method
-couples in a galaxy is set by where the baryonic physics puts the gas, not by the evaporation model.
-Any figure quoted for the coupled fraction has to name the feedback model it came with.
+The median radius barely shifts, by about 14 per cent, while the volume grows nearly sevenfold, so the
+volume is not coming from a bulk migration outwards. It comes from the density: the median density of
+the gas that is not in a decoupled wind falls from 4.5e-4 to 3.0e-5, a factor of fifteen. A cell's
+volume is its mass over its density, so a more diffuse cell occupies more of the space the receiver
+integrates its dark matter density over, wherever it happens to sit.
+
+The decoupled wind particles are not the cause, which is worth stating because it is the obvious guess.
+They are 13 per cent of the cells but hold 0.60 per cent of the volume, and they are dense and central
+rather than diffuse and distant: median density 5.0e-4 at a median radius of 4.9 kpc.
+
+There is some genuine outward transport on top of that, which is what moves the donor's number. Gas
+mass by radial shell, without and with cooling:
+
+  shell [kpc]      0-5    5-10   10-20   20-40   40-80
+  pbhef1        0.1733  0.2427  0.3424  0.1297  0.0116
+  cool_pbhef1   0.1411  0.2089  0.3000  0.1995  0.0343
+
+The inner shells lose mass and the 20-40 and 40-80 kpc shells gain 54 and 196 per cent, which is what
+brings the share of the halo with gas inside a donor's 14 kpc reach from 0.35 to 0.64.
+
+What is not established here is why the gas ends up so much more diffuse under this feedback model.
+Star formation and wind launching both remove the dense phase, and returning wind material lands in the
+outskirts, but this test was not designed to separate those and does not.
+
+So how much energy either method couples in a galaxy is set by where the baryonic physics puts the gas
+and how dense it leaves it, not by the evaporation model. Any figure quoted for the coupled fraction
+has to name the feedback model it came with.
 
 Why this is worse here than for annihilation feedback
 ----------------------------------------------------
