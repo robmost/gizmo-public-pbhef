@@ -12,9 +12,9 @@
 /*! \file pbh_evaporation.c
  *  \brief energy injection from evaporating primordial black holes, following List et al. 2019
  *
- *  The neighbour loop here is modelled on hydro/density.c and runs in either direction: PBHEF=1 finds the
- *  DM around each gas cell and takes the evaporation rate from that density, PBHEF=2 finds the gas around
- *  each DM particle, whose own mass sets the power it shares over them.
+ *  The neighbour loop is modelled on hydro/density.c and runs either way: PBHEF=1 finds the DM around
+ *  each gas cell and reads the heating off that density, PBHEF=2 finds the gas around each DM particle,
+ *  whose own mass sets the power it shares over them.
  */
 /*!
  * This file was originally part of the GADGET3 code developed by Volker Springel, modified substantially
@@ -31,9 +31,8 @@ struct kernel_density /*! defines a number of useful variables we will use below
 };
 
 
-/*! true until the first sync point completes. Until then every particle still carries the placeholder
-    timebin that init() assigns, so anything here keyed on a timebin has to allow for it. Read from
-    All, which restart.c saves, rather than tracked in a static that a resumed run would start afresh */
+/*! true until the first sync point completes, while every particle still carries the placeholder
+    timebin init() assigns. On All rather than in a static, which a resumed run would start afresh */
 static int pbhef_timebins_are_provisional(void)
 {
     return All.NumCurrentTiStep == 0;
@@ -453,11 +452,9 @@ void pbhef_density(void)
 }
 #include "../system/code_block_xchange_finalize.h" /* de-define the relevant variables and macros to avoid compilation errors and memory leaks */
 
-/*! This function computes the alpha coefficient for PBH evaporation, according to the Mosbech et al. (2022) analytical fit.
-    alpha_eff is defined there (eq. 9) as (G^2/hbar c^4) * M0^3 / (3 tau), with tau the numerically computed lifetime, so it
-    is an effective coefficient averaged over the life of the black hole and is a function of the -initial- mass alone. That
-    is what makes the constant-alpha solution M(t) = (M0^3 - 3 alpha hbar c^4 t / G^2)^(1/3) give the correct lifetime, and
-    it is why this must not be re-evaluated on the current mass as the black hole evaporates. */
+/*! alpha coefficient for PBH evaporation, from the Mosbech et al. (2022) fit. It is averaged over the
+    life of the hole and so is a function of the initial mass alone: evaluating it on the current mass
+    would double-count the mass loss and destroy the lifetime the constant-alpha solution reproduces. */
 double pbhef_calculate_alpha(double m_pbh_initial_grams)
 {
     const double alpha_highmass = 2.011e-4; /* the large-mass limit of the fit */
@@ -469,10 +466,9 @@ double pbhef_calculate_alpha(double m_pbh_initial_grams)
         const double p_exponent = -0.0008;
         alpha = c1 + c2 * pow(m_pbh_initial_grams, p_exponent);
     }
-    /* the low-mass branch is a small difference of two numbers near 0.3: it already falls below the large-mass limit at
-       about 1.0e17 g and turns negative above about 2.3e17 g, well before the 1e18 g switch quoted in the paper. Since
-       alpha_eff = M0^3/(3 tau) is positive by construction, take the larger of the two branches, which puts the switch at
-       the point where they cross and leaves the fit continuous and always positive. */
+    /* the low-mass branch is a difference of two numbers near 0.3 and turns negative well below the
+       1e18 g switch quoted in the paper. alpha is positive by construction, so take the larger branch,
+       which moves the switch to where they cross and keeps the fit continuous. */
     return DMAX(alpha, alpha_highmass);
 }
 
@@ -486,21 +482,17 @@ static double pbhef_time_integ(double a, void *param)
 #endif
 
 
-/*! Rate of change of the cube of the PBH mass, which is a constant.
- *  From dM/dt = -(hbar c^4/G^2) alpha / M^2 we get d(M^3)/dt = -3 (hbar c^4/G^2) alpha, and alpha is held fixed at its
- *  initial-mass value (see pbhef_calculate_alpha above), so M^3 is exactly linear in cosmic time:
- *      M(t)^3 = M0^3 - 3 (hbar c^4/G^2) alpha t
- *  All.PBH_EvaporationConstant holds hbar c^6/G^2, so divide by c^2 to get hbar c^4/G^2. */
+/*! Rate of change of the cube of the PBH mass. alpha is fixed at its initial-mass value, so M^3 is
+ *  exactly linear in cosmic time and no integration of the mass loss is needed. All.PBH_EvaporationConstant
+ *  holds hbar c^6/G^2, hence the division by c^2. */
 static double pbhef_mass3_decay_rate(void)
 {
     return 3.0 * (All.PBH_EvaporationConstant / (C_LIGHT_CODE * C_LIGHT_CODE)) * All.PBH_Alpha;
 }
 
 
-/*! Tabulate the cosmic time elapsed since All.TimeBegin as a function of the scale factor. That is the only quantity that
- *  needs tabulating: given it, the PBH mass follows in closed form (see pbhef_mass3_decay_rate above), so there is no need
- *  to integrate the mass loss itself. The grid is uniform in log(a) and the integration is done with the same GSL routine
- *  and the same conventions as init_drift_table(), so the lookup below mirrors get_drift_factor(). */
+/*! Tabulate elapsed cosmic time against scale factor, the only quantity that needs it since the mass
+ *  then follows in closed form. Same grid, GSL routine and conventions as init_drift_table(). */
 void pbhef_init_mass_evolution(void)
 {
 #ifndef PBHEF_NO_MASS_LOSS
@@ -535,13 +527,9 @@ void pbhef_init_mass_evolution(void)
 #endif
 }
 
-/*! Constant part of the heating rate. The rate per unit gas mass is
- *  f0 * (rho_dm/rho_gas) * C * alpha / (m0 * m(t)^2), and everything except the local density ratio is the
- *  same for every cell on a given step, so this is evaluated once per step rather than once per cell.
- *  The power of m(t) is -2 rather than -3 because the number of black holes is conserved as they lose
- *  mass, so the mass fraction in black holes, f(t), itself scales as m(t)/m0. The donor-based method uses
- *  the same quantity: times a DM particle's mass it gives the power of the black holes it carries.
- */
+/*! Constant part of the heating rate, f0 * C * alpha / (m0 * m(t)^2): everything the receiver rate needs
+ *  except the local density ratio, and everything the donor rate needs except the donor's own mass. The
+ *  power of m(t) is -2 and not -3 because the hole count is conserved, so f(t) itself scales as m(t)/m0. */
 double pbhef_heating_prefactor(void)
 {
     if(!pbhef_is_active()) {return 0;}
@@ -549,9 +537,8 @@ double pbhef_heating_prefactor(void)
     return All.PBH_MassFraction * All.PBH_EvaporationConstant * All.PBH_Alpha / (All.PBH_InitialMass * current_pbh_mass * current_pbh_mass);
 }
 
-/*! the prefactor for the current time, remembered between calls: the donor loops want it per particle, and
-    evaluating it means a lookup of the black hole mass. Same static caching get_drift_factor() uses. Safe
-    because the callers are either unthreaded or ask for it once before their threads start */
+/*! prefactor for the current time, cached as get_drift_factor() caches its own: the donor loops want it
+    per particle and it costs a mass lookup. Warmed before the threaded loop, so the cache is not raced */
 static double pbhef_prefactor_cached(void)
 {
     static double time_last = -1, prefactor_last = 0;
@@ -560,10 +547,9 @@ static double pbhef_prefactor_cached(void)
 }
 
 
-/*! Running total of the energy this task has actually handed to gas cells, cleared each time it is
-    logged. Both modes add to it where they add to DtInternalEnergy, using the receiver's own timestep,
-    so what it counts is energy injected rather than energy surviving cooling. It lives on All, not in
-    a static, because restart.c saves All and a static would restart at zero. */
+/*! Running total of the energy handed to gas cells, cleared each time it is logged. Both modes add to
+    it where they add to DtInternalEnergy, so it counts energy injected, not energy surviving cooling.
+    On All, which restart.c saves; a static would begin again from zero on a resumed run. */
 static void pbhef_note_injection(int i, double specific_rate)
 {
     if(specific_rate <= 0) {return;}
@@ -587,11 +573,9 @@ static double pbhef_donor_mass_total(void)
 
 
 #if (PBHEF == 1)
-/*! Receiver-based energy injection for a single gas cell: adds the PBH evaporation heating to its internal
- *  energy rate. Called from hydro_final_operations_and_cleanup(), which must have converted
- *  DtInternalEnergy to specific energy units first, and which zeroes it again for cells that are frozen or
- *  decoupled further down the same loop.
- */
+/*! Receiver-based injection for one gas cell. Called from hydro_final_operations_and_cleanup(), which has
+ *  already converted DtInternalEnergy to specific units and which zeroes it again further down the same
+ *  loop for cells that are frozen or decoupled. */
 void pbhef_receiver_inject(int i, double heating_prefactor)
 {
     if(SphP[i].Density <= 0) {return;}
@@ -618,11 +602,9 @@ void pbhef_receiver_inject(int i, double heating_prefactor)
 #endif
 
 
-/*! Returns 0 if the PBH evaporation heating rate is identically zero for this step, so that callers can
- *  skip the DM neighbour search and the energy injection altogether. This happens if the module is enabled
- *  but given a zero PBH mass fraction, or once the black holes have fully evaporated. Note that the DM
- *  density is then left at its last computed value rather than being updated.
- */
+/*! Zero if the heating rate vanishes this step, so callers can skip the neighbour search and the
+ *  injection: either the mass fraction is zero or the holes have evaporated. The DM density is then left
+ *  at its last computed value. */
 int pbhef_is_active(void)
 {
     if(All.PBH_MassFraction <= 0) {return 0;}
@@ -633,9 +615,8 @@ int pbhef_is_active(void)
 }
 
 
-/*! Elapsed cosmic time since All.TimeBegin, at scale factor a. In a non-cosmological run All.Time already is the time,
- *  so this is just the difference. In a cosmological run it comes from the table built above, using the same log(a)
- *  indexing as get_drift_factor(). */
+/*! Elapsed cosmic time since All.TimeBegin. Non-cosmologically that is just the difference; otherwise it
+ *  comes off the table above, indexed in log(a) as get_drift_factor() does. */
 static double pbhef_elapsed_time(double a)
 {
 #ifndef PBHEF_NO_MASS_LOSS
@@ -654,8 +635,8 @@ static double pbhef_elapsed_time(double a)
 }
 
 
-/*! Current PBH mass. M^3 is exactly linear in cosmic time for a fixed alpha, so this is evaluated in closed form rather
- *  than interpolated: only the time itself comes from a table. A black hole that has evaporated returns a mass of zero. */
+/*! Current PBH mass, in closed form since M^3 is linear in time; only the time comes off a table. A hole
+ *  that has evaporated returns zero. */
 void pbhef_get_current_mass(double a, double *mass_out)
 {
 #ifndef PBHEF_NO_MASS_LOSS
@@ -669,16 +650,11 @@ void pbhef_get_current_mass(double a, double *mass_out)
 
 #if (PBHEF == 2)
 
-/*! Donor-based energy injection, after List et al. 2019. A DM particle carries f0*M_i/m0 black holes each
-    radiating C*alpha/m(t)^2, so its power is the heating prefactor times its own mass, with no dependence
-    on the DM density around it. It shares that power over its gas neighbors as w_j / sum_k w_k, stored in
-    the slot for the donor's own timebin since the two are rarely active together, and as a share of the
-    power rather than of the specific energy, because the receiver's mass can change before it wakes.
-    By default w_j is the solid angle each neighbor subtends, eq. 6, which has no closed-form sum and so
-    costs a pass of its own to normalise. PBHEF_MASS_WEIGHTS selects the mass-weighted kernel of eq. 5
-    instead, whose sum pbhef_density() has already left in DensityPBH. The default follows the paper, and
-    matches what the receiver method weights by: its share to a cell goes as that cell's volume, which the
-    solid angle tracks and the cell's mass does not. */
+/*! Donor-based energy injection, after List et al. 2019. A DM particle's power is the prefactor times its
+    own mass, shared over its gas neighbors as w_j / sum_k w_k and held in the slot for the donor's own
+    timebin, as a share of the power and not of the specific energy since the receiver's mass can change
+    before it wakes. w_j is the solid angle of eq. 6, which has no closed-form sum and costs a pass to
+    normalise; PBHEF_MASS_WEIGHTS selects the kernel of eq. 5, already summed in DensityPBH. */
 
 static double PBH_RateIntended;   /*!< rate the active donors mean to inject, this task */
 static double PBH_RateCoupled;    /*!< rate that actually landed on gas, this task */
@@ -845,9 +821,8 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                     /* the shares w_j/sum_k w_k sum to one, so this is the receiver's cut of the power */
                     double dE_j = local.Power * w_j / local.WeightSum;
 
-                    /* A receiver on a longer step than its donor would integrate this rate for too long,
-                       so scale it down by the ratio of the two steps. The cap below is meant to prevent
-                       that, but it only takes effect from the next step, so the case is reachable. */
+                    /* scale by the ratio of steps: the cap below only takes effect from the next step, so a
+                       receiver can still be found on the longer one */
                     if(local.Timebin < P[j].TimeBin)
                     {
                         dE_j *= (double)(((integertime) 1) << local.Timebin) / (double)(((integertime) 1) << P[j].TimeBin);
@@ -857,20 +832,18 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                     #pragma omp atomic
                     SphP[j].PBHEF_DtuBin[local.Timebin] += (float)dE_j;
 
-                    /* keep the receiver on a step no longer than the donor's, the way BH_WAKEUP_GAS
-                       stamps LowestBHTimeBin. Two threads can both pass the test and the larger bin
-                       win, which only leaves the cap looser for one step, and the rate is scaled to
-                       the receiver's own step anyway, so the energy is right either way */
+                    /* keep the receiver on a step no longer than the donor's, as BH_WAKEUP_GAS stamps
+                       LowestBHTimeBin. A race can leave the larger bin standing for one step; the rate is
+                       scaled to the receiver's own step regardless, so the energy is unaffected */
                     if(P[j].PBHEF_MaxTimebin > local.Timebin)
                     {
                         #pragma omp atomic write
                         P[j].PBHEF_MaxTimebin = local.Timebin;
                     }
 #ifdef PBHEF_LIMIT_DM_TIMESTEP /* and, optionally, the donor within a few bins of its receivers */
-                    /* only off a receiver that has a real timebin. On the first call they are all still
-                       in the provisional bin 0, where the cap would read as bin 0 plus the offset and
-                       pull the donors, and the gas behind them, to the bottom of the timeline; they
-                       then climb back one bin per sync point. The reference guards this the same way */
+                    /* only off a receiver with a real timebin: on the first call the cap would read as the
+                       provisional bin plus the offset and drag the donors, and the gas with them, to the
+                       bottom of the timeline. The reference guards this the same way */
                     if(P[j].TimeBin > 0)
                     {int cap = P[j].TimeBin + PBHEF_LIMIT_DM_TIMESTEP; if(cap < out.MaxTimebin) {out.MaxTimebin = cap;}}
 #endif
@@ -904,11 +877,9 @@ static void pbhef_donor_loop(int pass)
 void pbhef_donor_feedback(void)
 {
     int i, b;
-    /* once the black holes are gone nothing will deposit again, and a slot filled on the last active
-       step would otherwise keep heating and keep shortening timesteps for the rest of the run */
+    /* a slot filled on the last active step would otherwise keep heating for the rest of the run */
     if(!pbhef_is_active())
     {
-        /* the black holes never come back, so this only has to happen on the step they run out */
         static int slots_cleared = 0;
         if(!slots_cleared) {for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {SphP[i].PBHEF_DtuBin[b] = 0;} SphP[i].PBHEF_Dtu = 0;} slots_cleared = 1;}
         return;
@@ -923,13 +894,10 @@ void pbhef_donor_feedback(void)
         if(pbhef_donor_isactive(i, 1)) {PBH_NumDonors++;}
     }
 
-    /* Slot 0 is where the donors deposit while the timebins are still provisional, and bin 0 counts as
-       active on every step, so clearing it unconditionally would throw that rate away before any
-       receiver had integrated it. Clear it while the bins are provisional, which is the deposit's own
-       call, and again once donors are active to write real bins; in between, leave it standing.
-       The donor count has to be the global one: donors deposit across task boundaries, so a task
-       holding no active donor of its own can still have its cells fed by one, and deciding locally
-       would leave those cells counting the provisional rate on top of the new one. */
+    /* Slot 0 takes the deposit while the timebins are provisional, and bin 0 is active on every step, so
+       clearing it unconditionally would drop that rate before any receiver integrated it. Clear it while
+       the bins are provisional and again once donors write real bins. The count must be global, since
+       donors deposit across task boundaries. */
     MPI_Allreduce(&PBH_NumDonors, &PBH_NumDonorsAll, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
     int first_slot = (pbhef_timebins_are_provisional() || PBH_NumDonorsAll) ? 0 : 1;
 
@@ -942,12 +910,9 @@ void pbhef_donor_feedback(void)
 #endif
     pbhef_donor_loop(1);
 
-    /* total the slots and divide by the mass the cell has now, which is what makes this safe under MFV:
-       the slots hold a share of the donor's power, so a cell whose mass has changed since the deposit
-       still receives the energy that was budgeted for it. Couple it where the receiver mode couples its
-       own, so kicks.c can fold it into the implicit cooling solve. Only active cells take it:
-       hydro_force() has just rebuilt their DtInternalEnergy, while an inactive one still holds the value
-       it was given when it last woke and would be paid twice. */
+    /* total the slots and divide by the mass the cell has now, which is what makes this safe under MFV.
+       Only active cells take it: hydro_force() has just rebuilt their DtInternalEnergy, and an inactive
+       one would be paid twice. */
     for(i = 0; i < N_gas; i++)
     {
         double dE = 0;
@@ -961,9 +926,8 @@ void pbhef_donor_feedback(void)
         }
     }
 
-    /* the shares sum to one, so these should agree to round-off. this is not conservative by
-       construction though: it relies on the slot bookkeeping and the capping, so it is worth watching.
-       pbhef_log_energy() reduces the same pair for its own column, so only rank 0 needs it here */
+    /* the shares sum to one, so these should agree to round-off, but that rests on the slot bookkeeping
+       and the capping rather than on construction, so it is worth watching */
     double budget_local[2] = {PBH_RateIntended, PBH_RateCoupled}, budget[2];
     MPI_Reduce(budget_local, budget, 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     if(ThisTask == 0 && budget[0] > 0) {PRINT_STATUS(" ..PBHEF donor budget: intended=%g coupled=%g (fraction=%.6f)", budget[0], budget[1], budget[1]/budget[0]);}
@@ -985,8 +949,7 @@ void pbhef_donor_feedback(void)
     }
 #endif
 
-    /* an active receiver on a longer step than its donor means the cap has not held. its rate is scaled
-       down so no energy is lost, but it is a sign the coupling is not doing its job */
+    /* the cap has not held. no energy is lost, since the rate is scaled down, but it is worth knowing */
     long nbad_local = PBH_NumUncapped, nbad; MPI_Reduce(&nbad_local, &nbad, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
     if(ThisTask == 0 && nbad) {PRINT_WARNING("PBHEF donor: %ld active gas cells were on a longer timestep than a donor feeding them", nbad);}
 
@@ -997,27 +960,20 @@ void pbhef_donor_feedback(void)
 #endif /* PBHEF == 2 */
 
 
-/*! One line of pbhef_energy.txt per sync point, alongside cpu.txt. The test this exists for is the
-    global energy budget: the black holes radiate a total that is known in closed form, since PBH
-    evaporation is a one-body process, so summing what the gas actually received and dividing gives a
-    number that should be one for the donor method. It is the only diagnostic here that can see an
-    error in how a receiver's changing mass is handled, because the per-step budget report accumulates
-    at deposit time and would read one either way.
-
-    The expected energy integrates the current rate over the system timestep, which is first-order in
-    how fast m(t) changes; over a step that is far below the evaporation timescale the difference does
-    not matter. Note ENERGY_ENTROPY_SWITCH_IS_ACTIVE overwrites DtInternalEnergy in kicks.c, which
-    would leave this counting energy the gas never received. */
+/*! One line of pbhef_energy.txt per sync point, beside cpu.txt. Evaporation is one-body, so the total
+    radiated is known in closed form and the ratio of what the gas received to it should be one for the
+    donor method. Unlike the per-step budget report, which accumulates at deposit time, this can see an
+    error in how a receiver's changing mass is handled. Note ENERGY_ENTROPY_SWITCH_IS_ACTIVE overwrites
+    DtInternalEnergy in kicks.c. */
 void pbhef_log_energy(void)
 {
     double injected_step;
     MPI_Reduce(&All.PBH_EnergyInjectedThisTask, &injected_step, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     All.PBH_EnergyInjectedThisTask = 0;
 
-    /* measure the interval on the integer timeline, the same clock the receivers integrate their rate
-       over, rather than from All.TimeStep: that is a step in scale factor, not in log a. Also on All
-       rather than in a static, so a resumed run measures from the last line written and not from the
-       moment it resumed, which would drop an interval from the expected total. */
+    /* the interval comes off the integer timeline, the clock the receivers integrate over, not from
+       All.TimeStep, which is a step in scale factor. On All so a resumed run measures from the last line
+       written and not from the moment it resumed */
     if(All.PBH_Ti_LastLog < 0) {All.PBH_Ti_LastLog = All.Ti_Current;}
     double dt_sync = (All.Ti_Current - All.PBH_Ti_LastLog) * All.Timebase_interval / All.cf_hubble_a;
     All.PBH_Ti_LastLog = All.Ti_Current;
@@ -1037,8 +993,7 @@ void pbhef_log_energy(void)
     double ratio = (All.PBH_EnergyExpected > 0) ? All.PBH_EnergyInjected / All.PBH_EnergyExpected : 0;
     double z = (All.ComovingIntegrationOn) ? 1./All.Time - 1. : 0;
 
-    /* every column at the same width as energy.txt, since the whole point of the file is a ratio that
-       has to be read against one to as many digits as there are */
+    /* the same width energy.txt uses: the file exists for a ratio read against one */
     fprintf(FdPBHEF, "%.16g %.16g %.16g %.16g %.16g %.16g %.16g %.16g", All.Time, z,
             current_mass * UNIT_MASS_IN_CGS, prefactor, injected_step, All.PBH_EnergyInjected,
             All.PBH_EnergyExpected, ratio);
