@@ -3762,7 +3762,7 @@ enum iofields
   IO_DENS_AROUND_STAR,
   IO_DELAY_TIME_HII,
   IO_MOLECULARFRACTION,
-  IO_DENSDM,
+  IO_PBHEF_DENSITY,
   IO_PBHEF_Dtu,
   IO_LASTENTRY			/* This should be kept - it signals the end of the list */
 };
