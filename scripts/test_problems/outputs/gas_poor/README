@@ -36,7 +36,7 @@ From the repository root:
 make_ics.py needs numpy and h5py; analyse.py also needs matplotlib. Neither is needed to run
 the simulations themselves, only to build the initial conditions and read the results.
 
-MFM throughout. Fourteen configurations take about 25 minutes on four tasks.
+MFM throughout. Fourteen configurations, each a short run to t = 0.25.
 
 The kernel ceiling
 ------------------
@@ -64,7 +64,7 @@ budget report saw, with the number of donors that had no gas in reach at that st
   r4_pbhef2               0.999996     0.999998    1.000017  1.000000 (0 starved)
   r6_pbhef2               0.999995     0.999998    1.000047  1.000000 (0 starved)
   r9_pbhef2               0.999995     0.999998    0.999999  1.000000 (0 starved)
-  r9_pbhef2_iso           0.999996     0.999998    0.999999  1.000000 (0 starved)
+  r9_pbhef2_mass          0.999996     0.999998    0.999999  1.000000 (0 starved)
   r9_pbhef1_shortreach    0.011713     0.013218    0.012131  -
   r9_pbhef2_shortreach    0.524114     0.999997    0.772050  0.524116 (6009 starved)
 
@@ -72,7 +72,7 @@ The receiver couples the fraction of dark matter that has gas over it, and nothi
 table at the top of this file: 0.808 where 0.800 of the mass is covered, 0.422 against 0.411, 0.141
 against 0.135, 0.0117 against 0.0111. It runs a little above each because its own kernel is 16 dark
 matter neighbours wide, so mass just inside the rim is still seen by the gas cells just outside it.
-The donor couples 1.000 at every radius, under both weightings.
+The donor couples 1.000 at every radius, under either weighting.
 
 The receiver recovers at small radii and not at large ones: 0.81 to 0.99 at 2 kpc, 0.42 to 0.95 at
 4 kpc, but only 0.14 to 0.27 at 6 kpc and 0.012 to 0.013 at 9 kpc. It suppresses its own heating

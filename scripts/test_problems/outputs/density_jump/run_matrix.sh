@@ -68,4 +68,7 @@ for i in "${!names[@]}"; do
     if [ -f "$run/output/pbhef_energy.txt" ]; then r=$(ratio_of "$run/output/pbhef_energy.txt"); else r="-"; fi
     printf "%-18s %-5s %-7s %-9s %-5s %s\n" "$name" "$rc" "$steps" "$fin" "$nan" "$r"
 done
-rm -f $EXE GIZMO_config.h compile_time_info.c
+# the executable goes, but GIZMO_config.h stays: allvars.h includes it, so a language server cannot
+# parse any file in the tree without one. Each build above deletes it first, which is what stops a
+# stale configuration being reused; removing it here as well only breaks editor navigation.
+rm -f $EXE

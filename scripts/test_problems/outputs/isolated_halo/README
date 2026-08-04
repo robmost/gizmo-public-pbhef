@@ -31,7 +31,7 @@ Naming configurations after the task count runs only those:
 
 Six configurations, MFM throughout: no PBHEF, the receiver method and the donor method, each without
 and with radiative cooling and star formation. The donor runs use the default weighting, the solid
-angle of List et al. eq. 6. About eight minutes a run on four tasks.
+angle of List et al. eq. 6. Each runs to t = 0.25, the longest of the problems here.
 
 The ultraviolet background
 --------------------------
@@ -89,9 +89,9 @@ the gas that is not in a decoupled wind falls from 4.5e-4 to 3.0e-5, a factor of
 volume is its mass over its density, so a more diffuse cell occupies more of the space the receiver
 integrates its dark matter density over, wherever it happens to sit.
 
-The decoupled wind particles are not the cause, which is worth stating because it is the obvious guess.
-They are 13 per cent of the cells but hold 0.60 per cent of the volume, and they are dense and central
-rather than diffuse and distant: median density 5.0e-4 at a median radius of 4.9 kpc.
+The decoupled wind particles are not the cause, though they are the obvious candidate. They are 13 per
+cent of the cells but hold 0.60 per cent of the volume, and they are dense and central rather than
+diffuse and distant: median density 5.0e-4 at a median radius of 4.9 kpc.
 
 There is some genuine outward transport on top of that, which is what moves the donor's number. Gas
 mass by radial shell, without and with cooling:

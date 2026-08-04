@@ -20,8 +20,8 @@ From the repository root:
 
   scripts/test_problems/outputs/timestep_convergence/run_matrix.sh 4
 
-Ten configurations, MFM only, about 25 minutes on four tasks. The finest costs sixteen times the
-coarsest, since it takes sixteen times as many steps.
+Ten configurations, MFM only. The finest costs sixteen times the coarsest, since it takes sixteen
+times as many steps.
 
 Results
 -------

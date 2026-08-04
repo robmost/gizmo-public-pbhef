@@ -74,4 +74,7 @@ for entry in "${runs[@]}"; do
     if [ -f "$log" ]; then frac=$(worst_coupled "$log"); else frac="-"; fi
     printf "%-22s %-5s %-7s %-5s %-10s %s\n" "$name" "$rc" "$steps" "$nan" "${ratio:--}" "${frac:--}"
 done
-rm -f $EXE GIZMO_config.h compile_time_info.c
+# the executable goes, but GIZMO_config.h stays: allvars.h includes it, so a language server cannot
+# parse any file in the tree without one. Each build above deletes it first, which is what stops a
+# stale configuration being reused; removing it here as well only breaks editor navigation.
+rm -f $EXE

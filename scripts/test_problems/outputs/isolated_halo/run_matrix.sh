@@ -69,4 +69,7 @@ for i in "${!names[@]}"; do
     frac=$(awk 'NR>1 && NF>8 && $10>0 {f=$9; n=1} END{if(n) printf "%.6f", f}' "$log" 2>/dev/null)
     printf "%-14s %-5s %-7s %-9s %-5s %-12s %s\n" "$name" "$rc" "$steps" "$fin" "$nan" "${ratio:--}" "${frac:--}"
 done
-rm -f $EXE GIZMO_config.h compile_time_info.c
+# the executable goes, but GIZMO_config.h stays: allvars.h includes it, so a language server cannot
+# parse any file in the tree without one. Each build above deletes it first, which is what stops a
+# stale configuration being reused; removing it here as well only breaks editor navigation.
+rm -f $EXE

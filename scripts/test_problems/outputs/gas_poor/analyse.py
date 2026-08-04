@@ -44,7 +44,7 @@ def coupled(name, index):
 def report():
     print("%-22s %11s %11s %11s %s" % ("config", "power t=0", "power t=end", "whole-run", "worst-coupled"))
     for name in ["r%d_pbhef1" % r for r in RADII] + ["r%d_pbhef2" % r for r in RADII] \
-            + ["r9_pbhef2_iso", "r9_pbhef1_shortreach", "r9_pbhef2_shortreach"]:
+            + ["r9_pbhef2_mass", "r9_pbhef1_shortreach", "r9_pbhef2_shortreach"]:
         ratio, worst, starved = energy_log(name)
         tail = "-" if worst is None else "%.6f (%d donors starved)" % (worst, starved)
         print("%-22s %11.6f %11.6f %11.6f %s"
