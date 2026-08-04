@@ -882,6 +882,8 @@ void pbhef_donor_feedback(void)
     {
         static int slots_cleared = 0;
         if(!slots_cleared) {for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {SphP[i].PBHEF_DtuBin[b] = 0;} SphP[i].PBHEF_Dtu = 0;} slots_cleared = 1;}
+        /* the energy log is still written every step, and only this routine refills these */
+        PBH_RateIntended = 0; PBH_RateCoupled = 0; PBH_NumDonorsAll = 0;
         return;
     }
     PRINT_STATUS(" ..PBHEF Donor-based approach:  sharing evaporation energy over the gas...");
