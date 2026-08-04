@@ -76,7 +76,7 @@ def figure():
 
     edges = np.linspace(0, 0.5 * BOXSIZE, 60)
     centres = 0.5 * (edges[1:] + edges[:-1])
-    for key, style in zip(KEYS, ["-", "--", "-"], strict=True):  # donor curves overlap, so vary the line
+    for key, style in zip(KEYS, ["-", "--", "-"]):  # donor curves overlap, so vary the line
         time, pos, mass, u, dtu = snapshot("mfm_" + key, LAST_SNAPSHOT)
         radius = np.hypot(pos[:, 0] - 0.5 * BOXSIZE, pos[:, 1] - 0.5 * BOXSIZE)
         power, _ = np.histogram(radius, bins=edges, weights=dtu * mass)
