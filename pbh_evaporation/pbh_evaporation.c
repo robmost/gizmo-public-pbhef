@@ -31,6 +31,15 @@ struct kernel_density /*! defines a number of useful variables we will use below
 };
 
 
+/*! true until the first sync point completes. Until then every particle still carries the placeholder
+    timebin that init() assigns, so anything here keyed on a timebin has to allow for it. Read from
+    All, which restart.c saves, rather than tracked in a static that a resumed run would start afresh */
+static int pbhef_timebins_are_provisional(void)
+{
+    return All.NumCurrentTiStep == 0;
+}
+
+
 /*! elements active in the density loop below: gas for the receiver-based method, DM for the donor-based one */
 static int pbhef_density_isactive(int n)
 {
@@ -543,7 +552,7 @@ double pbhef_heating_prefactor(void)
 /*! the prefactor for the current time, remembered between calls: the donor loops want it per particle, and
     evaluating it means a lookup of the black hole mass. Same static caching get_drift_factor() uses. Safe
     because the callers are either unthreaded or ask for it once before their threads start */
-double pbhef_prefactor_cached(void)
+static double pbhef_prefactor_cached(void)
 {
     static double time_last = -1, prefactor_last = 0;
     if(All.Time != time_last) {time_last = All.Time; prefactor_last = pbhef_heating_prefactor();}
@@ -555,7 +564,7 @@ double pbhef_prefactor_cached(void)
     logged. Both modes add to it where they add to DtInternalEnergy, using the receiver's own timestep,
     so what it counts is energy injected rather than energy surviving cooling. It lives on All, not in
     a static, because restart.c saves All and a static would restart at zero. */
-void pbhef_note_injection(int i, double specific_rate)
+static void pbhef_note_injection(int i, double specific_rate)
 {
     if(specific_rate <= 0) {return;}
     All.PBH_EnergyInjectedThisTask += specific_rate * P[i].Mass * GET_PARTICLE_TIMESTEP_IN_PHYSICAL(i);
@@ -677,7 +686,7 @@ static long PBH_NumUncapped;      /*!< active receivers found on a longer step t
 static long PBH_NumDonors;        /*!< donors that had energy to give this step, this task */
 
 /*! total power of the black holes carried by DM particle i */
-double pbhef_donor_power(int i)
+static double pbhef_donor_power(int i)
 {
     return pbhef_prefactor_cached() * P[i].Mass;
 }
@@ -758,7 +767,9 @@ static void pbhef_donor_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loo
 static struct OUTPUT_STRUCT_NAME
 {
     MyDouble RateCoupled; /* rate that actually landed on the gas, for the budget report */
+#ifdef PBHEF_LIMIT_DM_TIMESTEP
     int MaxTimebin;       /* largest bin this donor may take, from its receivers */
+#endif
 #ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     MyDouble AreaSum;     /* weighting pass only: the sum the shares are normalised by */
 #endif
@@ -784,7 +795,9 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
 {
     int j, n, startnode, numngb_inbox, listindex = 0, n_uncapped = 0, depositing = 1; double dp[3], r2, h2, r, u, wk, dwk, hinv, hinv3, hinv4;
     struct INPUT_STRUCT_NAME local; struct OUTPUT_STRUCT_NAME out; memset(&out, 0, sizeof(struct OUTPUT_STRUCT_NAME));
+#ifdef PBHEF_LIMIT_DM_TIMESTEP
     out.MaxTimebin = TIMEBINS;
+#endif
     if(mode == 0) {pbhef_donor_particle2in(&local, target, loop_iteration);} else {local = DATAGET_NAME[target];}
 #ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     depositing = (loop_iteration > 0); /* the pass before it only builds the normalisation */
@@ -798,7 +811,7 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
     if(mode == 0) {startnode = All.MaxPart; /* root node */} else {startnode = DATAGET_NAME[target].NodeList[0]; startnode = Nodes[startnode].u.d.nextnode; /* open it */}
     while(startnode >= 0) {
         while(startnode >= 0) {
-            numngb_inbox = ngb_treefind_variable_threads_targeted(local.Pos, local.HsmlPBH, target, &startnode, mode, exportflag, exportnodecount, exportindex, ngblist, 1); // gas only
+            numngb_inbox = ngb_treefind_variable_threads_targeted(local.Pos, local.HsmlPBH, target, &startnode, mode, exportflag, exportnodecount, exportindex, ngblist, PBH_NGB_BITMASK); // gas only
             if(numngb_inbox < 0) {return -2;}
             for(n = 0; n < numngb_inbox; n++)
             {
@@ -843,11 +856,14 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                     #pragma omp atomic
                     SphP[j].PBHEF_DtuBin[local.Timebin] += (float)dE_j;
 
-                    /* keep the receiver on a step no longer than the donor's */
+                    /* keep the receiver on a step no longer than the donor's, the way BH_WAKEUP_GAS
+                       stamps LowestBHTimeBin. Two threads can both pass the test and the larger bin
+                       win, which only leaves the cap looser for one step, and the rate is scaled to
+                       the receiver's own step anyway, so the energy is right either way */
                     if(P[j].PBHEF_MaxTimebin > local.Timebin)
                     {
-                        #pragma omp critical
-                        {if(P[j].PBHEF_MaxTimebin > local.Timebin) {P[j].PBHEF_MaxTimebin = local.Timebin;}}
+                        #pragma omp atomic write
+                        P[j].PBHEF_MaxTimebin = local.Timebin;
                     }
 #ifdef PBHEF_LIMIT_DM_TIMESTEP /* and, optionally, the donor within a few bins of its receivers */
                     /* only off a receiver that has a real timebin. On the first call they are all still
@@ -891,7 +907,9 @@ void pbhef_donor_feedback(void)
        step would otherwise keep heating and keep shortening timesteps for the rest of the run */
     if(!pbhef_is_active())
     {
-        for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {SphP[i].PBHEF_DtuBin[b] = 0;} SphP[i].PBHEF_Dtu = 0;}
+        /* the black holes never come back, so this only has to happen on the step they run out */
+        static int slots_cleared = 0;
+        if(!slots_cleared) {for(i = 0; i < N_gas; i++) {for(b = 0; b < TIMEBINS; b++) {SphP[i].PBHEF_DtuBin[b] = 0;} SphP[i].PBHEF_Dtu = 0;} slots_cleared = 1;}
         return;
     }
     PRINT_STATUS(" ..PBHEF Donor-based approach:  sharing evaporation energy over the gas...");
@@ -904,14 +922,11 @@ void pbhef_donor_feedback(void)
         if(pbhef_donor_isactive(i, 1)) {PBH_NumDonors++;}
     }
 
-    /* Timebins are provisional on the first call, with every particle still in bin 0, so bin 0 is the
-       slot the donors write. TimeBinActive[0] is true on every step (run.c:441), so the clear below
-       would drop that rate before any receiver had integrated it and the gas would go unheated until
-       the donors woke. Hold the slot until they write their real bins, which is the next call one of
-       them is active on. */
-    static int holding_first_deposit = 0;
-    int first_slot = (holding_first_deposit && !PBH_NumDonors) ? 1 : 0;
-    if(All.Ti_Current == 0) {holding_first_deposit = 1;} else if(PBH_NumDonors) {holding_first_deposit = 0;}
+    /* Slot 0 is where the donors deposit while the timebins are still provisional, and bin 0 counts as
+       active on every step, so clearing it unconditionally would throw that rate away before any
+       receiver had integrated it. Clear it while the bins are provisional, which is the deposit's own
+       call, and again once donors are active to write real bins; in between, leave it standing. */
+    int first_slot = (pbhef_timebins_are_provisional() || PBH_NumDonors) ? 0 : 1;
 
     /* clear the slots whose donors will deposit again. must cover every gas cell, not just the active
        ones, since an active donor also feeds sleeping receivers */
@@ -931,7 +946,8 @@ void pbhef_donor_feedback(void)
     for(i = 0; i < N_gas; i++)
     {
         double dE = 0;
-        for(b = 0; b < TIMEBINS; b++) {if(b == 0 || TimeBinCount[b]) {dE += SphP[i].PBHEF_DtuBin[b];}}
+        for(b = 0; b < TIMEBINS; b++) {if(b == 0 || TimeBinCount[b]) {dE += SphP[i].PBHEF_DtuBin[b];}} /* slot 0 always: it may hold a provisional deposit */
+        if(dE <= 0) {SphP[i].PBHEF_Dtu = 0; continue;}
         SphP[i].PBHEF_Dtu = (P[i].Mass > 0) ? dE / P[i].Mass : 0;
         if(SphP[i].PBHEF_Dtu > 0 && TimeBinActive[P[i].TimeBin])
         {
@@ -941,10 +957,11 @@ void pbhef_donor_feedback(void)
     }
 
     /* the shares sum to one, so these should agree to round-off. this is not conservative by
-       construction though: it relies on the slot bookkeeping and the capping, so it is worth watching */
+       construction though: it relies on the slot bookkeeping and the capping, so it is worth watching.
+       pbhef_log_energy() reduces the same pair for its own column, so only rank 0 needs it here */
     double budget_local[2] = {PBH_RateIntended, PBH_RateCoupled}, budget[2];
-    MPI_Allreduce(&budget_local[0], &budget[0], 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    if(budget[0] > 0) {PRINT_STATUS(" ..PBHEF donor budget: intended=%g coupled=%g (fraction=%.6f)", budget[0], budget[1], budget[1]/budget[0]);}
+    MPI_Reduce(budget_local, budget, 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    if(ThisTask == 0 && budget[0] > 0) {PRINT_STATUS(" ..PBHEF donor budget: intended=%g coupled=%g (fraction=%.6f)", budget[0], budget[1], budget[1]/budget[0]);}
 
 #ifdef PBHEF_DEBUG
     /* trace one donor. PBH_EnergyID names a DM particle here, where the receiver mode traces the gas
@@ -965,8 +982,8 @@ void pbhef_donor_feedback(void)
 
     /* an active receiver on a longer step than its donor means the cap has not held. its rate is scaled
        down so no energy is lost, but it is a sign the coupling is not doing its job */
-    long nbad_local = PBH_NumUncapped, nbad; MPI_Allreduce(&nbad_local, &nbad, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-    if(nbad) {PRINT_WARNING("PBHEF donor: %ld active gas cells were on a longer timestep than a donor feeding them", nbad);}
+    long nbad_local = PBH_NumUncapped, nbad; MPI_Reduce(&nbad_local, &nbad, 1, MPI_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    if(ThisTask == 0 && nbad) {PRINT_WARNING("PBHEF donor: %ld active gas cells were on a longer timestep than a donor feeding them", nbad);}
 
     CPU_Step[CPU_PBHEFDONOR] += measure_time(); /* collect timings and reset clock for next timing */
 }
