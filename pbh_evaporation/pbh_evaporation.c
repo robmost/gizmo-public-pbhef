@@ -848,6 +848,11 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                         {if(P[j].PBHEF_MaxTimebin > local.Timebin) {P[j].PBHEF_MaxTimebin = local.Timebin;}}
                     }
 #ifdef PBHEF_LIMIT_DM_TIMESTEP /* and, optionally, the donor within a few bins of its receivers */
+                    /* only off a receiver that has a real timebin. On the first call they are all still
+                       in the provisional bin 0, where the cap would read as bin 0 plus the offset and
+                       pull the donors, and the gas behind them, to the bottom of the timeline; they
+                       then climb back one bin per sync point. The reference guards this the same way */
+                    if(P[j].TimeBin > 0)
                     {int cap = P[j].TimeBin + PBHEF_LIMIT_DM_TIMESTEP; if(cap < out.MaxTimebin) {out.MaxTimebin = cap;}}
 #endif
 
