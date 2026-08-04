@@ -32,7 +32,7 @@ jobs:
           - name: pbhef-donor-limit-dm-timestep
             flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_LIMIT_DM_TIMESTEP=2"
           - name: pbhef-donor-solid-angle
-            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS"
+            flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_MASS_WEIGHTS"
           - name: pbhef-donor-debug
             flags: "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_DEBUG"
           # the donor rate array stores an energy rate rather than a specific one so that a receiver

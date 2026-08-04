@@ -451,7 +451,7 @@
 #PBHEF_DEBUG                      # Enable debug outputs for primordial black hole evaporation feedback module. This will output additional information to help verify the heating rates and energy injection from PBHEF.
 #PBHEF_NO_MASS_LOSS               # Enable primordial black hole evaporation feedback without explicitly calculating the mass loss from PBHs (in the specific internal energy only).
 #PBHEF_LIMIT_DM_TIMESTEP=2         # Donor-based only (PBHEF=2). Keeps a dm particle within this many timebins of the gas it feeds, so that it cannot sit on a much longer step than its receivers. =2 is a factor of 4, the value recommended by List et al. 2019. Receivers are always held to their donor's step, with or without this
-#PBHEF_SOLID_ANGLE_WEIGHTS         # Donor-based only (PBHEF=2). Shares a dm particle's evaporation energy over its gas neighbours by the solid angle each subtends (List et al. 2019 eq. 6, the choice they default to) rather than by the mass-weighted kernel of their eq. 5. Isotropic however the gas mass is arranged, at the price of a second pass over the neighbours to build the normalisation
+#PBHEF_MASS_WEIGHTS                # Donor-based only (PBHEF=2). Shares a dm particle's evaporation energy over its gas neighbours by the mass-weighted kernel of List et al. 2019 eq. 5 rather than by the solid angle each subtends, their eq. 6, which is the default here. Saves the second pass over the neighbours that building the solid-angle normalisation costs, but sends more of the energy to whichever neighbours are densest, where the default and the receiver-based method both weight by the volume a neighbour occupies
 ####################################################################################################
 
 

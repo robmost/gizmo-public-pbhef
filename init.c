@@ -214,7 +214,7 @@ void init(void)
 
 #ifdef PBHEF /* these live on every particle type, so they must be zeroed here and not in the gas loop below */
         P[i].DensityPBH = 0; P[i].HsmlPBH = 0; P[i].NumNgbPBH = 0; P[i].DhsmlNgbFactorPBH = 0; P[i].Particle_DivVelPBH = 0;
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
         P[i].AreaSumPBH = 0;
 #endif
 #if (PBHEF == 2)

@@ -40,8 +40,8 @@ make_ics.py needs numpy and h5py; analyse.py also needs matplotlib. Neither is n
 the simulations themselves, only to build the initial conditions and read the results.
 
 The eight configurations are the two hydro solvers crossed with no PBHEF, PBHEF=1 (receiver),
-PBHEF=2 (donor, mass-weighted kernel of their eq. 5), and PBHEF=2 with
-PBHEF_SOLID_ANGLE_WEIGHTS (donor, the isotropic solid-angle weights of their eq. 6). The paper uses
+PBHEF=2 (donor, which weights by the solid angle of their eq. 6 by default), and PBHEF=2 with
+PBHEF_MASS_WEIGHTS (donor, the mass-weighted kernel of their eq. 5). The paper uses
 MFM. One configuration takes about 70 seconds on four tasks: 258 sync points to t = 1, of which the
 129 that cpu.txt records are the ones where the longest timebin is active.
 

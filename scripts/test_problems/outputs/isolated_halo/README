@@ -30,7 +30,8 @@ Naming configurations after the task count runs only those:
   scripts/test_problems/outputs/isolated_halo/run_matrix.sh 4 cool_base cool_pbhef1 cool_pbhef2
 
 Six configurations, MFM throughout: no PBHEF, the receiver method and the donor method, each without
-and with radiative cooling and star formation. About eight minutes a run on four tasks.
+and with radiative cooling and star formation. The donor runs use the default weighting, the solid
+angle of List et al. eq. 6. About eight minutes a run on four tasks.
 
 The ultraviolet background
 --------------------------
@@ -52,9 +53,9 @@ t = 0.25, and for the donor runs the lowest per-step fraction of its intended ra
 
   config       injected/expected  worst-coupled
   pbhef1                0.045281  -
-  pbhef2                0.328032  0.369110
+  pbhef2                0.328621  0.370308
   cool_pbhef1           0.279394  -
-  cool_pbhef2           0.489539  0.698455
+  cool_pbhef2           0.501361  0.703454
 
 Two things to read here.
 

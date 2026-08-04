@@ -34,7 +34,7 @@ runs=("r0_base                 0     0.078     "
       "r6_pbhef2               6     0.078     PBHEF=2"
       "r9_pbhef1               9     0.078     PBHEF=1"
       "r9_pbhef2               9     0.078     PBHEF=2"
-      "r9_pbhef2_iso           9     0.078     PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS"
+      "r9_pbhef2_mass          9     0.078     PBHEF=2 PBHEF_MASS_WEIGHTS"
       "r9_pbhef1_shortreach    9     0.020     PBHEF=1"
       "r9_pbhef2_shortreach    9     0.020     PBHEF=2")
 

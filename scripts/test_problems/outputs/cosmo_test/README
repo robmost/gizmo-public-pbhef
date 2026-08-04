@@ -50,8 +50,8 @@ From the repository root:
   scripts/test_problems/outputs/cosmo_test/run_matrix.sh 2 mfm      # one solver only
 
 The eight configurations are the two hydro solvers crossed with no PBHEF, PBHEF=1 (receiver),
-PBHEF=2 (donor, mass-weighted kernel of List et al. eq. 5), and PBHEF=2 with
-PBHEF_SOLID_ANGLE_WEIGHTS (donor, the isotropic solid-angle weights of their eq. 6).
+PBHEF=2 (donor, which weights by the solid angle of List et al. eq. 6 by default), and PBHEF=2 with
+PBHEF_MASS_WEIGHTS (donor, the mass-weighted kernel of their eq. 5).
 
 What to look for
 ----------------

@@ -31,12 +31,12 @@ names=(mfm_base mfm_pbhef1 mfm_pbhef2_mass mfm_pbhef2_iso
        mfv_base mfv_pbhef1 mfv_pbhef2_mass mfv_pbhef2_iso)
 flags=("HYDRO_MESHLESS_FINITE_MASS"
        "HYDRO_MESHLESS_FINITE_MASS PBHEF=1"
+       "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_MASS_WEIGHTS"
        "HYDRO_MESHLESS_FINITE_MASS PBHEF=2"
-       "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS"
        "HYDRO_MESHLESS_FINITE_VOLUME"
        "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=1"
-       "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2"
-       "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS")
+       "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2 PBHEF_MASS_WEIGHTS"
+       "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2")
 
 # injected/expected at the last sync point the donors deposited on; a row where they did not lags by
 # up to one step, and a receiver-mode file has no such column so every row of it qualifies

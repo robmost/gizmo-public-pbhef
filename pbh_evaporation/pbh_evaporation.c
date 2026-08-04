@@ -665,9 +665,11 @@ void pbhef_get_current_mass(double a, double *mass_out)
     on the DM density around it. It shares that power over its gas neighbors as w_j / sum_k w_k, stored in
     the slot for the donor's own timebin since the two are rarely active together, and as a share of the
     power rather than of the specific energy, because the receiver's mass can change before it wakes.
-    By default w_j is the mass-weighted kernel of eq. 5, whose sum pbhef_density() has already left in
-    DensityPBH; PBHEF_SOLID_ANGLE_WEIGHTS uses instead the solid angle of eq. 6, isotropic however the gas
-    is arranged but with no closed-form sum, so it costs a pass of its own. */
+    By default w_j is the solid angle each neighbor subtends, eq. 6, which has no closed-form sum and so
+    costs a pass of its own to normalise. PBHEF_MASS_WEIGHTS selects the mass-weighted kernel of eq. 5
+    instead, whose sum pbhef_density() has already left in DensityPBH. The default follows the paper, and
+    matches what the receiver method weights by: its share to a cell goes as that cell's volume, which the
+    solid angle tracks and the cell's mass does not. */
 
 static double PBH_RateIntended;   /*!< rate the active donors mean to inject, this task */
 static double PBH_RateCoupled;    /*!< rate that actually landed on gas, this task */
@@ -687,7 +689,7 @@ static int pbhef_donor_isactive(int n, int loop_iteration)
     if(!pbhef_density_isactive(n)) {return 0;}
     if(P[n].HsmlPBH <= 0 || P[n].DensityPBH <= 0) {return 0;} /* no gas inside the kernel, so no receivers */
     if(pbhef_donor_power(n) <= 0) {return 0;}
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     if(loop_iteration > 0 && P[n].AreaSumPBH <= 0) {return 0;}
 #endif
     return 1;
@@ -722,7 +724,7 @@ static struct INPUT_STRUCT_NAME
     MyDouble Power;       /* total power of the black holes this DM particle carries */
     MyDouble WeightSum;   /* normalisation: the summed weights over its gas neighbors */
     int Timebin;          /* which slot the receivers should store the rate in */
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     MyDouble V_i;         /* effective volume of the donor, for the face areas */
 #endif
     int NodeList[NODELISTLENGTH];
@@ -733,7 +735,7 @@ static struct INPUT_STRUCT_NAME
     solid angles otherwise */
 static double pbhef_donor_weight_sum(int i)
 {
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     return P[i].AreaSumPBH;
 #else
     return P[i].DensityPBH;
@@ -747,7 +749,7 @@ static void pbhef_donor_particle2in(struct INPUT_STRUCT_NAME *in, int i, int loo
     in->Power = pbhef_donor_power(i);
     in->Timebin = P[i].TimeBin;
     in->WeightSum = pbhef_donor_weight_sum(i);
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     double heff = P[i].HsmlPBH / P[i].NumNgbPBH; in->V_i = heff*heff*heff;
 #endif
 }
@@ -757,7 +759,7 @@ static struct OUTPUT_STRUCT_NAME
 {
     MyDouble RateCoupled; /* rate that actually landed on the gas, for the budget report */
     int MaxTimebin;       /* largest bin this donor may take, from its receivers */
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     MyDouble AreaSum;     /* weighting pass only: the sum the shares are normalised by */
 #endif
 }
@@ -766,7 +768,7 @@ static struct OUTPUT_STRUCT_NAME
 /*! nothing needs to go back onto the DM particle itself except the weight sum: just accumulate the budget */
 static void pbhef_donor_out2particle(struct OUTPUT_STRUCT_NAME *out, int i, int mode, int loop_iteration)
 {
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     if(loop_iteration == 0) {ASSIGN_ADD(P[i].AreaSumPBH, out->AreaSum, mode); return;}
 #endif
     #pragma omp atomic
@@ -784,7 +786,7 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
     struct INPUT_STRUCT_NAME local; struct OUTPUT_STRUCT_NAME out; memset(&out, 0, sizeof(struct OUTPUT_STRUCT_NAME));
     out.MaxTimebin = TIMEBINS;
     if(mode == 0) {pbhef_donor_particle2in(&local, target, loop_iteration);} else {local = DATAGET_NAME[target];}
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     depositing = (loop_iteration > 0); /* the pass before it only builds the normalisation */
 #endif
     if(local.Power <= 0 || local.HsmlPBH <= 0 || (depositing && local.WeightSum <= 0))
@@ -810,7 +812,7 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                 if(r2 < h2) /* same condition as the density loop, so the mass-weighted sum is DensityPBH */
                 {
                     r = sqrt(r2); u = r * hinv;
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS /* solid angle of the effective face between the two, as mechanical_fb.c builds it */
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE /* solid angle of the effective face between the two, as mechanical_fb.c builds it */
                     double hinv_j = 1./PPP[j].Hsml, hinv3_j = hinv_j*hinv_j*hinv_j, hinv4_j = hinv_j*hinv3_j;
                     double wk_j = 0, dwk_j = 0, u_j = r * hinv_j, V_j = P[j].Mass / SphP[j].Density;
                     kernel_main(u, hinv3, hinv4, &wk, &dwk, 1); /* 1: only dwk is needed */
@@ -822,7 +824,7 @@ int pbhef_donor_evaluate(int target, int mode, int *exportflag, int *exportnodec
                     double w_j = P[j].Mass * wk;
 #endif
                     if(w_j <= 0 || isnan(w_j)) {continue;}
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
                     if(!depositing) {out.AreaSum += w_j; continue;}
 #endif
 
@@ -915,7 +917,7 @@ void pbhef_donor_feedback(void)
        ones, since an active donor also feeds sleeping receivers */
     for(i = 0; i < N_gas; i++) {for(b = first_slot; b < TIMEBINS; b++) {if(TimeBinActive[b]) {SphP[i].PBHEF_DtuBin[b] = 0;}}}
 
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     pbhef_donor_loop(0); /* the solid-angle weights have no closed-form sum, so total them first */
 #endif
     pbhef_donor_loop(1);

@@ -223,8 +223,15 @@
 #if (PBHEF < 1) || (PBHEF > 2)
 #error "PBHEF must be set to 1 (receiver-based) or 2 (donor-based)"
 #endif
-#if (PBHEF != 2) && (defined(PBHEF_SOLID_ANGLE_WEIGHTS) || defined(PBHEF_LIMIT_DM_TIMESTEP))
-#error "PBHEF_SOLID_ANGLE_WEIGHTS and PBHEF_LIMIT_DM_TIMESTEP only mean anything for PBHEF=2"
+#if (PBHEF != 2) && (defined(PBHEF_MASS_WEIGHTS) || defined(PBHEF_LIMIT_DM_TIMESTEP))
+#error "PBHEF_MASS_WEIGHTS and PBHEF_LIMIT_DM_TIMESTEP only mean anything for PBHEF=2"
+#endif
+/*! the donor shares its energy by the solid angle each gas neighbour subtends (List et al. eq. 6),
+    which is what the receiver method effectively weights by and what the paper itself defaults to.
+    PBHEF_MASS_WEIGHTS selects their eq. 5 instead. Only this line decides which; everything below
+    tests the internal name, so the two choices never have to be kept in step by hand. */
+#if (PBHEF == 2) && !defined(PBHEF_MASS_WEIGHTS)
+#define PBHEF_WEIGH_BY_SOLID_ANGLE
 #endif
 #endif
 
@@ -2898,7 +2905,7 @@ extern ALIGN(32) struct particle_data
     MyFloat Particle_DivVelPBH; 		   /*!< PBH (DM) divergence of velocity */
 #if (PBHEF == 2)
     int PBHEF_MaxTimebin;              /*!< donor-based: largest timebin allowed, written by donors onto the gas they feed */
-#ifdef PBHEF_SOLID_ANGLE_WEIGHTS
+#ifdef PBHEF_WEIGH_BY_SOLID_ANGLE
     MyFloat AreaSumPBH;                /*!< donor-based: summed solid-angle weights of the gas neighbors, which normalise their shares */
 #endif
 #endif

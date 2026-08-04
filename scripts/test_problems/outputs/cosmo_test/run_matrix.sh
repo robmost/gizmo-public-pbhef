@@ -32,12 +32,12 @@ names=(mfm_base mfm_pbhef1 mfm_pbhef2_mass mfm_pbhef2_iso
        mfv_base mfv_pbhef1 mfv_pbhef2_mass mfv_pbhef2_iso)
 flags=("HYDRO_MESHLESS_FINITE_MASS"
        "HYDRO_MESHLESS_FINITE_MASS PBHEF=1"
+       "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_MASS_WEIGHTS"
        "HYDRO_MESHLESS_FINITE_MASS PBHEF=2"
-       "HYDRO_MESHLESS_FINITE_MASS PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS"
        "HYDRO_MESHLESS_FINITE_VOLUME"
        "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=1"
-       "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2"
-       "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2 PBHEF_SOLID_ANGLE_WEIGHTS")
+       "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2 PBHEF_MASS_WEIGHTS"
+       "HYDRO_MESHLESS_FINITE_VOLUME PBHEF=2")
 
 printf "%-18s %-5s %-7s %-9s %-9s %s\n" config rc steps finished nan "budget fraction"
 for i in "${!names[@]}"; do
